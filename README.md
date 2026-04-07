@@ -1,7 +1,12 @@
+<p align="center">
+  <!-- TODO: add logo -->
+  <img src="docs/assets/icon-512.png" alt="gazel logo" width="128" />
+</p>
+
 <h1 align="center">gazel</h1>
 
 <p align="center">
-  <strong>gazel</strong> — short for <strong>ga</strong>s <strong>zel</strong> (gazelle) — /ɡəˈzɛl/
+  <strong>gazel</strong> — short for <strong>ga</strong>s ga<strong>zel</strong>le — /ɡəˈzɛl/
 </p>
 
 <p align="center">
