@@ -1,0 +1,29 @@
+schema: spec-driven
+
+context: |
+  Rust/cargo single-crate HTTP service with an embedded SvelteKit frontend for tracking
+  personal fuel expenses, mileage, and efficiency. Shipped as a minimal Docker image with
+  rustfmt/clippy guardrails. Deploy via GHCR/release-please from protected main; run
+  `rustfmt`, `cargo clippy`, and `cargo test` locally before committing. Capture only delta
+  requirements (ADDED/MODIFIED/REMOVED) so `openspec/specs/` stays lean as the source of truth.
+
+rules:
+  proposal:
+    - "Pack intent, scope (in/out), and approach into the proposal, mention affected modules/APIs, and tie the plan back to project constraints."
+    - "Keep each change focused on one logical goal and name it descriptively so `openspec list` stays readable."
+    - "Prefer adding requirements to existing capabilities over creating new ones to keep the spec surface area manageable."
+  design:
+    - "Favor simplicity and minimal dependencies to preserve a small Docker image."
+    - "Document error handling, retry/backoff, and fallback behavior while explaining architecture decisions, trade-offs, and alternatives."
+    - "Leverage Rust's type system to enforce correctness and keep HTTP interactions explicit."
+  specs:
+    - "Describe deltas in ADDED/MODIFIED/REMOVED sections and never rewrite the full spec—refer to existing requirements when modifying."
+    - "Use RFC 2119 keywords (SHALL/MUST/SHOULD) and GIVEN/WHEN/THEN/AND scenarios to keep requirements testable."
+    - "Capabilities in specs need to pe put under a domain folder (like `core`, `ui`, `api` ..). The schema is specs/{domain}/{capability}/specs.md. A change can have more than one capability in more than  one domain."
+    - "Be aware that at this phase the specs are only created in the change proposal. NOT in the final specs yet."
+  tasks:
+    - "Create branches off main for the change; never merge or push to main. Not every change needs a branch."
+    - "Always write enough tests to cover new/modified functionality and edge cases before implementation."
+    - "Prioritize unit tests over integration tests. But when necessary do not hesitate to write integration tests to cover end-to-end behavior."
+    - "Include a final task to run `ui/npm run check`, `cargo fmt`, `cargo clippy`, and `cargo test` before archiving."
+    - "After implementing features, revisit README.md so it always reflects current important information for the end user. no implementation details. not every change needs a README update."
