@@ -24,11 +24,11 @@ Fuel expense and mileage tracker — the gazel remembers every drop so you don't
 ### Docker run
 
 ```bash
-docker run -p 4100:4100 -v gazel-data:/data \
+docker run -p 4110:4110 -v gazel-data:/data \
   ghcr.io/simplyroba/gazel:latest
 ```
 
-Open `http://localhost:4100`. Data is persisted in the `gazel-data` volume.
+Open `http://localhost:4110`. Data is persisted in the `gazel-data` volume.
 
 ### Docker Compose
 

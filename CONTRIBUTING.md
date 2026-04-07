@@ -24,7 +24,7 @@ npm run dev --prefix ui -- --host
 GAZEL_DB_PATH=/tmp/gazel.db SKIP_UI_BUILD=1 cargo watch -x run
 ```
 
-Open `http://localhost:5173` (or the network URL printed by Vite for phone testing). Vite proxies `/api` and `/health` to the Rust backend on port 4100.
+Open `http://localhost:5173` (or the network URL printed by Vite for phone testing). Vite proxies `/api` and `/health` to the Rust backend on port 4110.
 
 `SKIP_UI_BUILD=1` tells `build.rs` to skip the SvelteKit build so Rust recompiles fast. `cargo-watch` is installed in the devcontainer automatically.
 

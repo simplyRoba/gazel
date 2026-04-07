@@ -12,8 +12,8 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       proxy: {
-        "/api": "http://localhost:4100",
-        "/health": "http://localhost:4100",
+        "/api": "http://localhost:4110",
+        "/health": "http://localhost:4110",
       },
     },
   };
