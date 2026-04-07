@@ -1,0 +1,47 @@
+{
+  "name": "rust-node-opencode-docker",
+  "build": {
+    "dockerfile": "Dockerfile"
+  },
+  "features": {
+    // Node LTS installed via devcontainer feature
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts"
+    },
+    // Rust stable + rust-analyzer installed via devcontainer feature
+    "ghcr.io/devcontainers/features/rust:1": {
+      "version": "stable",
+      "components": "rust-analyzer",
+      "profile": "default"
+    },
+    // Docker CLI installed; dind=true to enable Docker-in-Docker
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "dind": true
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "rust-lang.rust-analyzer",
+        "github.vscode-github-actions",
+        "svelte.svelte-vscode",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "tamasfe.even-better-toml",
+        "redhat.vscode-yaml"
+      ]
+    }
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "OPENSPEC_TELEMETRY": "0",
+    "DO_NOT_TRACK": "1"
+  },
+  // Install global npm tools, Playwright chromium browser, starship, and cargo-watch after creation.
+  // System deps for Chromium are already in the Docker image so only the browser binary is needed.
+  // The browser install must use the Playwright CLI bundled inside @playwright/mcp so that the
+  // browser revision matches the version the MCP server expects at runtime.
+  "postCreateCommand": "npm install -g npm opencode-ai @fission-ai/openspec @playwright/mcp && $(npm root -g)/@playwright/mcp/node_modules/.bin/playwright install chromium && echo 'eval \"$(starship init bash)\"' >> ~/.bashrc && cargo install cargo-watch",
+  // Refresh global npm tools and re-sync the Playwright browser on every container start
+  "postStartCommand": "npm install -g npm opencode-ai @fission-ai/openspec @playwright/mcp && $(npm root -g)/@playwright/mcp/node_modules/.bin/playwright install chromium"
+}
