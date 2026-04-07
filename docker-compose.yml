@@ -1,0 +1,10 @@
+services:
+  gazel:
+    image: ghcr.io/simplyroba/gazel:latest
+    ports:
+      - "4110:4110"
+    volumes:
+      - gazel-data:/data
+
+volumes:
+  gazel-data:

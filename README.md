@@ -40,7 +40,11 @@ docker compose up -d
 
 ## Configuration
 
-<!-- TODO: define configuration environment variables -->
+| Variable | Default | Description |
+| --- | --- | --- |
+| `GAZEL_PORT` | `4110` | HTTP server listen port. |
+| `GAZEL_DB_PATH` | `/data/gazel.db` | Filesystem path to the SQLite database. |
+| `GAZEL_LOG_LEVEL` | `info` | `tracing` level filter for logs. |
 
 ## Security
 
