@@ -1,0 +1,55 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    commit-message:
+      prefix: "fix(deps): "
+    groups:
+      tokio:
+        patterns:
+          - "tokio"
+          - "tokio-stream"
+      serde:
+        patterns:
+          - "serde"
+          - "serde_json"
+      tracing:
+        patterns:
+          - "tracing"
+          - "tracing-subscriber"
+  - package-ecosystem: "npm"
+    directory: "/ui"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    commit-message:
+      prefix: "fix(deps): "
+    groups:
+      eslint:
+        patterns:
+          - "eslint"
+          - "@eslint/*"
+          - "eslint-*"
+          - "typescript-eslint"
+      svelte:
+        patterns:
+          - "svelte"
+          - "@sveltejs/*"
+          - "svelte-check"
+      prettier:
+        patterns:
+          - "prettier"
+          - "prettier-*"
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+      time: "09:00"
+      timezone: "Europe/Berlin"
+    commit-message:
+      prefix: "fix(ci): "
