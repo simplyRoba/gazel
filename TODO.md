@@ -70,22 +70,22 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 > Backend CRUD for vehicles. The core entity everything else attaches to.
 
-- [ ] `vehicles` table migration (id, name, make, model, year, fuel_type,
+- [x] `vehicles` table migration (id, name, make, model, year, fuel_type,
       notes, created_at, updated_at)
       -- flowl `migrations/`: timestamp-prefixed, append-only pattern
-- [ ] Separate `VehicleRow` (DB) and `Vehicle` (API response) types with `From` impl
+- [x] Separate `VehicleRow` (DB) and `Vehicle` (API response) types with `From` impl
       -- flowl handler pattern: `PlantRow` -> `Plant` conversion for computed fields
-- [ ] Shared SQL fragment as `const`
+- [x] Shared SQL fragment as `const`
       -- flowl `src/api/plants.rs`: `PLANT_SELECT` pattern
-- [ ] `GET /api/vehicles` -- list all
-- [ ] `GET /api/vehicles/:id` -- single vehicle
-- [ ] `POST /api/vehicles` -- create (validate required fields, return `201 Created`)
+- [x] `GET /api/vehicles` -- list all
+- [x] `GET /api/vehicles/:id` -- single vehicle
+- [x] `POST /api/vehicles` -- create (validate required fields, return `201 Created`)
       -- flowl handler pattern: boundary validation functions, `(StatusCode::CREATED, Json<T>)`
-- [ ] `PUT /api/vehicles/:id` -- full update
-- [ ] `PATCH /api/vehicles/:id` -- partial update with `Option<Option<T>>` for nullable fields
+- [x] `PUT /api/vehicles/:id` -- full update
+- [x] `PATCH /api/vehicles/:id` -- partial update with `Option<Option<T>>` for nullable fields
       -- flowl `src/api/plants.rs`: `deserialize_nullable` for absent-vs-null-vs-value semantics
-- [ ] `DELETE /api/vehicles/:id` -- delete (cascade fill-ups or reject if has data?)
-- [ ] Integration tests for all endpoints
+- [x] `DELETE /api/vehicles/:id` -- delete (cascade fill-ups or reject if has data?)
+- [x] Integration tests for all endpoints
       -- flowl `tests/plants.rs`: oneshot pattern, assert status first then JSON fields
 
 ## 5. Vehicle management UI
