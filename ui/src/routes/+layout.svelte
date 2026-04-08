@@ -1,6 +1,7 @@
 <script lang="ts">
   import "$lib/styles/tokens.css";
   import "$lib/styles/reset.css";
+  import "$lib/styles/corner.css";
   import "$lib/styles/buttons.css";
   import "$lib/styles/inputs.css";
   import "$lib/styles/chips.css";
@@ -43,12 +44,20 @@
         <Logo size={36} />
       </div>
 
-      <button class="sidebar-cta" onclick={handleCta}>
+      <button
+        class="sidebar-cta corner-tri corner-tri-sm"
+        style="--_tri-color: var(--color-text-inverse)"
+        onclick={handleCta}
+      >
         <Plus size={20} />
         <span class="cta-label">Fill-up</span>
       </button>
 
-      <a href={resolve("/")} class="nav-item" class:active={isActive("/")}>
+      <a
+        href={resolve("/")}
+        class="nav-item corner-tri-hover corner-tri-sm"
+        class:active={isActive("/")}
+      >
         <LayoutDashboard size={20} />
         <span class="nav-label">Dashboard</span>
       </a>
@@ -57,7 +66,7 @@
 
       <a
         href={resolve("/settings")}
-        class="nav-item"
+        class="nav-item corner-tri-hover corner-tri-sm"
         class:active={isActive("/settings")}
       >
         <Settings size={20} />
@@ -149,30 +158,10 @@
     font-weight: var(--font-weight-medium);
     box-shadow: var(--shadow-sm);
     transition: background var(--transition-fast);
-    position: relative;
-    overflow: hidden;
-  }
-
-  .sidebar-cta::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
-    border-color: transparent var(--color-text-inverse) transparent transparent;
-    transition: border-width var(--transition-fast);
   }
 
   .sidebar-cta:hover {
     background: var(--color-accent-hover);
-  }
-
-  .sidebar-cta:hover::after {
-    border-width: 0 calc(var(--corner-tri-sm) + 3px)
-      calc(var(--corner-tri-sm) + 3px) 0;
   }
 
   .cta-label {
@@ -201,33 +190,6 @@
   .nav-item.active {
     background: var(--color-accent-subtle);
     color: var(--color-accent-text);
-  }
-
-  /* Corner triangle on sidebar nav items only (not mobile bottom bar) */
-  .sidebar .nav-item {
-    position: relative;
-    overflow: hidden;
-  }
-
-  .sidebar .nav-item::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 0;
-    border-color: transparent var(--color-accent) transparent transparent;
-    transition: border-width var(--transition-fast);
-  }
-
-  .sidebar .nav-item:hover::after {
-    border-width: 0 8px 8px 0;
-  }
-
-  .sidebar .nav-item.active::after {
-    border-width: 0 8px 8px 0;
   }
 
   .sidebar .nav-label {

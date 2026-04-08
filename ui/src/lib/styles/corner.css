@@ -1,0 +1,83 @@
+/* ============================================================
+   Corner Triangle — Brand Motif
+   ============================================================
+   The defining visual element of gazel. A small accent-colored
+   triangle in the top-right corner, referencing the triangular
+   logo. Apply to any element via utility classes.
+
+   Usage:
+     <div class="corner-tri">always visible, grows on hover</div>
+     <button class="corner-tri-hover">appears on hover only</button>
+
+   Customize per-element:
+     --_tri-color: var(--color-accent);   (triangle fill)
+     --_tri-size:  var(--corner-tri-md);  (triangle size)
+
+   Sizes: corner-tri-sm (10px), corner-tri-md (14px), corner-tri-lg (20px)
+   ============================================================ */
+
+/* ── Always-visible triangle ──────────────────────────── */
+
+.corner-tri {
+  position: relative;
+  overflow: hidden;
+}
+
+.corner-tri::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 var(--_tri-size, var(--corner-tri-md))
+    var(--_tri-size, var(--corner-tri-md)) 0;
+  border-color: transparent var(--_tri-color, var(--color-accent)) transparent
+    transparent;
+  transition: border-width var(--transition-fast);
+  pointer-events: none;
+}
+
+.corner-tri:hover::after {
+  border-width: 0 calc(var(--_tri-size, var(--corner-tri-md)) + 4px)
+    calc(var(--_tri-size, var(--corner-tri-md)) + 4px) 0;
+}
+
+/* ── Hover-only triangle ──────────────────────────────── */
+
+.corner-tri-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.corner-tri-hover::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0;
+  border-color: transparent var(--_tri-color, var(--color-accent)) transparent
+    transparent;
+  transition: border-width var(--transition-fast);
+  pointer-events: none;
+}
+
+.corner-tri-hover:hover::after,
+.corner-tri-hover.active::after {
+  border-width: 0 var(--_tri-size, var(--corner-tri-sm))
+    var(--_tri-size, var(--corner-tri-sm)) 0;
+}
+
+/* ── Size overrides ───────────────────────────────────── */
+
+.corner-tri-sm {
+  --_tri-size: var(--corner-tri-sm);
+}
+
+.corner-tri-lg {
+  --_tri-size: var(--corner-tri-lg);
+}
