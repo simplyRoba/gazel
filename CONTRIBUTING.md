@@ -186,14 +186,75 @@ All sizes use `rem` for accessibility. Base is `16px`.
 | `--space-12` | `48px` | Page-level padding |
 | `--space-16` | `64px` | Major section breaks |
 
-### Radii
+### Chamfered Corners
+
+Instead of generic rounded corners, gazel uses **chamfered (clipped) corners** that
+reference the angular/triangular logo. This is the defining visual motif of the app.
 
 | Token | Value | Use |
 |---|---|---|
-| `--radius-sm` | `4px` | Inputs, small elements |
-| `--radius-md` | `8px` | Cards, modals |
-| `--radius-lg` | `12px` | Large containers |
-| `--radius-full` | `9999px` | Pills, avatars |
+| `--chamfer-sm` | `8px` | Small containers, badges |
+| `--chamfer-md` | `14px` | Cards, modals |
+| `--chamfer-lg` | `20px` | Hero sections, large containers |
+| `--radius-full` | `9999px` | Pills, CTA circle only |
+
+Apply chamfers via `clip-path` on the **top-right corner** (consistent placement):
+
+```css
+/* Card with chamfered top-right corner */
+.card {
+  clip-path: polygon(
+    0 0,
+    calc(100% - var(--chamfer-md)) 0,
+    100% var(--chamfer-md),
+    100% 100%,
+    0 100%
+  );
+}
+```
+
+**Rules:**
+- Cards, modals, and containers: chamfered top-right corner
+- Buttons and inputs: **sharp rectangles** (no radius, no chamfer)
+- Only `--radius-full` for circular elements (CTA button, avatars, pills)
+- Never use `border-radius` on cards — always `clip-path` chamfer
+
+### Triangle Accent Markers
+
+Small triangular motifs used as active-state indicators and section accents.
+Implemented via CSS borders (zero-width trick) or inline SVG.
+
+**Usage:**
+- Active nav item: small triangle pointing right (sidebar) or up (bottom bar)
+- Section headers: small triangular bullet before the label
+- Dividers: thin accent line with a triangle notch
+
+```css
+/* Triangle marker via CSS border trick */
+.marker::before {
+  content: '';
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--color-accent);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+}
+```
+
+### Data Treatment
+
+Stats and numbers are the hero of a fuel tracking app. They get special treatment:
+
+| Token | Value | Use |
+|---|---|---|
+| `--font-stat` | `2.25rem` (36px) | Large stat values (MPG, cost) |
+| `--font-stat-weight` | `700` | Bold weight for stat numbers |
+
+**Rules:**
+- Stat values use `--font-stat` + `--color-accent-text`
+- Stat labels use `--font-xs` + `--color-text-secondary`
+- Stats are always paired: value above, label below
+- On mobile, stats can flow horizontally in a compact row
 
 ### Shadows
 
@@ -215,3 +276,15 @@ Use `transition-fast` for micro-interactions (hover, focus).
 Use `transition-normal` for visibility changes (show/hide).
 Use `transition-slow` for layout shifts (collapse/expand).
 No decorative animations.
+
+### Design Language Summary
+
+| Element | Treatment |
+|---|---|
+| **Cards, modals** | Chamfered top-right corner via `clip-path` |
+| **Buttons, inputs** | Sharp rectangles, no radius |
+| **CTA, pills** | Full circle (`--radius-full`) |
+| **Active nav** | Triangle accent marker |
+| **Stat values** | Oversized (`--font-stat`), accent-colored, bold |
+| **Dividers** | Thin accent lines, optional triangle notch |
+| **Corners** | Never generic `border-radius` on containers |

@@ -50,12 +50,25 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* ── Radii ───────────────────────────────────────────── */
+  /* ── Chamfer (angular corners — references the triangular logo) ── */
+  /* Use clip-path to cut corners instead of border-radius.
+     Cards, modals, and containers use chamfered top-right corner.
+     Buttons and inputs stay sharp (no radius, no chamfer). */
 
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-full: 9999px;
+  --chamfer-sm: 8px;
+  --chamfer-md: 14px;
+  --chamfer-lg: 20px;
+  --radius-full: 9999px; /* pills, avatars, CTA circle only */
+
+  /* ── Data treatment ──────────────────────────────────── */
+  /* Stats and numbers are the hero — oversized, accent-colored. */
+
+  --font-stat: 2.25rem;
+  --font-stat-weight: 700;
+
+  /* ── Triangle accent ─────────────────────────────────── */
+  /* Small triangular motifs for active states and headers.
+     Implemented via CSS borders or inline SVG, not a token. */
 
   /* ── Transitions ─────────────────────────────────────── */
 

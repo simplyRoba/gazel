@@ -83,13 +83,36 @@
       margin-top: 2px;
     }
 
+    /* Chamfer utility */
+    .chamfer-sm {
+      clip-path: polygon(0 0, calc(100% - var(--chamfer-sm)) 0, 100% var(--chamfer-sm), 100% 100%, 0 100%);
+    }
+    .chamfer-md {
+      clip-path: polygon(0 0, calc(100% - var(--chamfer-md)) 0, 100% var(--chamfer-md), 100% 100%, 0 100%);
+    }
+    .chamfer-lg {
+      clip-path: polygon(0 0, calc(100% - var(--chamfer-lg)) 0, 100% var(--chamfer-lg), 100% 100%, 0 100%);
+    }
+
+    /* Triangle marker */
+    .tri-marker::before {
+      content: '';
+      display: inline-block;
+      width: 0;
+      height: 0;
+      border-left: 5px solid var(--color-accent);
+      border-top: 4px solid transparent;
+      border-bottom: 4px solid transparent;
+      margin-right: var(--space-2);
+    }
+
     /* Type scale */
     .type-sample {
       margin-bottom: var(--space-4);
       padding: var(--space-3);
       background: var(--color-bg-raised);
-      border-radius: var(--radius-md);
       border: 1px solid var(--color-border-subtle);
+      clip-path: polygon(0 0, calc(100% - var(--chamfer-sm)) 0, 100% var(--chamfer-sm), 100% 100%, 0 100%);
     }
     .type-sample .meta {
       font-size: var(--font-xs);
@@ -109,7 +132,6 @@
       height: 24px;
       background: var(--color-accent-subtle);
       border: 1px solid var(--color-accent);
-      border-radius: var(--radius-sm);
     }
     .spacing-label {
       font-size: var(--font-xs);
@@ -118,14 +140,14 @@
       min-width: 100px;
     }
 
-    /* Radius demo */
-    .radius-grid {
+    /* Chamfer demo */
+    .chamfer-grid {
       display: flex;
       gap: var(--space-4);
       flex-wrap: wrap;
     }
-    .radius-box {
-      width: 80px;
+    .chamfer-box {
+      width: 100px;
       height: 80px;
       background: var(--color-accent-subtle);
       border: 2px solid var(--color-accent);
@@ -147,7 +169,7 @@
       width: 120px;
       height: 80px;
       background: var(--color-bg-raised);
-      border-radius: var(--radius-md);
+      clip-path: polygon(0 0, calc(100% - var(--chamfer-sm)) 0, 100% var(--chamfer-sm), 100% 100%, 0 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -160,7 +182,7 @@
     .card {
       background: var(--color-bg-raised);
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
+      clip-path: polygon(0 0, calc(100% - var(--chamfer-md)) 0, 100% var(--chamfer-md), 100% 100%, 0 100%);
       padding: var(--space-4);
       box-shadow: var(--shadow-md);
     }
@@ -183,7 +205,6 @@
       font-family: var(--font-family);
       font-size: var(--font-sm);
       font-weight: var(--font-weight-medium);
-      border-radius: var(--radius-sm);
       border: none;
       cursor: pointer;
       transition: background var(--transition-fast);
@@ -209,7 +230,6 @@
       font-family: var(--font-family);
       font-size: var(--font-md);
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-sm);
       background: var(--color-bg-sunken);
       color: var(--color-text);
       width: 100%;
@@ -242,9 +262,10 @@
     .badge-error { background: var(--color-bg-sunken); color: var(--color-error); }
 
     .stat-value {
-      font-size: var(--font-2xl);
-      font-weight: var(--font-weight-bold);
+      font-size: var(--font-stat);
+      font-weight: var(--font-stat-weight);
       color: var(--color-accent-text);
+      line-height: 1.1;
     }
     .stat-label {
       font-size: var(--font-sm);
@@ -354,14 +375,26 @@
     <div class="spacing-row"><div class="spacing-label">--space-16 · 64px</div><div class="spacing-bar" style="width:64px"></div></div>
   </section>
 
-  <!-- ── Radii ──────────────────────────────────── -->
+  <!-- ── Chamfered Corners ───────────────────────── -->
   <section>
-    <h2>Border Radii</h2>
-    <div class="radius-grid">
-      <div class="radius-box" style="border-radius:var(--radius-sm)">sm · 4px</div>
-      <div class="radius-box" style="border-radius:var(--radius-md)">md · 8px</div>
-      <div class="radius-box" style="border-radius:var(--radius-lg)">lg · 12px</div>
-      <div class="radius-box" style="border-radius:var(--radius-full)">full</div>
+    <h2>Chamfered Corners</h2>
+    <p style="font-size:var(--font-sm);color:var(--color-text-secondary);margin-bottom:var(--space-4)">
+      Angular clipped top-right corner instead of generic rounded. References the triangular logo.
+    </p>
+    <div class="chamfer-grid">
+      <div class="chamfer-box chamfer-sm">sm · 8px</div>
+      <div class="chamfer-box chamfer-md">md · 14px</div>
+      <div class="chamfer-box chamfer-lg">lg · 20px</div>
+    </div>
+  </section>
+
+  <!-- ── Triangle Accents ──────────────────────────── -->
+  <section>
+    <h2>Triangle Accents</h2>
+    <div style="display:flex;flex-direction:column;gap:var(--space-3)">
+      <div class="tri-marker" style="font-size:var(--font-sm);font-weight:var(--font-weight-semibold)">Active nav item</div>
+      <div class="tri-marker" style="font-size:var(--font-sm);font-weight:var(--font-weight-semibold)">Section heading</div>
+      <div class="tri-marker" style="font-size:var(--font-sm)">List item with marker</div>
     </div>
   </section>
 
@@ -410,26 +443,26 @@
       </div>
     </div>
 
-    <h3>Cards</h3>
+    <h3 class="tri-marker">Vehicle Cards</h3>
     <div class="mockup-grid">
       <div class="card">
         <div class="card-title">2024 Honda Civic</div>
-        <div class="card-subtitle">Gasoline · 12,450 mi</div>
+        <div class="card-subtitle">Benzin · 20.040 km</div>
         <hr class="divider" />
         <div style="display:flex;justify-content:space-between">
-          <div><div class="stat-value">32.4</div><div class="stat-label">MPG avg</div></div>
-          <div><div class="stat-value">$0.12</div><div class="stat-label">per mile</div></div>
-          <div><div class="stat-value">$284</div><div class="stat-label">this month</div></div>
+          <div><div class="stat-value">6,8</div><div class="stat-label">L/100km</div></div>
+          <div><div class="stat-value">0,11 €</div><div class="stat-label">pro km</div></div>
+          <div><div class="stat-value">248 €</div><div class="stat-label">Monat</div></div>
         </div>
       </div>
       <div class="card">
         <div class="card-title">2021 Toyota Tacoma</div>
-        <div class="card-subtitle">Gasoline · 38,920 mi</div>
+        <div class="card-subtitle">Diesel · 62.600 km</div>
         <hr class="divider" />
         <div style="display:flex;justify-content:space-between">
-          <div><div class="stat-value">21.8</div><div class="stat-label">MPG avg</div></div>
-          <div><div class="stat-value">$0.18</div><div class="stat-label">per mile</div></div>
-          <div><div class="stat-value">$412</div><div class="stat-label">this month</div></div>
+          <div><div class="stat-value">7,9</div><div class="stat-label">L/100km</div></div>
+          <div><div class="stat-value">0,14 €</div><div class="stat-label">pro km</div></div>
+          <div><div class="stat-value">385 €</div><div class="stat-label">Monat</div></div>
         </div>
       </div>
     </div>
