@@ -18,11 +18,24 @@
   <img src="https://img.shields.io/github/stars/simplyRoba/gazel" alt="GitHub Repo stars" />
 </p>
 
-Fuel expense and mileage tracker — the gazel remembers every drop so you don't have to.
+A lightweight, self-hosted fuel expense and mileage tracker. Log fill-ups, track fuel efficiency and costs across your vehicles, and spot trends over time — all from a single binary with no external dependencies.
+
+The gazel remembers every drop so you don't have to.
 
 ## Features
 
-<!-- TODO: define features as they are implemented -->
+<!-- TODO: add screenshots once UI is implemented -->
+
+- **Multi-vehicle tracking** — manage all your cars, motorcycles, and trucks in one place
+- **Fill-up logging** — record date, odometer, fuel amount, cost, and station
+- **Fuel efficiency** — automatic MPG / L/100km calculation between fill-ups
+- **Cost tracking** — cost per mile/km, monthly and yearly spend breakdowns
+- **Dashboard** — at-a-glance overview with summary stats and recent activity
+- **Charts** — visualize efficiency, cost, and fuel price trends over time
+- **Flexible units** — switch between imperial and metric, choose your currency
+- **Data portability** — export and import your data as JSON
+- **Light & dark theme** — follows your system preference, with manual override
+- **Single binary** — self-contained Rust service with embedded UI, just run it or use Docker
 
 ## Quick start
 
