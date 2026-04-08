@@ -92,16 +92,16 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 > Frontend for adding, viewing, editing, and deleting vehicles.
 
-- [ ] API client functions in `ui/src/lib/api.ts`
+- [x] API client functions in `ui/src/lib/api.ts`
       -- flowl `ui/src/lib/api.ts`: centralized `request()` helper, `ApiError` class with `status` + `code`
-- [ ] Vehicle store (`ui/src/lib/stores/vehicles.ts`) with Svelte 5 runes
+- [x] Vehicle store (`ui/src/lib/stores/vehicles.ts`) with Svelte 5 runes
       -- flowl `ui/src/lib/stores/plants.ts`: writable + async actions + error clearing + immutable updates
-- [ ] Vehicle list page (`/vehicles`) with cards showing name, make/model/year
-- [ ] Add vehicle form (modal or dedicated page)
-- [ ] Edit vehicle form
-- [ ] Delete vehicle with confirmation
-- [ ] Empty state when no vehicles exist ("Add your first vehicle")
-- [ ] Vitest tests for store and key components
+- [x] Vehicle list page (`/vehicles`) with cards showing name, make/model/year
+- [x] Add vehicle form (modal or dedicated page)
+- [x] Edit vehicle form
+- [x] Delete vehicle with confirmation
+- [x] Empty state when no vehicles exist ("Add your first vehicle")
+- [x] Vitest tests for store and key components
       -- flowl `ui/src/lib/stores/plants.test.ts`: mock API module, assert store values with `get()`
 
 ## 6. Fill-up API
