@@ -13,25 +13,25 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > Stand up the HTTP server, database, and configuration so every later chunk
 > has infrastructure to build on.
 
-- [ ] Add Axum, SQLx, rust-embed dependencies
+- [x] Add Axum, SQLx, rust-embed dependencies
       -- flowl `Cargo.toml`: deps, `[lints.clippy]` pedantic config, `[profile.release]` LTO/strip
-- [ ] Read config from env (`GAZEL_PORT`, `GAZEL_DB_PATH`, `GAZEL_LOG_LEVEL`)
+- [x] Read config from env (`GAZEL_PORT`, `GAZEL_DB_PATH`, `GAZEL_LOG_LEVEL`)
       -- flowl `src/config.rs`: `ConfigSource` trait for testable config, `parse_or` helper
-- [ ] Connect to SQLite and run migrations on startup
+- [x] Connect to SQLite and run migrations on startup
       -- flowl `src/db.rs`: WAL journal mode, busy timeout, `create_if_missing`, auto-create parent dirs
-- [ ] `GET /health` endpoint (returns 200 + version)
+- [x] `GET /health` endpoint (returns 200 + version)
       -- flowl `src/server.rs`: health check queries actual DB (`SELECT 1`)
-- [ ] Serve embedded SvelteKit SPA as fallback for non-API routes
+- [x] Serve embedded SvelteKit SPA as fallback for non-API routes
       -- flowl `src/embedded.rs`: rust-embed with exact-path-then-index.html fallback
-- [ ] Router with access log middleware and graceful shutdown
+- [x] Router with access log middleware and graceful shutdown
       -- flowl `src/server.rs`: `access_log` middleware (method, path, status, latency), shutdown on SIGINT/SIGTERM
-- [ ] `AppState` with `FromRef` for pool extraction
+- [x] `AppState` with `FromRef` for pool extraction
       -- flowl `src/state.rs`: `FromRef<AppState> for SqlitePool` so handlers extract just the pool
-- [ ] `ApiError` type with JSON `{ "code": string, "message": string }` responses
+- [x] `ApiError` type with JSON `{ "code": string, "message": string }` responses
       -- flowl `src/api/error.rs`: enum variants, `db_error()` helper, `JsonBody<T>` custom extractor
-- [ ] Integration test harness (`tests/common/mod.rs` with `test_app()`)
+- [x] Integration test harness (`tests/common/mod.rs` with `test_app()`)
       -- flowl `tests/common/mod.rs`: in-memory pool, `json_request()`, `body_json()` helpers
-- [ ] UI test bridge (`tests/ui.rs`)
+- [x] UI test bridge (`tests/ui.rs`)
       -- flowl `tests/ui.rs`: runs `npm test`, auto-installs node_modules
 
 ## 2. Design system
