@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.3.0](https://github.com/simplyRoba/gazel/compare/v0.2.0...v0.3.0) (2026-04-08)
+
+
+### Features
+
+* add CSS component classes — buttons, inputs, chips, badges, cards, skeletons with corner triangle motif ([3eca57f](https://github.com/simplyRoba/gazel/commit/3eca57f1549be6780a660cf465c7327c93a0b29d))
+* add ModalDialog and toast notifications — replace inline delete, wire error toasts to vehicle store ([4dd121f](https://github.com/simplyRoba/gazel/commit/4dd121f188cf04fe331d697bf5ee8f81b4a1aa22))
+* add vehicle CRUD API — migration, endpoints, validation, PATCH semantics, 22 integration tests ([c3360bb](https://github.com/simplyRoba/gazel/commit/c3360bbf291142ece3d5f7959c5906af17e26383))
+* add vehicle management UI — API client, store, form, settings section, dashboard empty state ([327f9dd](https://github.com/simplyRoba/gazel/commit/327f9dd12400b59e54a28207c215910b30ad69e0))
+* diamond CTA on mobile bottom bar, remove hover/active background on mobile nav ([0e14182](https://github.com/simplyRoba/gazel/commit/0e141825a32c2d7cdf43049817e24c3975450935))
+* refine design language — chamfered corners, triangle accent markers, bold data treatment ([14bcb2b](https://github.com/simplyRoba/gazel/commit/14bcb2b34a7aff0b0a61d241f7e9c343eb85ce51))
+* replace chamfered corners with corner triangle motif, add monospace for numbers ([ba883b6](https://github.com/simplyRoba/gazel/commit/ba883b6192da9020635485d6067911d53e1f6a32))
+* update logos — sharp corners with accent triangle motif, regenerate all PNGs ([2c2a89e](https://github.com/simplyRoba/gazel/commit/2c2a89e64ddbb47effcc6edfd037c89d55a63724))
+
+
+### Bug Fixes
+
+* add corner triangles to chips, sidebar nav items, form inputs, and sidebar CTA ([c850fa3](https://github.com/simplyRoba/gazel/commit/c850fa3a8c15c1c3b3213ae34e6c61251674903c))
+* apply design language consistently — corner triangles, sharp edges, monospace numbers, chips across all mockups ([20e3770](https://github.com/simplyRoba/gazel/commit/20e377060336f0366b47d6423b55269c24a80d89))
+* apply design language to real app — corner triangles on nav/CTA, inline logo mark in mockup ([59570f9](https://github.com/simplyRoba/gazel/commit/59570f9875922cc7ca2d8625ed30969bd15ce8e1))
+
 ## [0.2.0](https://github.com/simplyRoba/gazel/compare/v0.1.0...v0.2.0) (2026-04-08)
 
 
