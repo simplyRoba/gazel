@@ -26,7 +26,6 @@
       right: var(--space-4);
       background: var(--color-bg-raised);
       border: 1px solid var(--color-border);
-      border-radius: var(--radius-md);
       padding: var(--space-2) var(--space-4);
       font-family: var(--font-family);
       font-size: var(--font-sm);
@@ -63,7 +62,6 @@
       gap: var(--space-3);
     }
     .swatch {
-      border-radius: var(--radius-md);
       overflow: hidden;
       border: 1px solid var(--color-border-subtle);
     }
@@ -115,9 +113,17 @@
     .corner-tri-lg:hover::after {
       border-width: 0 calc(var(--corner-tri-lg) + 6px) calc(var(--corner-tri-lg) + 6px) 0;
     }
-    /* Buttons: triangle hidden by default, appears on hover */
+    /* Buttons: triangle hidden by default, appears on hover, uses --tri-color */
+    .corner-tri-hover { position: relative; overflow: hidden; }
     .corner-tri-hover::after {
-      border-width: 0 0 0 0;
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0;
+      border-color: transparent var(--tri-color, var(--color-accent)) transparent transparent;
+      transition: border-width var(--transition-fast);
     }
     .corner-tri-hover:hover::after {
       border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
@@ -238,17 +244,20 @@
     .btn-primary {
       background: var(--color-accent);
       color: var(--color-text-inverse);
+      --tri-color: var(--color-text-inverse);
     }
     .btn-primary:hover { background: var(--color-accent-hover); }
     .btn-secondary {
       background: var(--color-bg-sunken);
       color: var(--color-text);
       border: 1px solid var(--color-border);
+      --tri-color: var(--color-accent);
     }
     .btn-secondary:hover { background: var(--color-border-subtle); }
     .btn-danger {
       background: var(--color-error);
       color: var(--color-text-inverse);
+      --tri-color: var(--color-text-inverse);
     }
 
     .input {
@@ -280,12 +289,48 @@
       padding: 2px var(--space-2);
       font-size: var(--font-xs);
       font-weight: var(--font-weight-medium);
-      border-radius: var(--radius-full);
       background: var(--color-accent-subtle);
       color: var(--color-accent-text);
+      position: relative;
+      overflow: hidden;
     }
-    .badge-success { background: var(--color-bg-sunken); color: var(--color-success); }
-    .badge-error { background: var(--color-bg-sunken); color: var(--color-error); }
+    .badge::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 6px 6px 0;
+      border-color: transparent var(--color-accent) transparent transparent;
+    }
+    .badge-success {
+      background: var(--color-bg-sunken);
+      color: var(--color-success);
+    }
+    .badge-success::after { border-color: transparent var(--color-success) transparent transparent; }
+    .badge-error {
+      background: var(--color-bg-sunken);
+      color: var(--color-error);
+    }
+    .badge-error::after { border-color: transparent var(--color-error) transparent transparent; }
+
+    .chip {
+      display: inline-block;
+      padding: var(--space-1) var(--space-3);
+      font-size: var(--font-sm);
+      font-weight: var(--font-weight-medium);
+      border: 1px solid var(--color-border);
+      background: var(--color-bg-raised);
+      color: var(--color-text-secondary);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+    }
+    .chip:hover { border-color: var(--color-accent); }
+    .chip.active {
+      background: var(--color-accent);
+      color: var(--color-text-inverse);
+      border-color: var(--color-accent);
+    }
 
     .stat-value {
       font-size: var(--font-stat);
@@ -448,27 +493,37 @@
       <button class="btn btn-danger corner-tri corner-tri-hover">Delete</button>
     </div>
 
-    <h3>Badges</h3>
+    <h3 class="tri-marker">Badges</h3>
+    <p style="font-size:var(--font-xs);color:var(--color-text-tertiary);margin-bottom:var(--space-3)">Sharp with tiny corner triangle matching the badge color.</p>
     <div style="display:flex;gap:var(--space-2);margin-bottom:var(--space-6);flex-wrap:wrap">
-      <span class="badge">Gasoline</span>
+      <span class="badge">Benzin</span>
       <span class="badge">Diesel</span>
-      <span class="badge-success badge">Full tank</span>
-      <span class="badge-error badge">Missed</span>
+      <span class="badge badge-success">Vollgetankt</span>
+      <span class="badge badge-error">Verpasst</span>
     </div>
 
-    <h3>Form Inputs</h3>
+    <h3 class="tri-marker">Chips</h3>
+    <p style="font-size:var(--font-xs);color:var(--color-text-tertiary);margin-bottom:var(--space-3)">Sharp selectable chips for vehicle tabs, filters.</p>
+    <div style="display:flex;gap:var(--space-1);margin-bottom:var(--space-6);flex-wrap:wrap">
+      <span class="chip active">Honda Civic</span>
+      <span class="chip">Toyota Tacoma</span>
+      <span class="chip">Kawasaki Z400</span>
+    </div>
+
+    <h3 class="tri-marker">Form Inputs</h3>
+    <p style="font-size:var(--font-xs);color:var(--color-text-tertiary);margin-bottom:var(--space-3)">Sharp rectangles, no decoration. Focus highlights border.</p>
     <div style="max-width:360px;margin-bottom:var(--space-6)">
       <div class="form-group">
-        <label class="field-label">Odometer</label>
-        <input class="input" type="text" placeholder="e.g. 45,230 mi" />
+        <label class="field-label">Kilometerstand</label>
+        <input class="input" type="text" placeholder="z.B. 20.490" />
       </div>
       <div class="form-group">
-        <label class="field-label">Fuel amount</label>
-        <input class="input" type="text" placeholder="e.g. 14.2 gal" />
+        <label class="field-label">Menge</label>
+        <input class="input" type="text" placeholder="Liter" />
       </div>
       <div class="form-group">
-        <label class="field-label">Total cost</label>
-        <input class="input" type="text" placeholder="e.g. $52.40" />
+        <label class="field-label">Gesamtpreis</label>
+        <input class="input" type="text" placeholder="€" />
       </div>
     </div>
 
