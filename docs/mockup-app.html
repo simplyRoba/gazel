@@ -197,24 +197,24 @@
     }
     .bottom-bar .nav-item .label { display: block; }
 
-    /* Center CTA in bottom bar */
+    /* Center CTA in bottom bar — diamond (rotated square) */
     .bottom-cta {
-      width: 52px;
-      height: 52px;
-      border-radius: var(--radius-full);
+      width: 42px;
+      height: 42px;
       background: var(--color-accent);
       color: var(--color-text-inverse);
       border: none;
-      font-size: 26px;
+      font-size: 22px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      margin-top: -14px;
+      margin-top: -16px;
       box-shadow: var(--shadow-md);
+      transform: rotate(45deg);
       transition: background var(--transition-fast);
     }
-    .bottom-cta:hover { background: var(--color-accent-hover); }
+    .bottom-cta span { transform: rotate(-45deg); }
 
     /* ── Main content ───────────────────────────── */
     .content {
