@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FAF7F2"/>
+      <stop offset="100%" stop-color="#F0EBE3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background: light warm -->
+  <rect width="512" height="512" rx="80" ry="80" fill="url(#bg)"/>
+
+  <!-- HORN 1 (back) -->
+  <polygon points="202,69 289,133 300,131" fill="#A87538"/>
+
+  <!-- HORN 2 (front) -->
+  <polygon points="208,67 294,121 302,118" fill="#C08A45"/>
+
+  <!-- HEAD -->
+  <polygon points="301,135 335,182 290,160" fill="#C08A45"/>
+
+  <!-- NECK -->
+  <polygon points="289,165 358,200 282,257" fill="#A87538"/>
+
+  <!-- CHEST + FRONT LEG -->
+  <polygon points="358,204 315,399 282,261" fill="#A87538"/>
+
+  <!-- BACK + BACK LEG -->
+  <polygon points="276,262 143,248 171,400" fill="#8B6530"/>
+
+  <!-- TAIL -->
+  <polygon points="106,206 138,243 155,246" fill="#8B6530"/>
+
+</svg>
