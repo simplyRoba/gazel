@@ -270,6 +270,23 @@
       width: 100%;
       transition: border-color var(--transition-fast);
     }
+    .input-wrap {
+      position: relative;
+    }
+    .input-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 8px 8px 0;
+      border-color: transparent var(--color-border) transparent transparent;
+      transition: border-color var(--transition-fast);
+      pointer-events: none;
+    }
+    .input-wrap:focus-within::after {
+      border-color: transparent var(--color-accent) transparent transparent;
+    }
     .input:focus {
       outline: none;
       border-color: var(--color-accent);
@@ -323,14 +340,28 @@
       background: var(--color-bg-raised);
       color: var(--color-text-secondary);
       cursor: pointer;
+      position: relative;
+      overflow: hidden;
       transition: all var(--transition-fast);
     }
+    .chip::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 6px 6px 0;
+      border-color: transparent var(--color-border) transparent transparent;
+      transition: border-color var(--transition-fast), border-width var(--transition-fast);
+    }
     .chip:hover { border-color: var(--color-accent); }
+    .chip:hover::after { border-color: transparent var(--color-accent) transparent transparent; }
     .chip.active {
       background: var(--color-accent);
       color: var(--color-text-inverse);
       border-color: var(--color-accent);
     }
+    .chip.active::after { border-color: transparent var(--color-text-inverse) transparent transparent; }
 
     .stat-value {
       font-size: var(--font-stat);
@@ -511,19 +542,19 @@
     </div>
 
     <h3 class="tri-marker">Form Inputs</h3>
-    <p style="font-size:var(--font-xs);color:var(--color-text-tertiary);margin-bottom:var(--space-3)">Sharp rectangles, no decoration. Focus highlights border.</p>
+    <p style="font-size:var(--font-xs);color:var(--color-text-tertiary);margin-bottom:var(--space-3)">Sharp rectangles with corner triangle. Triangle highlights on focus.</p>
     <div style="max-width:360px;margin-bottom:var(--space-6)">
       <div class="form-group">
         <label class="field-label">Kilometerstand</label>
-        <input class="input" type="text" placeholder="z.B. 20.490" />
+        <div class="input-wrap"><input class="input" type="text" placeholder="z.B. 20.490" /></div>
       </div>
       <div class="form-group">
         <label class="field-label">Menge</label>
-        <input class="input" type="text" placeholder="Liter" />
+        <div class="input-wrap"><input class="input" type="text" placeholder="Liter" /></div>
       </div>
       <div class="form-group">
         <label class="field-label">Gesamtpreis</label>
-        <input class="input" type="text" placeholder="€" />
+        <div class="input-wrap"><input class="input" type="text" placeholder="€" /></div>
       </div>
     </div>
 

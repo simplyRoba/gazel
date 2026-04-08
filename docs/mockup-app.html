@@ -114,6 +114,27 @@
       background: var(--color-accent-subtle);
       color: var(--color-accent-text);
     }
+    /* Corner triangle on sidebar nav items only */
+    .sidebar .nav-item {
+      position: relative;
+      overflow: hidden;
+    }
+    .sidebar .nav-item::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0;
+      border-color: transparent var(--color-accent) transparent transparent;
+      transition: border-width var(--transition-fast);
+    }
+    .sidebar .nav-item:hover::after {
+      border-width: 0 8px 8px 0;
+    }
+    .sidebar .nav-item.active::after {
+      border-width: 0 8px 8px 0;
+    }
     .nav-item .icon { font-size: 20px; }
     .nav-item .label { display: none; }
     .sidebar .spacer { flex: 1; }
@@ -136,8 +157,23 @@
       gap: var(--space-2);
       transition: background var(--transition-fast);
       box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+    }
+    .sidebar-cta::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
+      border-color: transparent var(--color-text-inverse) transparent transparent;
+      transition: border-width var(--transition-fast);
     }
     .sidebar-cta:hover { background: var(--color-accent-hover); }
+    .sidebar-cta:hover::after {
+      border-width: 0 calc(var(--corner-tri-sm) + 3px) calc(var(--corner-tri-sm) + 3px) 0;
+    }
     .sidebar-cta .cta-label { display: none; }
 
     /* ── Bottom bar (mobile) ────────────────────── */
@@ -216,14 +252,28 @@
       background: var(--color-bg-raised);
       color: var(--color-text-secondary);
       cursor: pointer;
+      position: relative;
+      overflow: hidden;
       transition: all var(--transition-fast);
     }
+    .vehicle-tab::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 6px 6px 0;
+      border-color: transparent var(--color-border) transparent transparent;
+      transition: border-color var(--transition-fast);
+    }
     .vehicle-tab:hover { border-color: var(--color-accent); }
+    .vehicle-tab:hover::after { border-color: transparent var(--color-accent) transparent transparent; }
     .vehicle-tab.active {
       background: var(--color-accent);
       color: var(--color-text-inverse);
       border-color: var(--color-accent);
     }
+    .vehicle-tab.active::after { border-color: transparent var(--color-text-inverse) transparent transparent; }
 
     /* ── Stats row ──────────────────────────────── */
     .stats-row {
@@ -391,6 +441,23 @@
       font-weight: var(--font-weight-medium);
       color: var(--color-text-secondary);
       margin-bottom: var(--space-1);
+    }
+    .form-input-wrap {
+      position: relative;
+    }
+    .form-input-wrap::after {
+      content: '';
+      position: absolute;
+      top: 0; right: 0;
+      width: 0; height: 0;
+      border-style: solid;
+      border-width: 0 8px 8px 0;
+      border-color: transparent var(--color-border) transparent transparent;
+      transition: border-color var(--transition-fast);
+      pointer-events: none;
+    }
+    .form-input-wrap:focus-within::after {
+      border-color: transparent var(--color-accent) transparent transparent;
     }
     .form-input {
       width: 100%;
@@ -706,28 +773,28 @@
 
       <div class="form-group">
         <label class="form-label">Datum</label>
-        <input class="form-input" type="date" value="2026-04-08" />
+        <div class="form-input-wrap"><input class="form-input" type="date" value="2026-04-08" /></div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Kilometerstand</label>
-        <input class="form-input" type="text" placeholder="z.B. 20.490" />
+        <div class="form-input-wrap"><input class="form-input" type="text" placeholder="z.B. 20.490" /></div>
       </div>
 
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Menge</label>
-          <input class="form-input" type="text" placeholder="Liter" />
+          <div class="form-input-wrap"><input class="form-input" type="text" placeholder="Liter" /></div>
         </div>
         <div class="form-group">
           <label class="form-label">Gesamtpreis</label>
-          <input class="form-input" type="text" placeholder="€" />
+          <div class="form-input-wrap"><input class="form-input" type="text" placeholder="€" /></div>
         </div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Tankstelle</label>
-        <input class="form-input" type="text" placeholder="z.B. Aral — Hauptstraße" />
+        <div class="form-input-wrap"><input class="form-input" type="text" placeholder="z.B. Aral — Hauptstraße" /></div>
       </div>
 
       <div class="form-group">
@@ -739,7 +806,7 @@
 
       <div class="form-group">
         <label class="form-label">Notizen</label>
-        <input class="form-input" type="text" placeholder="Optional" />
+        <div class="form-input-wrap"><input class="form-input" type="text" placeholder="Optional" /></div>
       </div>
 
       <div class="form-actions">
