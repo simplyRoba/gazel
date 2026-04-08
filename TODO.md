@@ -40,19 +40,19 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > conventions all components will use. Gazelle-inspired: sleek, elegant,
 > minimal.
 
-- [ ] Color palette -- warm neutrals (sand, stone, charcoal) with a refined
+- [x] Color palette -- warm neutrals (sand, stone, charcoal) with a refined
       accent (amber/gold or warm copper). Light and dark variants.
-- [ ] Typography -- select a clean sans-serif (e.g., Inter or DM Sans), define
+- [x] Typography -- select a clean sans-serif (e.g., Inter or DM Sans), define
       type scale (xs through 2xl), weights, line heights
-- [ ] Spacing scale -- consistent 4px-base scale (4, 8, 12, 16, 24, 32, 48, 64)
-- [ ] Border radii, shadows, transitions
-- [ ] CSS custom properties file (`ui/src/lib/styles/tokens.css`) with all tokens
-- [ ] Color mode -- CSS custom properties that swap via `[data-theme]` attribute,
+- [x] Spacing scale -- consistent 4px-base scale (4, 8, 12, 16, 24, 32, 48, 64)
+- [x] Border radii, shadows, transitions
+- [x] CSS custom properties file (`ui/src/lib/styles/tokens.css`) with all tokens
+- [x] Color mode -- CSS custom properties that swap via `[data-theme]` attribute,
       default to system preference (`prefers-color-scheme`)
 - [x] Logo -- design a minimal, recognizable mark inspired by a gazelle silhouette.
       Produce SVG source, favicon (16/32/48), app icons (192/512 PNG), and
       OpenGraph image. Place in `docs/assets/` and wire into UI.
-- [ ] Document palette, type scale, and spacing in `CONTRIBUTING.md` design section
+- [x] Document palette, type scale, and spacing in `CONTRIBUTING.md` design section
 
 ## 3. App shell and layout
 
