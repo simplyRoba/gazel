@@ -2,6 +2,7 @@ use axum::Json;
 use axum::extract::rejection::JsonRejection;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
+use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use serde_json::json;
 
@@ -42,8 +43,32 @@ fn default_message(code: &str) -> &'static str {
     match code {
         "INTERNAL_ERROR" => "An unexpected error occurred.",
         "INVALID_REQUEST_BODY" => "The request body is missing or malformed.",
+        "VEHICLE_NOT_FOUND" => "Vehicle not found.",
+        "VEHICLE_NAME_REQUIRED" => "Vehicle name is required.",
+        "VEHICLE_INVALID_FUEL_TYPE" => "Invalid fuel type.",
+        "VEHICLE_INVALID_YEAR" => "Invalid year.",
+        "VEHICLE_HAS_FILLUPS" => "Cannot delete vehicle with existing fill-ups.",
         _ => "An error occurred.",
     }
+}
+
+/// Deserialize a nullable field for PATCH semantics.
+///
+/// - Field absent from JSON → `None` (keep current value)
+/// - Field explicitly `null` → `Some(None)` (clear to NULL)
+/// - Field has a value → `Some(Some(value))`
+///
+/// # Errors
+///
+/// Returns a serde error if the value cannot be deserialized as `Option<T>`.
+#[allow(clippy::option_option)]
+pub fn deserialize_nullable<'de, T, D>(deserializer: D) -> Result<Option<Option<T>>, D::Error>
+where
+    T: serde::Deserialize<'de>,
+    D: serde::Deserializer<'de>,
+{
+    let value = Option::<T>::deserialize(deserializer)?;
+    Ok(Some(value))
 }
 
 /// Convert a `sqlx::Error` into an `ApiError::InternalError`, logging the
