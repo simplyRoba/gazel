@@ -27,6 +27,20 @@
       sizes="180x180"
       href="%sveltekit.assets%/icon-180.png"
     />
+    <script>
+      (function () {
+        var stored = localStorage.getItem("gazel.theme");
+        // Explicit light/dark overrides system. "system" or absent/unknown
+        // falls through to OS preference detection via matchMedia.
+        var theme =
+          stored === "light" || stored === "dark"
+            ? stored
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        document.documentElement.setAttribute("data-theme", theme);
+      })();
+    </script>
     %sveltekit.head%
   </head>
   <body data-sveltekit-preload-data="hover">
