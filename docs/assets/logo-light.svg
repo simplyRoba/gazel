@@ -6,8 +6,11 @@
     </linearGradient>
   </defs>
 
-  <!-- Background: light warm -->
-  <rect width="512" height="512" rx="80" ry="80" fill="url(#bg)"/>
+  <!-- Background: sharp corners -->
+  <rect width="512" height="512" fill="url(#bg)"/>
+
+  <!-- Corner accent triangle (top-right, brand motif) -->
+  <polygon points="462,0 512,0 512,50" fill="#996B2E"/>
 
   <!-- HORN 1 (back) -->
   <polygon points="202,69 289,133 300,131" fill="#A87538"/>
