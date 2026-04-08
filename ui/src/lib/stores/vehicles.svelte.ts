@@ -1,9 +1,16 @@
 import type { Vehicle, CreateVehicle } from "$lib/api";
 import * as api from "$lib/api";
+import { pushNotification } from "$lib/stores/notifications.svelte";
 
 let vehicles = $state<Vehicle[]>([]);
 let loading = $state(false);
 let error = $state<string | null>(null);
+
+function setError(e: unknown, fallback: string): void {
+  const msg = e instanceof api.ApiError ? e.message : fallback;
+  error = msg;
+  pushNotification({ variant: "error", message: msg });
+}
 
 export function getVehicles(): Vehicle[] {
   return vehicles;
@@ -23,7 +30,7 @@ export async function loadVehicles(): Promise<void> {
   try {
     vehicles = await api.fetchVehicles();
   } catch (e) {
-    error = e instanceof api.ApiError ? e.message : "Failed to load vehicles";
+    setError(e, "Failed to load vehicles");
   } finally {
     loading = false;
   }
@@ -38,7 +45,7 @@ export async function createVehicle(
     vehicles = [...vehicles, vehicle];
     return vehicle;
   } catch (e) {
-    error = e instanceof api.ApiError ? e.message : "Failed to create vehicle";
+    setError(e, "Failed to create vehicle");
     return null;
   }
 }
@@ -53,7 +60,7 @@ export async function updateVehicle(
     vehicles = vehicles.map((v) => (v.id === id ? vehicle : v));
     return vehicle;
   } catch (e) {
-    error = e instanceof api.ApiError ? e.message : "Failed to update vehicle";
+    setError(e, "Failed to update vehicle");
     return null;
   }
 }
@@ -65,7 +72,7 @@ export async function deleteVehicle(id: number): Promise<boolean> {
     vehicles = vehicles.filter((v) => v.id !== id);
     return true;
   } catch (e) {
-    error = e instanceof api.ApiError ? e.message : "Failed to delete vehicle";
+    setError(e, "Failed to delete vehicle");
     return false;
   }
 }

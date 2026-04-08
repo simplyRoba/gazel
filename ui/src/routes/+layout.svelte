@@ -15,6 +15,7 @@
   import { LayoutDashboard, Settings, Plus } from "lucide-svelte";
   import { initTheme } from "$lib/stores/theme.svelte";
   import Logo from "$lib/components/Logo.svelte";
+  import ToastHost from "$lib/components/ToastHost.svelte";
 
   let { children } = $props();
 
@@ -99,6 +100,8 @@
     <main class="content">
       {@render children()}
     </main>
+
+    <ToastHost />
   </div>
 </div>
 

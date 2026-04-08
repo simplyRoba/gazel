@@ -4,25 +4,25 @@
   import { Pencil, Trash2, Car, Plus } from "lucide-svelte";
   import PageContainer from "$lib/components/PageContainer.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
+  import ModalDialog from "$lib/components/ModalDialog.svelte";
+  import type { Vehicle } from "$lib/api";
   import {
     loadVehicles,
     getVehicles,
     getLoading,
-    getError,
     deleteVehicle,
   } from "$lib/stores/vehicles.svelte";
 
-  let deletingId = $state<number | null>(null);
+  let deleteTarget = $state<Vehicle | null>(null);
 
   onMount(() => {
     loadVehicles();
   });
 
-  async function confirmDelete(id: number) {
-    const success = await deleteVehicle(id);
-    if (success) {
-      deletingId = null;
-    }
+  async function handleDeleteConfirm() {
+    if (!deleteTarget) return;
+    await deleteVehicle(deleteTarget.id);
+    deleteTarget = null;
   }
 </script>
 
@@ -69,54 +69,32 @@
     {:else}
       <div class="vehicle-list">
         {#each getVehicles() as vehicle (vehicle.id)}
-          {#if deletingId === vehicle.id}
-            <div class="card vehicle-row delete-confirm">
-              <span class="delete-prompt">
-                Delete <strong>{vehicle.name}</strong>?
+          <div class="card vehicle-row corner-tri corner-tri-sm">
+            <div class="vehicle-info">
+              <span class="vehicle-name">{vehicle.name}</span>
+              <span class="vehicle-meta">
+                {[vehicle.make, vehicle.model, vehicle.year]
+                  .filter(Boolean)
+                  .join(" · ") || vehicle.fuel_type}
               </span>
-              <div class="row-actions">
-                <button
-                  class="btn btn-danger btn-sm"
-                  onclick={() => confirmDelete(vehicle.id)}
-                >
-                  Delete
-                </button>
-                <button
-                  class="btn btn-secondary btn-sm"
-                  onclick={() => (deletingId = null)}
-                >
-                  Cancel
-                </button>
-              </div>
             </div>
-          {:else}
-            <div class="card vehicle-row corner-tri corner-tri-sm">
-              <div class="vehicle-info">
-                <span class="vehicle-name">{vehicle.name}</span>
-                <span class="vehicle-meta">
-                  {[vehicle.make, vehicle.model, vehicle.year]
-                    .filter(Boolean)
-                    .join(" · ") || vehicle.fuel_type}
-                </span>
-              </div>
-              <div class="row-actions">
-                <a
-                  href={resolve("/settings/vehicles/[id]/edit", {
-                    id: String(vehicle.id),
-                  })}
-                  class="btn btn-icon"
-                >
-                  <Pencil size={16} />
-                </a>
-                <button
-                  class="btn btn-icon"
-                  onclick={() => (deletingId = vehicle.id)}
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
+            <div class="row-actions">
+              <a
+                href={resolve("/settings/vehicles/[id]/edit", {
+                  id: String(vehicle.id),
+                })}
+                class="btn btn-icon"
+              >
+                <Pencil size={16} />
+              </a>
+              <button
+                class="btn btn-icon"
+                onclick={() => (deleteTarget = vehicle)}
+              >
+                <Trash2 size={16} />
+              </button>
             </div>
-          {/if}
+          </div>
         {/each}
       </div>
 
@@ -127,12 +105,21 @@
         </a>
       </div>
     {/if}
-
-    {#if getError()}
-      <div class="error-banner">{getError()}</div>
-    {/if}
   </section>
 </PageContainer>
+
+<ModalDialog
+  open={!!deleteTarget}
+  title="Delete vehicle"
+  message={deleteTarget
+    ? `Delete "${deleteTarget.name}"? This cannot be undone.`
+    : ""}
+  mode="confirm"
+  variant="danger"
+  confirmLabel="Delete"
+  onconfirm={handleDeleteConfirm}
+  oncancel={() => (deleteTarget = null)}
+/>
 
 <style>
   .page-title {
@@ -186,32 +173,7 @@
     align-items: center;
   }
 
-  .delete-confirm {
-    background: var(--color-bg-sunken);
-    border-color: var(--color-error);
-  }
-
-  .delete-prompt {
-    font-size: var(--font-sm);
-    color: var(--color-text);
-  }
-
   .add-action {
     margin-top: var(--space-4);
-  }
-
-  .loading-text {
-    font-size: var(--font-sm);
-    color: var(--color-text-secondary);
-    padding: var(--space-4) 0;
-  }
-
-  .error-banner {
-    padding: var(--space-3);
-    margin-top: var(--space-4);
-    background: var(--color-bg-sunken);
-    color: var(--color-error);
-    font-size: var(--font-sm);
-    border: 1px solid var(--color-error);
   }
 </style>
