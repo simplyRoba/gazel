@@ -50,25 +50,27 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  /* ── Chamfer (angular corners — references the triangular logo) ── */
-  /* Use clip-path to cut corners instead of border-radius.
-     Cards, modals, and containers use chamfered top-right corner.
-     Buttons and inputs stay sharp (no radius, no chamfer). */
+  /* ── Corner triangle (brand motif) ─────────────────── */
+  /* A small accent-colored triangle in the top-right corner of
+     cards, buttons, and interactive elements. References the
+     triangular logo. Grows or appears on hover for interactivity.
+     Implemented via ::after pseudo-element with CSS border trick. */
 
-  --chamfer-sm: 8px;
-  --chamfer-md: 14px;
-  --chamfer-lg: 20px;
-  --radius-full: 9999px; /* pills, avatars, CTA circle only */
+  --corner-tri-sm: 10px;
+  --corner-tri-md: 14px;
+  --corner-tri-lg: 20px;
+  --radius-full: 9999px; /* CTA circle, pills only */
 
   /* ── Data treatment ──────────────────────────────────── */
-  /* Stats and numbers are the hero — oversized, accent-colored. */
+  /* Stats and numbers are the hero — oversized, accent-colored,
+     monospace for precision. */
 
   --font-stat: 2.25rem;
   --font-stat-weight: 700;
 
-  /* ── Triangle accent ─────────────────────────────────── */
-  /* Small triangular motifs for active states and headers.
-     Implemented via CSS borders or inline SVG, not a token. */
+  /* ── Triangle accent markers ─────────────────────────── */
+  /* Small triangular bullets for nav active state and section
+     headers. Separate from corner triangles. */
 
   /* ── Transitions ─────────────────────────────────────── */
 

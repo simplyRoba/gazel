@@ -83,18 +83,47 @@
       margin-top: 2px;
     }
 
-    /* Chamfer utility */
-    .chamfer-sm {
-      clip-path: polygon(0 0, calc(100% - var(--chamfer-sm)) 0, 100% var(--chamfer-sm), 100% 100%, 0 100%);
+    /* Corner triangle — brand motif on cards, buttons, interactive elements */
+    .corner-tri {
+      position: relative;
+      overflow: hidden;
     }
-    .chamfer-md {
-      clip-path: polygon(0 0, calc(100% - var(--chamfer-md)) 0, 100% var(--chamfer-md), 100% 100%, 0 100%);
+    .corner-tri::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 0;
+      height: 0;
+      border-style: solid;
+      border-width: 0 var(--corner-tri-md) var(--corner-tri-md) 0;
+      border-color: transparent var(--color-accent) transparent transparent;
+      transition: border-width var(--transition-fast);
     }
-    .chamfer-lg {
-      clip-path: polygon(0 0, calc(100% - var(--chamfer-lg)) 0, 100% var(--chamfer-lg), 100% 100%, 0 100%);
+    .corner-tri:hover::after {
+      border-width: 0 calc(var(--corner-tri-md) + 4px) calc(var(--corner-tri-md) + 4px) 0;
+    }
+    .corner-tri-sm::after {
+      border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
+    }
+    .corner-tri-sm:hover::after {
+      border-width: 0 calc(var(--corner-tri-sm) + 3px) calc(var(--corner-tri-sm) + 3px) 0;
+    }
+    .corner-tri-lg::after {
+      border-width: 0 var(--corner-tri-lg) var(--corner-tri-lg) 0;
+    }
+    .corner-tri-lg:hover::after {
+      border-width: 0 calc(var(--corner-tri-lg) + 6px) calc(var(--corner-tri-lg) + 6px) 0;
+    }
+    /* Buttons: triangle hidden by default, appears on hover */
+    .corner-tri-hover::after {
+      border-width: 0 0 0 0;
+    }
+    .corner-tri-hover:hover::after {
+      border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
     }
 
-    /* Triangle marker */
+    /* Triangle marker — bullet for headings */
     .tri-marker::before {
       content: '';
       display: inline-block;
@@ -112,7 +141,6 @@
       padding: var(--space-3);
       background: var(--color-bg-raised);
       border: 1px solid var(--color-border-subtle);
-      clip-path: polygon(0 0, calc(100% - var(--chamfer-sm)) 0, 100% var(--chamfer-sm), 100% 100%, 0 100%);
     }
     .type-sample .meta {
       font-size: var(--font-xs);
@@ -169,7 +197,6 @@
       width: 120px;
       height: 80px;
       background: var(--color-bg-raised);
-      clip-path: polygon(0 0, calc(100% - var(--chamfer-sm)) 0, 100% var(--chamfer-sm), 100% 100%, 0 100%);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -182,7 +209,6 @@
     .card {
       background: var(--color-bg-raised);
       border: 1px solid var(--color-border);
-      clip-path: polygon(0 0, calc(100% - var(--chamfer-md)) 0, 100% var(--chamfer-md), 100% 100%, 0 100%);
       padding: var(--space-4);
       box-shadow: var(--shadow-md);
     }
@@ -264,6 +290,7 @@
     .stat-value {
       font-size: var(--font-stat);
       font-weight: var(--font-stat-weight);
+      font-family: var(--font-family-mono);
       color: var(--color-accent-text);
       line-height: 1.1;
     }
@@ -375,16 +402,17 @@
     <div class="spacing-row"><div class="spacing-label">--space-16 · 64px</div><div class="spacing-bar" style="width:64px"></div></div>
   </section>
 
-  <!-- ── Chamfered Corners ───────────────────────── -->
+  <!-- ── Corner Triangles ────────────────────────── -->
   <section>
-    <h2>Chamfered Corners</h2>
+    <h2>Corner Triangles</h2>
     <p style="font-size:var(--font-sm);color:var(--color-text-secondary);margin-bottom:var(--space-4)">
-      Angular clipped top-right corner instead of generic rounded. References the triangular logo.
+      Accent-colored triangle in the top-right corner. The brand motif — references the triangular logo. Grows on hover.
     </p>
     <div class="chamfer-grid">
-      <div class="chamfer-box chamfer-sm">sm · 8px</div>
-      <div class="chamfer-box chamfer-md">md · 14px</div>
-      <div class="chamfer-box chamfer-lg">lg · 20px</div>
+      <div class="chamfer-box corner-tri corner-tri-sm">sm · hover me</div>
+      <div class="chamfer-box corner-tri">md · hover me</div>
+      <div class="chamfer-box corner-tri corner-tri-lg">lg · hover me</div>
+      <div class="chamfer-box corner-tri-hover corner-tri" style="border-style:dashed">hover only</div>
     </div>
   </section>
 
@@ -412,11 +440,12 @@
   <section>
     <h2>Component Patterns</h2>
 
-    <h3>Buttons</h3>
+    <h3 class="tri-marker">Buttons</h3>
+    <p style="font-size:var(--font-xs);color:var(--color-text-tertiary);margin-bottom:var(--space-3)">Sharp rectangles. Corner triangle appears on hover.</p>
     <div style="display:flex;gap:var(--space-3);margin-bottom:var(--space-6);flex-wrap:wrap">
-      <button class="btn btn-primary">Add Fill-up</button>
-      <button class="btn btn-secondary">Cancel</button>
-      <button class="btn btn-danger">Delete</button>
+      <button class="btn btn-primary corner-tri corner-tri-hover">Add Fill-up</button>
+      <button class="btn btn-secondary corner-tri corner-tri-hover">Cancel</button>
+      <button class="btn btn-danger corner-tri corner-tri-hover">Delete</button>
     </div>
 
     <h3>Badges</h3>
@@ -445,9 +474,9 @@
 
     <h3 class="tri-marker">Vehicle Cards</h3>
     <div class="mockup-grid">
-      <div class="card">
+      <div class="card corner-tri">
         <div class="card-title">2024 Honda Civic</div>
-        <div class="card-subtitle">Benzin · 20.040 km</div>
+        <div class="card-subtitle">Benzin · <span style="font-family:var(--font-family-mono)">20.040</span> km</div>
         <hr class="divider" />
         <div style="display:flex;justify-content:space-between">
           <div><div class="stat-value">6,8</div><div class="stat-label">L/100km</div></div>
@@ -455,9 +484,9 @@
           <div><div class="stat-value">248 €</div><div class="stat-label">Monat</div></div>
         </div>
       </div>
-      <div class="card">
+      <div class="card corner-tri">
         <div class="card-title">2021 Toyota Tacoma</div>
-        <div class="card-subtitle">Diesel · 62.600 km</div>
+        <div class="card-subtitle">Diesel · <span style="font-family:var(--font-family-mono)">62.600</span> km</div>
         <hr class="divider" />
         <div style="display:flex;justify-content:space-between">
           <div><div class="stat-value">7,9</div><div class="stat-label">L/100km</div></div>

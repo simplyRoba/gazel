@@ -186,38 +186,51 @@ All sizes use `rem` for accessibility. Base is `16px`.
 | `--space-12` | `48px` | Page-level padding |
 | `--space-16` | `64px` | Major section breaks |
 
-### Chamfered Corners
+### Corner Triangle (Brand Motif)
 
-Instead of generic rounded corners, gazel uses **chamfered (clipped) corners** that
-reference the angular/triangular logo. This is the defining visual motif of the app.
+gazel's defining visual element: a small **accent-colored triangle** in the
+**top-right corner** of cards, buttons, and interactive elements. Directly
+references the triangular logo and makes the app instantly recognizable.
 
 | Token | Value | Use |
 |---|---|---|
-| `--chamfer-sm` | `8px` | Small containers, badges |
-| `--chamfer-md` | `14px` | Cards, modals |
-| `--chamfer-lg` | `20px` | Hero sections, large containers |
-| `--radius-full` | `9999px` | Pills, CTA circle only |
+| `--corner-tri-sm` | `10px` | Buttons, small elements |
+| `--corner-tri-md` | `14px` | Cards, list items |
+| `--corner-tri-lg` | `20px` | Modals, hero sections |
+| `--radius-full` | `9999px` | CTA circle, pills only |
 
-Apply chamfers via `clip-path` on the **top-right corner** (consistent placement):
+Implement via `::after` pseudo-element with CSS border trick:
 
 ```css
-/* Card with chamfered top-right corner */
+/* Card with accent corner triangle */
 .card {
-  clip-path: polygon(
-    0 0,
-    calc(100% - var(--chamfer-md)) 0,
-    100% var(--chamfer-md),
-    100% 100%,
-    0 100%
-  );
+  position: relative;
+  overflow: hidden;
+}
+.card::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 var(--corner-tri-md) var(--corner-tri-md) 0;
+  border-color: transparent var(--color-accent) transparent transparent;
+  transition: border-width var(--transition-fast);
+}
+/* Triangle grows on hover */
+.card:hover::after {
+  border-width: 0 calc(var(--corner-tri-md) + 4px) calc(var(--corner-tri-md) + 4px) 0;
 }
 ```
 
 **Rules:**
-- Cards, modals, and containers: chamfered top-right corner
-- Buttons and inputs: **sharp rectangles** (no radius, no chamfer)
-- Only `--radius-full` for circular elements (CTA button, avatars, pills)
-- Never use `border-radius` on cards — always `clip-path` chamfer
+- Cards, modals: corner triangle always visible, grows on hover
+- Buttons: corner triangle appears on hover (hidden by default)
+- Inputs: no corner triangle — sharp rectangles only
+- Only `--radius-full` for CTA circle and pills
+- Never use `border-radius` on cards or buttons
 
 ### Triangle Accent Markers
 
@@ -247,12 +260,14 @@ Stats and numbers are the hero of a fuel tracking app. They get special treatmen
 
 | Token | Value | Use |
 |---|---|---|
-| `--font-stat` | `2.25rem` (36px) | Large stat values (MPG, cost) |
+| `--font-stat` | `2.25rem` (36px) | Large stat values (L/100km, cost) |
 | `--font-stat-weight` | `700` | Bold weight for stat numbers |
+| `--font-family-mono` | `'SF Mono', Consolas, ...` | All numerical data |
 
 **Rules:**
-- Stat values use `--font-stat` + `--color-accent-text`
-- Stat labels use `--font-xs` + `--color-text-secondary`
+- Stat values use `--font-stat` + `--font-family-mono` + `--color-accent-text`
+- All numerical data (stats, fill-up costs, odometer, efficiency) uses `--font-family-mono`
+- Stat labels use `--font-xs` + `--color-text-secondary` (normal font, not mono)
 - Stats are always paired: value above, label below
 - On mobile, stats can flow horizontally in a compact row
 
@@ -281,10 +296,11 @@ No decorative animations.
 
 | Element | Treatment |
 |---|---|
-| **Cards, modals** | Chamfered top-right corner via `clip-path` |
-| **Buttons, inputs** | Sharp rectangles, no radius |
+| **Cards, modals** | Accent triangle in top-right corner (visible, grows on hover) |
+| **Buttons** | Sharp rectangles, accent triangle appears on hover |
+| **Inputs** | Sharp rectangles, no decoration |
 | **CTA, pills** | Full circle (`--radius-full`) |
-| **Active nav** | Triangle accent marker |
-| **Stat values** | Oversized (`--font-stat`), accent-colored, bold |
-| **Dividers** | Thin accent lines, optional triangle notch |
-| **Corners** | Never generic `border-radius` on containers |
+| **Active nav** | Triangle accent marker (bullet) |
+| **Stat values** | Oversized (`--font-stat`), monospace, accent-colored |
+| **All numbers** | Monospace font (`--font-family-mono`) |
+| **Corners** | Never `border-radius` on cards or buttons |
