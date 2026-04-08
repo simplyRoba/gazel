@@ -1,5 +1,4 @@
 <p align="center">
-  <!-- TODO: add logo -->
   <img src="docs/assets/icon-512.png" alt="gazel logo" width="128" />
 </p>
 

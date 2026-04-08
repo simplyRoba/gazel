@@ -31,3 +31,6 @@ target
 
 # Claude Code
 .claude/
+
+# Playwright MCP
+.playwright-mcp/
