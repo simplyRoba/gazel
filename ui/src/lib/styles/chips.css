@@ -1,0 +1,81 @@
+/* ============================================================
+   Chip System
+   ============================================================
+   Usage:
+     <button class="chip">Label</button>
+     <button class="chip active">Selected</button>
+
+   Design: Sharp rectangles with corner triangle. Triangle color
+   matches border; switches to white on active. Used for vehicle
+   tabs, filters, and selectable tags.
+   ============================================================ */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-raised);
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.chip::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 6px 6px 0;
+  border-color: transparent var(--color-border) transparent transparent;
+  transition:
+    border-color var(--transition-fast),
+    border-width var(--transition-fast);
+}
+
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--color-accent);
+}
+
+.chip:hover:not(:disabled)::after {
+  border-color: transparent var(--color-accent) transparent transparent;
+}
+
+.chip.active {
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+  border-color: var(--color-accent);
+}
+
+.chip.active::after {
+  border-color: transparent var(--color-text-inverse) transparent transparent;
+}
+
+/* Mobile: larger touch targets */
+@media (max-width: 768px) {
+  .chip {
+    min-height: 40px;
+    padding: var(--space-2) var(--space-3);
+  }
+}

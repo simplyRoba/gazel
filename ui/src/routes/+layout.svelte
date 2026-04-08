@@ -1,6 +1,12 @@
 <script lang="ts">
   import "$lib/styles/tokens.css";
   import "$lib/styles/reset.css";
+  import "$lib/styles/buttons.css";
+  import "$lib/styles/inputs.css";
+  import "$lib/styles/chips.css";
+  import "$lib/styles/badges.css";
+  import "$lib/styles/cards.css";
+  import "$lib/styles/skeletons.css";
 
   import { page } from "$app/state";
   import { resolve } from "$app/paths";

@@ -1,0 +1,162 @@
+/* ============================================================
+   Button System
+   ============================================================
+   Usage:
+     <button class="btn btn-primary">Save</button>
+     <button class="btn btn-secondary">Cancel</button>
+     <button class="btn btn-danger">Delete</button>
+     <button class="btn btn-ghost">+ Add entry</button>
+     <button class="btn btn-icon"><Pencil /></button>
+     <a href="/new" class="btn btn-primary">Add Vehicle</a>
+
+   Sizes: (default = md), btn-sm, btn-lg
+   Modifiers: btn-full
+
+   Design: Sharp rectangles. Corner triangle appears on hover.
+   Triangle color adapts to button variant via --_tri-color.
+   ============================================================ */
+
+.btn {
+  --_tri-color: var(--color-accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-5);
+  border: none;
+  font-size: var(--font-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.btn::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0;
+  border-color: transparent var(--_tri-color) transparent transparent;
+  transition: border-width var(--transition-fast);
+}
+
+.btn:hover:not(:disabled)::after {
+  border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
+}
+
+.btn:disabled,
+.btn.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Sizes */
+.btn-sm {
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-xs);
+}
+
+.btn-lg {
+  padding: var(--space-3) var(--space-6);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* Primary: accent bg, white text, white triangle */
+.btn-primary {
+  --_tri-color: var(--color-text-inverse);
+  background: var(--color-accent);
+  color: var(--color-text-inverse);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-accent-hover);
+}
+
+/* Secondary: sunken bg, border, accent triangle */
+.btn-secondary {
+  --_tri-color: var(--color-accent);
+  background: var(--color-bg-sunken);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  background: var(--color-bg-raised);
+}
+
+/* Danger: error bg, white text, white triangle */
+.btn-danger {
+  --_tri-color: var(--color-text-inverse);
+  background: var(--color-error);
+  color: var(--color-text-inverse);
+}
+
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+/* Ghost: transparent, accent text, no triangle */
+.btn-ghost {
+  background: none;
+  padding: 0;
+  color: var(--color-accent-text);
+}
+
+.btn-ghost::after {
+  display: none;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+/* Icon: square, bordered, accent on hover */
+.btn-icon {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-secondary);
+}
+
+.btn-icon:hover:not(:disabled) {
+  border-color: var(--color-accent);
+  color: var(--color-accent-text);
+}
+
+/* Mobile: larger touch targets */
+@media (max-width: 768px) {
+  .btn {
+    min-height: 44px;
+  }
+
+  .btn-sm {
+    min-height: 40px;
+  }
+
+  .btn-icon {
+    width: 44px;
+    height: 44px;
+  }
+
+  .btn-ghost {
+    min-height: 0;
+  }
+}

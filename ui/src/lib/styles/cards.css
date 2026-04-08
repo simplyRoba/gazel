@@ -1,0 +1,112 @@
+/* ============================================================
+   Card System
+   ============================================================
+   Usage:
+     <div class="card">...</div>
+     <div class="card card-interactive">clickable card</div>
+
+   Also includes stat display and section patterns:
+     <div class="stat"><span class="stat-value">6,8</span><span class="stat-label">L/100km</span></div>
+     <section class="section"><h2 class="section-title">Title</h2>...</section>
+
+   Design: Sharp borders. Corner triangle always visible, grows
+   on hover. Numbers use monospace. Cards are the primary
+   container for content.
+   ============================================================ */
+
+.card {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+}
+
+.card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 var(--corner-tri-md) var(--corner-tri-md) 0;
+  border-color: transparent var(--color-accent) transparent transparent;
+  transition: border-width var(--transition-fast);
+}
+
+.card:hover::after {
+  border-width: 0 calc(var(--corner-tri-md) + 4px)
+    calc(var(--corner-tri-md) + 4px) 0;
+}
+
+/* Interactive cards: cursor + border highlight on hover */
+.card-interactive {
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.card-interactive:hover {
+  border-color: var(--color-accent);
+}
+
+/* Card inner elements */
+.card-title {
+  font-size: var(--font-lg);
+  font-weight: var(--font-weight-semibold);
+  margin-bottom: var(--space-2);
+}
+
+.card-subtitle {
+  font-size: var(--font-sm);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+}
+
+.card-divider {
+  border: none;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-4) 0;
+}
+
+/* ── Stat display ─────────────────────────────────────── */
+
+.stat-value {
+  font-size: var(--font-stat);
+  font-weight: var(--font-stat-weight);
+  font-family: var(--font-family-mono);
+  color: var(--color-accent-text);
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: var(--font-xs);
+  color: var(--color-text-secondary);
+  margin-top: var(--space-1);
+}
+
+/* Inline number formatting — use for costs, odometer, etc. */
+.mono {
+  font-family: var(--font-family-mono);
+}
+
+/* ── Section container ────────────────────────────────── */
+
+.section {
+  background: var(--color-bg-raised);
+  border: 1px solid var(--color-border);
+  padding: var(--space-4);
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--font-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 var(--space-4);
+}
