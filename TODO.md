@@ -59,12 +59,12 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > Responsive scaffold that all pages live inside. Navigation, page structure,
 > and the first real UI components.
 
-- [ ] Root layout with `<header>`, `<main>`, `<nav>` structure
-- [ ] Responsive navigation -- bottom bar on mobile, sidebar or top bar on desktop
-- [ ] Page container component with consistent padding/max-width
-- [ ] Empty state component (reusable: icon, heading, description, action)
-- [ ] CSS Modules setup and conventions (one `.module.css` per component)
-- [ ] Favicon and app icon from existing logo asset
+- [x] Root layout with `<header>`, `<main>`, `<nav>` structure
+- [x] Responsive navigation -- bottom bar on mobile, sidebar or top bar on desktop
+- [x] Page container component with consistent padding/max-width
+- [x] Empty state component (reusable: icon, heading, description, action)
+- [x] CSS Modules setup and conventions (one `.module.css` per component)
+- [x] Favicon and app icon from existing logo asset
 
 ## 4. Vehicle API
 

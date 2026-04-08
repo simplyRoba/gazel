@@ -46,5 +46,5 @@
 - [x] 7.2 Run `npm run lint --prefix ui` and fix any lint errors
 - [x] 7.3 Run `npm run check --prefix ui` and fix any type errors
 - [x] 7.4 Run `cargo test` and verify all tests pass (backend + UI)
-- [ ] 7.5 Manually verify responsive layout at mobile (≤768px), tablet (769–1279px), and widescreen (≥1280px)
-- [ ] 7.6 Verify theme toggle works: light → dark → system, no flash on reload
+- [x] 7.5 Manually verify responsive layout at mobile (≤768px), tablet (769–1279px), and widescreen (≥1280px)
+- [x] 7.6 Verify theme toggle works: light → dark → system, no flash on reload
