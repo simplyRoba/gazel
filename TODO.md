@@ -49,7 +49,7 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 - [ ] CSS custom properties file (`ui/src/lib/styles/tokens.css`) with all tokens
 - [ ] Color mode -- CSS custom properties that swap via `[data-theme]` attribute,
       default to system preference (`prefers-color-scheme`)
-- [ ] Logo -- design a minimal, recognizable mark inspired by a gazelle silhouette.
+- [x] Logo -- design a minimal, recognizable mark inspired by a gazelle silhouette.
       Produce SVG source, favicon (16/32/48), app icons (192/512 PNG), and
       OpenGraph image. Place in `docs/assets/` and wire into UI.
 - [ ] Document palette, type scale, and spacing in `CONTRIBUTING.md` design section
