@@ -1,0 +1,2 @@
+-- Bootstrap migration: creates the sqlx migration tracking table.
+-- No application schema changes.
