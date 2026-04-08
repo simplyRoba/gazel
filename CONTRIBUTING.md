@@ -120,15 +120,15 @@ Default follows system preference via `prefers-color-scheme`.
 |---|---|---|---|
 | `--color-text` | `#2C2418` | `#E8E0D4` | Primary text |
 | `--color-text-secondary` | `#6B6054` | `#9A9184` | Secondary / muted text |
-| `--color-text-tertiary` | `#9A9084` | `#6B6258` | Placeholders, hints |
-| `--color-text-inverse` | `#FAF7F2` | `#1A2030` | Text on accent backgrounds |
+| `--color-text-tertiary` | `#736860` | `#8A8078` | Placeholders, hints |
+| `--color-text-inverse` | `#FFFFFF` | `#1A2030` | Text on accent backgrounds |
 
 #### Accent (gazelle amber/gold)
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--color-accent` | `#C08A45` | `#D4A56A` | Primary actions, links |
-| `--color-accent-hover` | `#A87538` | `#E0B878` | Hover state |
+| `--color-accent` | `#996B2E` | `#D4A56A` | Primary actions, links |
+| `--color-accent-hover` | `#7D5824` | `#E0B878` | Hover state |
 | `--color-accent-subtle` | `#F5EBD8` | `#2A2520` | Accent backgrounds (tags, badges) |
 | `--color-accent-text` | `#8B6530` | `#E8C88A` | Accent text on neutral bg |
 
@@ -136,10 +136,10 @@ Default follows system preference via `prefers-color-scheme`.
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `--color-success` | `#3D8B4F` | `#5AAE6B` | Positive states |
-| `--color-warning` | `#C0882A` | `#D4A040` | Warnings |
-| `--color-error` | `#C44B3F` | `#E06858` | Errors, destructive |
-| `--color-info` | `#3A7ABF` | `#5A9ADF` | Informational |
+| `--color-success` | `#2E7A40` | `#5AAE6B` | Positive states |
+| `--color-warning` | `#8D6518` | `#D4A040` | Warnings |
+| `--color-error` | `#B33D32` | `#E06858` | Errors, destructive |
+| `--color-info` | `#2E6BA8` | `#5A9ADF` | Informational |
 
 #### Logo / brand
 
