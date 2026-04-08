@@ -94,6 +94,7 @@
     .sidebar-logo {
       width: 36px; height: 36px;
       margin-bottom: var(--space-6);
+      color: var(--color-accent-text);
     }
     .nav-item {
       display: flex;
@@ -583,8 +584,8 @@
       }
 
       .sidebar-logo {
-        width: calc(var(--sidebar-width) - var(--space-8));
-        height: auto;
+        width: 80px;
+        height: 80px;
         margin-bottom: var(--space-8);
       }
 
@@ -632,7 +633,15 @@
 
   <!-- ── Sidebar (tablet+) ──────────────────── -->
   <nav class="sidebar">
-    <img class="sidebar-logo" src="../docs/assets/logo.svg" alt="gazel" />
+    <svg class="sidebar-logo" viewBox="90 55 280 360" fill="currentColor" aria-hidden="true">
+      <polygon points="202,69 289,133 300,131" opacity="0.7" />
+      <polygon points="208,67 294,121 302,118" opacity="0.9" />
+      <polygon points="301,135 335,182 290,160" opacity="0.9" />
+      <polygon points="289,165 358,200 282,257" opacity="0.8" />
+      <polygon points="358,204 315,399 282,261" opacity="0.8" />
+      <polygon points="276,262 143,248 171,400" opacity="0.6" />
+      <polygon points="106,206 138,243 155,246" opacity="0.6" />
+    </svg>
     <button class="sidebar-cta" onclick="toggleModal()">
       <span>＋</span>
       <span class="cta-label">Fill-up</span>

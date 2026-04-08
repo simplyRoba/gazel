@@ -136,7 +136,6 @@
     padding: var(--space-2);
     width: calc(var(--sidebar-width) - var(--space-4));
     height: 44px;
-    border-radius: var(--radius-md);
     background: var(--color-accent);
     color: var(--color-text-inverse);
     border: none;
@@ -144,10 +143,30 @@
     font-weight: var(--font-weight-medium);
     box-shadow: var(--shadow-sm);
     transition: background var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .sidebar-cta::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
+    border-color: transparent var(--color-text-inverse) transparent transparent;
+    transition: border-width var(--transition-fast);
   }
 
   .sidebar-cta:hover {
     background: var(--color-accent-hover);
+  }
+
+  .sidebar-cta:hover::after {
+    border-width: 0 calc(var(--corner-tri-sm) + 3px)
+      calc(var(--corner-tri-sm) + 3px) 0;
   }
 
   .cta-label {
@@ -161,7 +180,6 @@
     justify-content: center;
     gap: 2px;
     padding: var(--space-2);
-    border-radius: var(--radius-md);
     color: var(--color-text-secondary);
     text-decoration: none;
     font-size: 11px;
@@ -177,6 +195,33 @@
   .nav-item.active {
     background: var(--color-accent-subtle);
     color: var(--color-accent-text);
+  }
+
+  /* Corner triangle on sidebar nav items only (not mobile bottom bar) */
+  .sidebar .nav-item {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .sidebar .nav-item::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 0;
+    height: 0;
+    border-style: solid;
+    border-width: 0;
+    border-color: transparent var(--color-accent) transparent transparent;
+    transition: border-width var(--transition-fast);
+  }
+
+  .sidebar .nav-item:hover::after {
+    border-width: 0 8px 8px 0;
+  }
+
+  .sidebar .nav-item.active::after {
+    border-width: 0 8px 8px 0;
   }
 
   .sidebar .nav-label {
