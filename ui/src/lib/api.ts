@@ -166,6 +166,48 @@ export function deleteFillup(
   return request("DELETE", `/api/vehicles/${vehicleId}/fillups/${fillupId}`);
 }
 
+// ── Stats types ─────────────────────────────────────────
+
+export interface VehicleStats {
+  total_distance: number;
+  total_fuel: number;
+  total_cost: number;
+  fill_up_count: number;
+  average_efficiency: number | null;
+  average_cost_per_distance: number | null;
+  distance_unit: string;
+  volume_unit: string;
+  currency: string;
+}
+
+export interface SegmentHistory {
+  start_date: string;
+  end_date: string;
+  start_odometer: number;
+  end_odometer: number;
+  distance: number;
+  fuel: number;
+  cost: number;
+  efficiency: number;
+  cost_per_distance: number;
+  is_valid: boolean;
+  distance_unit: string;
+  volume_unit: string;
+  currency: string;
+}
+
+// ── Stats API functions ─────────────────────────────────
+
+export function fetchVehicleStats(vehicleId: number): Promise<VehicleStats> {
+  return request("GET", `/api/vehicles/${vehicleId}/stats`);
+}
+
+export function fetchVehicleStatsHistory(
+  vehicleId: number,
+): Promise<SegmentHistory[]> {
+  return request("GET", `/api/vehicles/${vehicleId}/stats/history`);
+}
+
 // ── Settings types ───────────────────────────────────────
 
 export interface Settings {

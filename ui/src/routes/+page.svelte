@@ -19,9 +19,26 @@
     updateFillup as storeUpdateFillup,
     deleteFillup as storeDeleteFillup,
   } from "$lib/stores/fillups.svelte";
+  import {
+    getVehicleStats,
+    getVehicleHistory,
+    getLoading as getStatsLoading,
+    loadAllStats,
+    invalidateStats,
+  } from "$lib/stores/stats.svelte";
   import { getSettings } from "$lib/stores/settings.svelte";
-  import { formatDistance, formatVolume, formatCurrency } from "$lib/format";
+  import {
+    formatDistance,
+    formatVolume,
+    formatCurrency,
+    formatEfficiency,
+  } from "$lib/format";
   import type { Fillup, CreateFillup } from "$lib/api";
+  import {
+    buildEfficiencyMap,
+    getEfficiencyForFillup,
+    computeFleetSummary,
+  } from "$lib/stats";
 
   // Modal state
   let showFillupModal = $state(false);
@@ -29,11 +46,38 @@
 
   const settings = $derived(getSettings());
 
+  // ── Fleet summary (derived from per-vehicle stats) ─────
+
+  const vehicles = $derived(getVehicles());
+
+  const fleetSummary = $derived(computeFleetSummary(vehicles, getVehicleStats));
+
+  // ── Per-vehicle stats for active vehicle ───────────────
+
+  const activeStats = $derived.by(() => {
+    const id = getActiveVehicleId();
+    if (id === null) return null;
+    return getVehicleStats(id) ?? null;
+  });
+
+  const activeHistory = $derived.by(() => {
+    const id = getActiveVehicleId();
+    if (id === null) return [];
+    return getVehicleHistory(id);
+  });
+
+  // ── Segment-to-fillup efficiency map ───────────────────
+
+  const efficiencyMap = $derived(buildEfficiencyMap(activeHistory));
+
+  // ── Lifecycle ──────────────────────────────────────────
+
   onMount(async () => {
     await loadVehicles();
-    const vehicles = getVehicles();
-    if (vehicles.length > 0) {
-      setActiveVehicle(vehicles[0].id);
+    const vs = getVehicles();
+    if (vs.length > 0) {
+      setActiveVehicle(vs[0].id);
+      loadAllStats(vs.map((v) => v.id));
     }
   });
 
@@ -69,12 +113,16 @@
     if (!result) {
       throw new Error("Save failed");
     }
+    invalidateStats(vehicleId);
   }
 
   async function handleDelete(fillupId: number) {
     const vehicleId = getActiveVehicleId();
     if (!vehicleId) return;
-    await storeDeleteFillup(vehicleId, fillupId);
+    const ok = await storeDeleteFillup(vehicleId, fillupId);
+    if (ok) {
+      invalidateStats(vehicleId);
+    }
   }
 
   function formatDate(dateStr: string): string {
@@ -93,7 +141,7 @@
       <div class="shimmer chip-skeleton"></div>
       <div class="shimmer chip-skeleton"></div>
     </div>
-  {:else if getVehicles().length === 0}
+  {:else if vehicles.length === 0}
     <EmptyState
       icon={Car}
       heading="No vehicles yet"
@@ -106,18 +154,124 @@
       {/snippet}
     </EmptyState>
   {:else}
-    <!-- Vehicle chips -->
-    <div class="vehicle-chips">
-      {#each getVehicles() as vehicle (vehicle.id)}
-        <button
-          class="chip"
-          class:active={getActiveVehicleId() === vehicle.id}
-          onclick={() => handleChipClick(vehicle.id)}
-        >
-          {vehicle.name}
-        </button>
-      {/each}
-    </div>
+    <!-- Summary cards (always shown — single vehicle or aggregated) -->
+    {#if getStatsLoading() && !fleetSummary}
+      <div class="summary-grid" data-testid="summary-cards-loading">
+        {#each Array(4) as _, i (i)}
+          <div class="card shimmer summary-skeleton"></div>
+        {/each}
+      </div>
+    {:else if fleetSummary}
+      <div class="summary-grid" data-testid="summary-cards">
+        <div class="card summary-card">
+          <span class="summary-value mono"
+            >{formatDistance(
+              fleetSummary.totalDistance,
+              settings.distance_unit,
+            )}</span
+          >
+          <span class="summary-label">Total distance</span>
+        </div>
+        <div class="card summary-card">
+          <span class="summary-value">{fleetSummary.totalFillups}</span>
+          <span class="summary-label">Fill-ups</span>
+        </div>
+        <div class="card summary-card">
+          <span class="summary-value mono">
+            {#if fleetSummary.costPerDistance !== null}
+              {formatCurrency(
+                fleetSummary.costPerDistance,
+                settings.currency,
+              )}/{settings.distance_unit}
+            {:else}
+              &mdash;
+            {/if}
+          </span>
+          <span class="summary-label">Cost per {settings.distance_unit}</span>
+        </div>
+        <div class="card summary-card">
+          <span class="summary-value mono">
+            {#if fleetSummary.costPerVolume !== null}
+              {formatCurrency(
+                fleetSummary.costPerVolume,
+                settings.currency,
+              )}/{settings.volume_unit === "l" ? "L" : settings.volume_unit}
+            {:else}
+              &mdash;
+            {/if}
+          </span>
+          <span class="summary-label">Fuel price</span>
+        </div>
+      </div>
+    {/if}
+
+    {#if vehicles.length > 1}
+      <!-- Vehicle chips + per-vehicle stats (multi-vehicle only) -->
+      <div class="vehicle-chips">
+        {#each vehicles as vehicle (vehicle.id)}
+          <button
+            class="chip"
+            class:active={getActiveVehicleId() === vehicle.id}
+            onclick={() => handleChipClick(vehicle.id)}
+          >
+            {vehicle.name}
+          </button>
+        {/each}
+      </div>
+
+      {#if getStatsLoading() && !activeStats}
+        <div class="vehicle-stats-row" data-testid="vehicle-stats-loading">
+          <div class="shimmer vehicle-stat-skeleton"></div>
+          <div class="shimmer vehicle-stat-skeleton"></div>
+          <div class="shimmer vehicle-stat-skeleton"></div>
+          <div class="shimmer vehicle-stat-skeleton"></div>
+        </div>
+      {:else if activeStats}
+        <div class="vehicle-stats-row" data-testid="vehicle-stats">
+          <div class="vehicle-stat">
+            <span class="vehicle-stat-value mono"
+              >{formatDistance(
+                activeStats.total_distance,
+                settings.distance_unit,
+              )}</span
+            >
+            <span class="vehicle-stat-label">Total distance</span>
+          </div>
+          <div class="vehicle-stat">
+            <span class="vehicle-stat-value">{activeStats.fill_up_count}</span>
+            <span class="vehicle-stat-label">Fill-ups</span>
+          </div>
+          <div class="vehicle-stat">
+            <span class="vehicle-stat-value mono">
+              {#if activeStats.average_cost_per_distance !== null}
+                {formatCurrency(
+                  activeStats.average_cost_per_distance,
+                  settings.currency,
+                )}/{settings.distance_unit}
+              {:else}
+                &mdash;
+              {/if}
+            </span>
+            <span class="vehicle-stat-label"
+              >Cost per {settings.distance_unit}</span
+            >
+          </div>
+          <div class="vehicle-stat">
+            <span class="vehicle-stat-value mono">
+              {#if activeStats.total_fuel > 0}
+                {formatCurrency(
+                  activeStats.total_cost / activeStats.total_fuel,
+                  settings.currency,
+                )}/{settings.volume_unit === "l" ? "L" : settings.volume_unit}
+              {:else}
+                &mdash;
+              {/if}
+            </span>
+            <span class="vehicle-stat-label">Fuel price</span>
+          </div>
+        </div>
+      {/if}
+    {/if}
 
     <!-- Add fill-up button -->
     <div class="actions-row">
@@ -149,6 +303,7 @@
     {:else}
       <div class="fillup-list">
         {#each getFillups() as fillup (fillup.id)}
+          {@const eff = getEfficiencyForFillup(fillup, efficiencyMap)}
           <button
             class="card fillup-card"
             onclick={() => openEditModal(fillup)}
@@ -171,6 +326,15 @@
               {/if}
             </div>
             <div class="fillup-badges">
+              {#if eff !== null}
+                <span class="badge" data-testid="efficiency-badge"
+                  >{formatEfficiency(
+                    eff,
+                    settings.distance_unit,
+                    settings.volume_unit,
+                  )}</span
+                >
+              {/if}
               {#if fillup.is_full_tank}
                 <span class="badge badge-success">Full tank</span>
               {/if}
@@ -197,19 +361,84 @@
 {/if}
 
 <style>
+  /* ── Summary cards grid ─────────────────────────────── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--space-2);
+    margin-bottom: var(--space-4);
+  }
+
+  .summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3);
+  }
+
+  .summary-value {
+    font-size: var(--font-md);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-accent-text);
+    line-height: var(--line-height-tight);
+  }
+
+  .summary-label {
+    font-size: var(--font-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .summary-skeleton {
+    height: 56px;
+  }
+
+  /* ── Vehicle chips ──────────────────────────────────── */
   .vehicle-chips {
     display: flex;
     gap: var(--space-1);
-    margin-bottom: var(--space-4);
+    margin-bottom: var(--space-3);
     overflow-x: auto;
   }
 
+  /* ── Per-vehicle stats row ──────────────────────────── */
+  .vehicle-stats-row {
+    display: flex;
+    gap: var(--space-6);
+    margin-bottom: var(--space-4);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--color-border-subtle);
+  }
+
+  .vehicle-stat {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+
+  .vehicle-stat-value {
+    font-size: var(--font-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text);
+  }
+
+  .vehicle-stat-label {
+    font-size: var(--font-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .vehicle-stat-skeleton {
+    width: 100px;
+    height: 36px;
+  }
+
+  /* ── Actions row ────────────────────────────────────── */
   .actions-row {
     display: flex;
     justify-content: flex-end;
     margin-bottom: var(--space-4);
   }
 
+  /* ── Fill-up list ───────────────────────────────────── */
   .fillup-list {
     display: flex;
     flex-direction: column;
@@ -274,6 +503,7 @@
     display: none;
   }
 
+  /* ── Skeletons ──────────────────────────────────────── */
   .skeleton-area {
     display: flex;
     gap: var(--space-1);

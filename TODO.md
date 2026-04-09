@@ -176,14 +176,14 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > and the global CTA (built in chunk 7). This chunk adds aggregate stats
 > once the calculation engine (chunk 9) is available.
 
-- [ ] Summary cards above vehicle chips: total vehicles, total spend
-      (this month / all-time), best/worst efficiency across fleet
-- [ ] Per-vehicle stats on each chip or below chip row (last fill-up date,
-      current efficiency, monthly cost) -- depends on chunk 9 stats API
-- [ ] Efficiency badge on fill-up cards (km/L or mpg for each fill-up
+- [x] Summary cards: total distance, fill-ups, cost per distance, fuel price
+      (same 4 stats for single or multi-vehicle; single vehicle hides chips)
+- [x] Per-vehicle stats row below chip row (same 4 metrics scoped to
+      selected vehicle) -- only shown when 2+ vehicles exist
+- [x] Efficiency badge on fill-up cards (km/L or mpg for each fill-up
       segment) -- depends on chunk 9 calculation engine
-- [ ] Responsive grid layout for summary cards -- cards reflow for mobile
-- [ ] Vitest tests for stats display and formatting
+- [x] Responsive grid layout for summary cards -- compact cards reflow for mobile
+- [x] Vitest tests for stats store, fleet summary, segment-to-fillup mapping
 
 ## 11. Charts and visualization
 

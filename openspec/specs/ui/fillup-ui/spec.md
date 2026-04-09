@@ -197,6 +197,17 @@ The dashboard SHALL display fill-up cards for the selected vehicle below the chi
 - **WHEN** a fill-up has `is_full_tank` set to `true`
 - **THEN** a visual indicator (badge or label) SHALL show "Full tank"
 
+#### Scenario: Efficiency badge on fill-up card
+
+- **WHEN** a fill-up is a full-tank fill that terminates a valid segment (matched via `end_date` and `end_odometer` from segment history)
+- **THEN** the card SHALL display an efficiency badge showing the segment's efficiency value formatted with `formatEfficiency` using the user's distance_unit and volume_unit
+- **AND** the badge SHALL be visually distinct (e.g., accent-colored)
+
+#### Scenario: No efficiency data for fill-up
+
+- **WHEN** a fill-up does not terminate a valid segment (partial tank, first fill-up, or segment is invalid)
+- **THEN** no efficiency badge SHALL be displayed on that card
+
 #### Scenario: Loading state
 
 - **WHEN** fill-ups are being fetched
