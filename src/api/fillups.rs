@@ -177,7 +177,10 @@ fn validate_cost(cost: f64) -> Result<(), ApiError> {
 /// # Errors
 ///
 /// Returns `ApiError::NotFound` if the vehicle does not exist.
-async fn ensure_vehicle_exists(pool: &SqlitePool, vehicle_id: i64) -> Result<(), ApiError> {
+pub(crate) async fn ensure_vehicle_exists(
+    pool: &SqlitePool,
+    vehicle_id: i64,
+) -> Result<(), ApiError> {
     let exists: Option<i32> = sqlx::query_scalar("SELECT 1 FROM vehicles WHERE id = ?")
         .bind(vehicle_id)
         .fetch_optional(pool)

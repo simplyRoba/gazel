@@ -64,6 +64,7 @@ fn default_message(code: &str) -> &'static str {
         "SETTINGS_INVALID_VOLUME_UNIT" => "Invalid volume unit. Must be l or gal.",
         "SETTINGS_INVALID_CURRENCY" => "Invalid currency.",
         "SETTINGS_INVALID_LOCALE" => "Invalid locale.",
+        "STATS_INVALID_DATE_FILTER" => "Invalid date filter. Use YYYY-MM-DD format.",
         _ => "An error occurred.",
     }
 }

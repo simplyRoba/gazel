@@ -1,6 +1,7 @@
 pub mod error;
 pub mod fillups;
 pub mod settings;
+pub mod stats;
 pub mod vehicles;
 
 use axum::Router;
@@ -33,4 +34,6 @@ pub fn router(_state: AppState) -> Router<AppState> {
                 .put(fillups::update)
                 .delete(fillups::delete),
         )
+        .route("/vehicles/{vehicle_id}/stats", get(stats::summary))
+        .route("/vehicles/{vehicle_id}/stats/history", get(stats::history))
 }

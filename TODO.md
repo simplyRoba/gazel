@@ -158,15 +158,15 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > Backend calculation engine and API for fuel efficiency and cost metrics.
 > Depends on fill-ups and settings (unit system).
 
-- [ ] Efficiency calculation: distance / fuel between consecutive full-tank
+- [x] Efficiency calculation: distance / fuel between consecutive full-tank
       fill-ups (handle missed fill-ups gracefully)
-- [ ] Cost-per-distance calculation
-- [ ] Aggregation queries: average efficiency, total cost, total fuel,
+- [x] Cost-per-distance calculation
+- [x] Aggregation queries: average efficiency, total cost, total fuel,
       total distance -- per vehicle, over time ranges (month, year, all-time)
-- [ ] `GET /api/vehicles/:id/stats` -- vehicle summary stats
-- [ ] `GET /api/vehicles/:id/stats/history` -- time-series data for charting
-- [ ] Stats respect the user's unit system
-- [ ] Integration tests for calculation correctness (edge cases: single fill-up,
+- [x] `GET /api/vehicles/:id/stats` -- vehicle summary stats
+- [x] `GET /api/vehicles/:id/stats/history` -- time-series data for charting
+- [x] Stats respect the user's unit system
+- [x] Integration tests for calculation correctness (edge cases: single fill-up,
       missed fill-ups, partial tanks)
 
 ## 10. Dashboard enhancements
