@@ -136,18 +136,18 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > User-selectable units, currency, and color mode. Persisted server-side so
 > they survive across devices/browsers.
 
-- [ ] `settings` table migration (singleton row: unit_system, currency,
+- [x] `settings` table migration (singleton row: unit_system, currency,
       distance_unit, volume_unit, color_mode, locale)
-- [ ] `GET /api/settings` -- read current settings
-- [ ] `PUT /api/settings` -- update settings
-- [ ] Settings page (`/settings`) with unit system (imperial/metric/custom),
+- [x] `GET /api/settings` -- read current settings
+- [x] `PUT /api/settings` -- update settings
+- [x] Settings page (`/settings`) with unit system (imperial/metric/custom),
       currency selector, color mode toggle (light/dark/system), language selector
-- [ ] Wire color mode toggle to `[data-theme]` on `<html>`
-- [ ] Persist color mode preference, apply on page load (no flash)
-- [ ] Frontend reads settings on app init, stores globally
-- [ ] Unit formatting utilities (`formatDistance()`, `formatVolume()`,
+- [x] Wire color mode toggle to `[data-theme]` on `<html>`
+- [x] Persist color mode preference, apply on page load (no flash)
+- [x] Frontend reads settings on app init, stores globally
+- [x] Unit formatting utilities (`formatDistance()`, `formatVolume()`,
       `formatEfficiency()`, `formatCurrency()`)
-- [ ] Integration + vitest tests
+- [x] Integration + vitest tests
 
 ## 9. Efficiency and cost calculations
 
