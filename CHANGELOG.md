@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.5.0](https://github.com/simplyRoba/gazel/compare/v0.4.0...v0.5.0) (2026-04-09)
+
+
+### Features
+
+* add charts and visualization with LayerCake ([d9fb94c](https://github.com/simplyRoba/gazel/commit/d9fb94c7fb875165af5d19d4a9a41284ca7e92bc))
+* add color contrast with dark slate nav, blue-tinted stat cards, and brand-bg chips ([b1a4dc5](https://github.com/simplyRoba/gazel/commit/b1a4dc5999a6b7cb2b5583046ca5520663d3ca7e))
+* show odometer diff, absolute reading, and fuel price on fill-up cards ([e6a5e42](https://github.com/simplyRoba/gazel/commit/e6a5e422356140589355b119004fe9e7e3f2cb1a))
+
+
+### Bug Fixes
+
+* allow editing non-latest fill-ups by validating against chronological neighbors ([ada3ba1](https://github.com/simplyRoba/gazel/commit/ada3ba1d7ccd59e937900efba0812aed1a6e58ea))
+* resolve layercake peer dep conflict in CI ([fb1fc06](https://github.com/simplyRoba/gazel/commit/fb1fc063e047f552056a4233c578c1c885652931))
+* sidebar CTA corner triangle should be hover-only like other buttons ([6aed48d](https://github.com/simplyRoba/gazel/commit/6aed48d770575429b7ddd411ede3f1b14a2e90de))
+
 ## [0.4.0](https://github.com/simplyRoba/gazel/compare/v0.3.0...v0.4.0) (2026-04-09)
 
 
