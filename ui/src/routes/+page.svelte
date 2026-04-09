@@ -302,17 +302,30 @@
       </EmptyState>
     {:else}
       <div class="fillup-list">
-        {#each getFillups() as fillup (fillup.id)}
+        {#each getFillups() as fillup, i (fillup.id)}
           {@const eff = getEfficiencyForFillup(fillup, efficiencyMap)}
+          {@const fillups = getFillups()}
+          {@const prev = i < fillups.length - 1 ? fillups[i + 1] : null}
+          {@const odoDiff = prev ? fillup.odometer - prev.odometer : null}
+          {@const fuelPrice =
+            fillup.fuel_amount > 0 ? fillup.cost / fillup.fuel_amount : null}
           <button
             class="card fillup-card"
             onclick={() => openEditModal(fillup)}
           >
             <div class="fillup-header">
               <span class="fillup-date">{formatDate(fillup.date)}</span>
-              <span class="fillup-odometer mono"
-                >{formatDistance(fillup.odometer, settings.distance_unit)}</span
-              >
+              <span class="fillup-odo">
+                <span class="fillup-diff mono"
+                  >{#if odoDiff !== null}+{formatDistance(
+                      odoDiff,
+                      settings.distance_unit,
+                    )}{:else}&mdash;{/if}</span
+                >
+                <span class="fillup-abs mono"
+                  >{fillup.odometer.toLocaleString()}</span
+                >
+              </span>
             </div>
             <div class="fillup-details">
               <span class="fillup-fuel mono"
@@ -321,6 +334,16 @@
               <span class="fillup-cost mono"
                 >{formatCurrency(fillup.cost, settings.currency)}</span
               >
+              {#if fuelPrice !== null}
+                <span class="fillup-price mono"
+                  >{formatCurrency(
+                    fuelPrice,
+                    settings.currency,
+                  )}/{settings.volume_unit === "l"
+                    ? "L"
+                    : settings.volume_unit}</span
+                >
+              {/if}
               {#if fillup.station}
                 <span class="fillup-station">{fillup.station}</span>
               {/if}
@@ -474,8 +497,24 @@
     font-size: var(--font-sm);
   }
 
-  .fillup-odometer {
+  .fillup-odo {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 1px;
+  }
+
+  .fillup-diff {
     font-size: var(--font-xs);
+    color: var(--color-text-secondary);
+  }
+
+  .fillup-abs {
+    font-size: 10px;
+    color: var(--color-text-tertiary);
+  }
+
+  .fillup-price {
     color: var(--color-text-secondary);
   }
 

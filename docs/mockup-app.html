@@ -423,9 +423,6 @@
       background: var(--color-bg-raised);
       border: 1px solid var(--color-border);
       padding: var(--space-3) var(--space-4);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
       cursor: pointer;
       transition: border-color var(--transition-fast);
     }
@@ -435,35 +432,47 @@
       flex-direction: column;
       gap: 2px;
     }
+    .fillup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: var(--space-1);
+    }
     .fillup-date {
       font-size: var(--font-sm);
       font-weight: var(--font-weight-medium);
     }
-    .fillup-station {
-      font-size: var(--font-xs);
-      color: var(--color-text-tertiary);
-    }
-    .fillup-right {
-      text-align: right;
+    .fillup-odo {
       display: flex;
       flex-direction: column;
-      gap: 2px;
+      align-items: flex-end;
+      gap: 1px;
     }
-    .fillup-cost {
-      font-size: var(--font-sm);
-      font-weight: var(--font-weight-semibold);
-      font-family: var(--font-family-mono);
-    }
-    .fillup-efficiency {
+    .fillup-diff {
       font-size: var(--font-xs);
-      color: var(--color-text-secondary);
       font-family: var(--font-family-mono);
+      color: var(--color-text-secondary);
+    }
+    .fillup-abs {
+      font-size: 10px;
+      font-family: var(--font-family-mono);
+      color: var(--color-text-tertiary);
+    }
+    .fillup-diff-first {
+      color: var(--color-text-tertiary);
+    }
+    .fillup-station {
+      color: var(--color-text-tertiary);
     }
     .fillup-details {
       display: flex;
+      flex-wrap: wrap;
       gap: var(--space-3);
       font-size: var(--font-sm);
+      margin-bottom: var(--space-1);
     }
+    .mono { font-family: var(--font-family-mono); }
+    .fw500 { font-weight: var(--font-weight-medium); }
     .fillup-badges {
       display: flex;
       gap: var(--space-2);
@@ -677,14 +686,18 @@
       <button class="btn btn-primary btn-sm corner-tri-hover">＋ Add fill-up</button>
     </div>
 
-    <!-- Fill-up list — unchanged, warm neutral cards -->
+    <!-- Fill-up list — odometer diff replaces absolute, fuel price added -->
     <div class="fillup-list">
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <div class="fillup-date">Apr 5, 2026</div>
+          <div class="fillup-header">
+            <span class="fillup-date">Apr 5, 2026</span>
+            <span class="fillup-odo"><span class="fillup-diff">+510 km</span><span class="fillup-abs">20,490</span></span>
+          </div>
           <div class="fillup-details">
-            <span style="font-family:var(--font-family-mono);font-weight:500">42.5 L</span>
-            <span style="font-family:var(--font-family-mono);font-weight:500">€87.40</span>
+            <span class="mono fw500">42.5 L</span>
+            <span class="mono fw500">€87.40</span>
+            <span class="mono" style="color:var(--color-text-secondary)">€2.06/L</span>
             <span class="fillup-station">Aral — Hauptstraße</span>
           </div>
           <div class="fillup-badges">
@@ -692,16 +705,17 @@
             <span class="badge badge-success">Full tank</span>
           </div>
         </div>
-        <div class="fillup-right">
-          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">20.490 km</span>
-        </div>
       </div>
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <div class="fillup-date">Mar 28, 2026</div>
+          <div class="fillup-header">
+            <span class="fillup-date">Mar 28, 2026</span>
+            <span class="fillup-odo"><span class="fillup-diff">+440 km</span><span class="fillup-abs">19,980</span></span>
+          </div>
           <div class="fillup-details">
-            <span style="font-family:var(--font-family-mono);font-weight:500">44.8 L</span>
-            <span style="font-family:var(--font-family-mono);font-weight:500">€79.50</span>
+            <span class="mono fw500">44.8 L</span>
+            <span class="mono fw500">€79.50</span>
+            <span class="mono" style="color:var(--color-text-secondary)">€1.77/L</span>
             <span class="fillup-station">Shell — Berliner Str.</span>
           </div>
           <div class="fillup-badges">
@@ -709,32 +723,34 @@
             <span class="badge badge-success">Full tank</span>
           </div>
         </div>
-        <div class="fillup-right">
-          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">19.980 km</span>
-        </div>
       </div>
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <div class="fillup-date">Mar 20, 2026</div>
+          <div class="fillup-header">
+            <span class="fillup-date">Mar 20, 2026</span>
+            <span class="fillup-odo"><span class="fillup-diff">+440 km</span><span class="fillup-abs">19,540</span></span>
+          </div>
           <div class="fillup-details">
-            <span style="font-family:var(--font-family-mono);font-weight:500">41.5 L</span>
-            <span style="font-family:var(--font-family-mono);font-weight:500">€72.30</span>
+            <span class="mono fw500">41.5 L</span>
+            <span class="mono fw500">€72.30</span>
+            <span class="mono" style="color:var(--color-text-secondary)">€1.74/L</span>
             <span class="fillup-station">Jet — Industriegebiet</span>
           </div>
           <div class="fillup-badges">
             <span class="badge badge-warning">Missed</span>
           </div>
         </div>
-        <div class="fillup-right">
-          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">19.540 km</span>
-        </div>
       </div>
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <div class="fillup-date">Mar 12, 2026</div>
+          <div class="fillup-header">
+            <span class="fillup-date">Mar 12, 2026</span>
+            <span class="fillup-odo"><span class="fillup-diff">+390 km</span><span class="fillup-abs">19,100</span></span>
+          </div>
           <div class="fillup-details">
-            <span style="font-family:var(--font-family-mono);font-weight:500">52.3 L</span>
-            <span style="font-family:var(--font-family-mono);font-weight:500">€91.80</span>
+            <span class="mono fw500">52.3 L</span>
+            <span class="mono fw500">€91.80</span>
+            <span class="mono" style="color:var(--color-text-secondary)">€1.76/L</span>
             <span class="fillup-station">Total — Bahnhofstr.</span>
           </div>
           <div class="fillup-badges">
@@ -742,25 +758,23 @@
             <span class="badge badge-success">Full tank</span>
           </div>
         </div>
-        <div class="fillup-right">
-          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">19.100 km</span>
-        </div>
       </div>
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <div class="fillup-date">Mar 3, 2026</div>
+          <div class="fillup-header">
+            <span class="fillup-date">Mar 3, 2026</span>
+            <span class="fillup-odo"><span class="fillup-diff fillup-diff-first">—</span><span class="fillup-abs">18,710</span></span>
+          </div>
           <div class="fillup-details">
-            <span style="font-family:var(--font-family-mono);font-weight:500">47.8 L</span>
-            <span style="font-family:var(--font-family-mono);font-weight:500">€85.60</span>
+            <span class="mono fw500">47.8 L</span>
+            <span class="mono fw500">€85.60</span>
+            <span class="mono" style="color:var(--color-text-secondary)">€1.79/L</span>
             <span class="fillup-station">Esso — A7 Raststätte</span>
           </div>
           <div class="fillup-badges">
             <span class="badge">6.7 km/L</span>
             <span class="badge badge-success">Full tank</span>
           </div>
-        </div>
-        <div class="fillup-right">
-          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">18.710 km</span>
         </div>
       </div>
     </div>
