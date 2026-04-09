@@ -13,7 +13,7 @@
   import { resolve } from "$app/paths";
   import { onMount } from "svelte";
   import { LayoutDashboard, Settings, Plus } from "lucide-svelte";
-  import { initTheme } from "$lib/stores/theme.svelte";
+  import { initSettings } from "$lib/stores/settings.svelte";
   import Logo from "$lib/components/Logo.svelte";
   import ToastHost from "$lib/components/ToastHost.svelte";
 
@@ -33,7 +33,7 @@
   }
 
   onMount(() => {
-    initTheme();
+    initSettings();
   });
 </script>
 

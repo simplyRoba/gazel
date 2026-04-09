@@ -48,6 +48,14 @@ fn default_message(code: &str) -> &'static str {
         "VEHICLE_INVALID_FUEL_TYPE" => "Invalid fuel type.",
         "VEHICLE_INVALID_YEAR" => "Invalid year.",
         "VEHICLE_HAS_FILLUPS" => "Cannot delete vehicle with existing fill-ups.",
+        "SETTINGS_INVALID_COLOR_MODE" => "Invalid color mode. Must be light, dark, or system.",
+        "SETTINGS_INVALID_UNIT_SYSTEM" => {
+            "Invalid unit system. Must be metric, imperial, or custom."
+        }
+        "SETTINGS_INVALID_DISTANCE_UNIT" => "Invalid distance unit. Must be km or mi.",
+        "SETTINGS_INVALID_VOLUME_UNIT" => "Invalid volume unit. Must be l or gal.",
+        "SETTINGS_INVALID_CURRENCY" => "Invalid currency.",
+        "SETTINGS_INVALID_LOCALE" => "Invalid locale.",
         _ => "An error occurred.",
     }
 }

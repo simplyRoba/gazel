@@ -1,4 +1,5 @@
 pub mod error;
+pub mod settings;
 pub mod vehicles;
 
 use axum::Router;
@@ -9,6 +10,10 @@ use crate::state::AppState;
 /// Build the `/api` sub-router.
 pub fn router(_state: AppState) -> Router<AppState> {
     Router::new()
+        .route(
+            "/settings",
+            get(settings::get_settings).put(settings::update_settings),
+        )
         .route("/vehicles", get(vehicles::list).post(vehicles::create))
         .route(
             "/vehicles/{id}",

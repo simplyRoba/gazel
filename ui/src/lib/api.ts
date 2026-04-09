@@ -89,3 +89,33 @@ export function updateVehicle(
 export function deleteVehicle(id: number): Promise<void> {
   return request("DELETE", `/api/vehicles/${id}`);
 }
+
+// ── Settings types ───────────────────────────────────────
+
+export interface Settings {
+  unit_system: string;
+  distance_unit: string;
+  volume_unit: string;
+  currency: string;
+  color_mode: string;
+  locale: string;
+}
+
+export interface UpdateSettingsRequest {
+  unit_system?: string;
+  distance_unit?: string;
+  volume_unit?: string;
+  currency?: string;
+  color_mode?: string;
+  locale?: string;
+}
+
+// ── Settings API functions ───────────────────────────────
+
+export function fetchSettings(): Promise<Settings> {
+  return request("GET", "/api/settings");
+}
+
+export function updateSettings(data: UpdateSettingsRequest): Promise<Settings> {
+  return request("PUT", "/api/settings", data);
+}
