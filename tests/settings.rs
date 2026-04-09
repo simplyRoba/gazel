@@ -28,7 +28,7 @@ async fn get_settings_returns_defaults() {
     assert_eq!(json["unit_system"], "metric");
     assert_eq!(json["distance_unit"], "km");
     assert_eq!(json["volume_unit"], "l");
-    assert_eq!(json["currency"], "USD");
+    assert_eq!(json["currency"], "EUR");
     assert_eq!(json["color_mode"], "system");
     assert_eq!(json["locale"], "en");
 }
@@ -54,7 +54,7 @@ async fn update_single_field() {
     assert_eq!(json["unit_system"], "metric");
     assert_eq!(json["distance_unit"], "km");
     assert_eq!(json["volume_unit"], "l");
-    assert_eq!(json["currency"], "USD");
+    assert_eq!(json["currency"], "EUR");
     assert_eq!(json["locale"], "en");
 }
 
@@ -94,7 +94,7 @@ async fn update_empty_body_preserves_values() {
     assert_eq!(json["unit_system"], "metric");
     assert_eq!(json["distance_unit"], "km");
     assert_eq!(json["volume_unit"], "l");
-    assert_eq!(json["currency"], "USD");
+    assert_eq!(json["currency"], "EUR");
     assert_eq!(json["color_mode"], "system");
     assert_eq!(json["locale"], "en");
 }
