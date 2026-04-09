@@ -90,6 +90,82 @@ export function deleteVehicle(id: number): Promise<void> {
   return request("DELETE", `/api/vehicles/${id}`);
 }
 
+// ── Fill-up types ────────────────────────────────────────
+
+export interface Fillup {
+  id: number;
+  vehicle_id: number;
+  date: string;
+  odometer: number;
+  fuel_amount: number;
+  fuel_unit: string;
+  cost: number;
+  currency: string;
+  is_full_tank: boolean;
+  is_missed: boolean;
+  station: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateFillup {
+  date: string;
+  odometer: number;
+  fuel_amount: number;
+  cost: number;
+  is_full_tank?: boolean;
+  is_missed?: boolean;
+  station?: string | null;
+  notes?: string | null;
+}
+
+export interface UpdateFillup {
+  date: string;
+  odometer: number;
+  fuel_amount: number;
+  cost: number;
+  is_full_tank?: boolean;
+  is_missed?: boolean;
+  station?: string | null;
+  notes?: string | null;
+}
+
+// ── Fill-up API functions ────────────────────────────────
+
+export function fetchFillups(vehicleId: number): Promise<Fillup[]> {
+  return request("GET", `/api/vehicles/${vehicleId}/fillups`);
+}
+
+export function fetchFillup(
+  vehicleId: number,
+  fillupId: number,
+): Promise<Fillup> {
+  return request("GET", `/api/vehicles/${vehicleId}/fillups/${fillupId}`);
+}
+
+export function createFillup(
+  vehicleId: number,
+  data: CreateFillup,
+): Promise<Fillup> {
+  return request("POST", `/api/vehicles/${vehicleId}/fillups`, data);
+}
+
+export function updateFillup(
+  vehicleId: number,
+  fillupId: number,
+  data: UpdateFillup,
+): Promise<Fillup> {
+  return request("PUT", `/api/vehicles/${vehicleId}/fillups/${fillupId}`, data);
+}
+
+export function deleteFillup(
+  vehicleId: number,
+  fillupId: number,
+): Promise<void> {
+  return request("DELETE", `/api/vehicles/${vehicleId}/fillups/${fillupId}`);
+}
+
 // ── Settings types ───────────────────────────────────────
 
 export interface Settings {

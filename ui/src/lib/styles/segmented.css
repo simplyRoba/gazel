@@ -1,0 +1,80 @@
+/* ── Segmented control ────────────────────────────
+   A connected group of chips that behave like radio buttons.
+   Usage:
+     <div class="segmented">
+       <button class="segmented-item" class:active={...}>A</button>
+       <button class="segmented-item" class:active={...}>B</button>
+     </div>
+   ─────────────────────────────────────────────── */
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg-sunken);
+}
+
+.segmented-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: none;
+  border-right: 1px solid var(--color-border);
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--font-sm);
+  font-weight: var(--font-weight-medium);
+  font-family: inherit;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  transition:
+    color var(--transition-fast),
+    background var(--transition-fast);
+}
+
+.segmented-item::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0;
+  border-color: transparent var(--color-accent) transparent transparent;
+  transition: border-width var(--transition-fast);
+}
+
+.segmented-item:last-child {
+  border-right: none;
+}
+
+.segmented-item:hover {
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.segmented-item:hover::after {
+  border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
+}
+
+.segmented-item.active {
+  color: var(--color-accent-text);
+  background: var(--color-bg-raised);
+  font-weight: var(--font-weight-semibold);
+}
+
+.segmented-item.active::after {
+  border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
+}
+
+@media (max-width: 768px) {
+  .segmented-item {
+    min-height: 40px;
+    padding: var(--space-2) var(--space-3);
+  }
+}

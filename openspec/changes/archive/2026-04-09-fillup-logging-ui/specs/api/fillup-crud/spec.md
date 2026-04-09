@@ -1,52 +1,4 @@
-## ADDED Requirements
-
-### Requirement: List fill-ups for a vehicle
-
-The API SHALL return all fill-ups for a given vehicle, sorted by date descending.
-
-#### Scenario: List when fill-ups exist
-- **WHEN** a `GET /api/vehicles/{vehicle_id}/fillups` request is received
-- **AND** the vehicle exists
-- **AND** fill-ups exist for that vehicle
-- **THEN** the response status SHALL be `200 OK`
-- **AND** the body SHALL be a JSON array of fill-up objects sorted by date descending
-
-#### Scenario: List when no fill-ups exist
-- **WHEN** a `GET /api/vehicles/{vehicle_id}/fillups` request is received
-- **AND** the vehicle exists
-- **AND** no fill-ups exist for that vehicle
-- **THEN** the response status SHALL be `200 OK`
-- **AND** the body SHALL be an empty JSON array `[]`
-
-#### Scenario: List for non-existent vehicle
-- **WHEN** a `GET /api/vehicles/{vehicle_id}/fillups` request is received
-- **AND** the vehicle does not exist
-- **THEN** the response status SHALL be `404 Not Found`
-- **AND** the body SHALL contain `"code": "VEHICLE_NOT_FOUND"`
-
-### Requirement: Get a single fill-up
-
-The API SHALL return a single fill-up by its ID, scoped to a vehicle.
-
-#### Scenario: Fill-up exists
-- **WHEN** a `GET /api/vehicles/{vehicle_id}/fillups/{id}` request is received
-- **AND** the vehicle exists
-- **AND** the fill-up exists and belongs to that vehicle
-- **THEN** the response status SHALL be `200 OK`
-- **AND** the body SHALL be a JSON fill-up object
-
-#### Scenario: Fill-up not found
-- **WHEN** a `GET /api/vehicles/{vehicle_id}/fillups/{id}` request is received
-- **AND** the vehicle exists
-- **AND** no fill-up with that ID exists for the vehicle
-- **THEN** the response status SHALL be `404 Not Found`
-- **AND** the body SHALL contain `"code": "FILLUP_NOT_FOUND"`
-
-#### Scenario: Vehicle not found for get
-- **WHEN** a `GET /api/vehicles/{vehicle_id}/fillups/{id}` request is received
-- **AND** the vehicle does not exist
-- **THEN** the response status SHALL be `404 Not Found`
-- **AND** the body SHALL contain `"code": "VEHICLE_NOT_FOUND"`
+## MODIFIED Requirements
 
 ### Requirement: Create a fill-up
 
@@ -108,62 +60,6 @@ The API SHALL fully replace a fill-up's fields via PUT. The `odometer` and `cost
 - **THEN** the response status SHALL be `404 Not Found`
 - **AND** the body SHALL contain `"code": "VEHICLE_NOT_FOUND"`
 
-### Requirement: Delete a fill-up
-
-The API SHALL delete a fill-up by ID, returning 204 on success.
-
-#### Scenario: Successful delete
-- **WHEN** a `DELETE /api/vehicles/{vehicle_id}/fillups/{id}` request is received
-- **AND** the vehicle exists
-- **AND** the fill-up exists and belongs to that vehicle
-- **THEN** the response status SHALL be `204 No Content`
-- **AND** subsequent `GET /api/vehicles/{vehicle_id}/fillups/{id}` SHALL return `404 Not Found`
-
-#### Scenario: Delete non-existent fill-up
-- **WHEN** a `DELETE /api/vehicles/{vehicle_id}/fillups/{id}` request is received
-- **AND** the vehicle exists
-- **AND** no fill-up with that ID exists for the vehicle
-- **THEN** the response status SHALL be `404 Not Found`
-- **AND** the body SHALL contain `"code": "FILLUP_NOT_FOUND"`
-
-#### Scenario: Delete for non-existent vehicle
-- **WHEN** a `DELETE /api/vehicles/{vehicle_id}/fillups/{id}` request is received
-- **AND** the vehicle does not exist
-- **THEN** the response status SHALL be `404 Not Found`
-- **AND** the body SHALL contain `"code": "VEHICLE_NOT_FOUND"`
-
-### Requirement: Fill-up date validation
-
-The API SHALL require a valid date for every fill-up.
-
-#### Scenario: Missing date on create
-- **WHEN** a `POST /api/vehicles/{vehicle_id}/fillups` request is received without a `date` field
-- **THEN** the response status SHALL be `422 Unprocessable Entity`
-- **AND** the body SHALL contain `"code": "FILLUP_DATE_REQUIRED"`
-
-#### Scenario: Empty date on create
-- **WHEN** a `POST /api/vehicles/{vehicle_id}/fillups` request is received with a `date` that is empty or whitespace-only
-- **THEN** the response status SHALL be `422 Unprocessable Entity`
-- **AND** the body SHALL contain `"code": "FILLUP_DATE_REQUIRED"`
-
-#### Scenario: Date is trimmed
-- **WHEN** a create or update request includes a `date` with leading/trailing whitespace
-- **THEN** the stored date SHALL have whitespace trimmed
-
-### Requirement: Fill-up fuel amount validation
-
-The API SHALL require a positive fuel amount for every fill-up.
-
-#### Scenario: Missing fuel amount on create
-- **WHEN** a `POST /api/vehicles/{vehicle_id}/fillups` request is received without a `fuel_amount` field
-- **THEN** the response status SHALL be `422 Unprocessable Entity`
-- **AND** the body SHALL contain `"code": "FILLUP_FUEL_AMOUNT_REQUIRED"`
-
-#### Scenario: Zero fuel amount
-- **WHEN** a create or update request includes `fuel_amount` of `0` or less
-- **THEN** the response status SHALL be `422 Unprocessable Entity`
-- **AND** the body SHALL contain `"code": "FILLUP_INVALID_FUEL_AMOUNT"`
-
 ### Requirement: Fill-up odometer validation
 
 The API SHALL require a valid odometer value for every fill-up. Odometer readings SHALL NOT decrease across fill-ups for the same vehicle.
@@ -221,14 +117,6 @@ The API SHALL require a non-negative cost value for every fill-up.
 - **WHEN** a create or update request includes a `cost` of `0`
 - **THEN** the request SHALL be accepted
 
-### Requirement: Fill-up response shape
-
-All fill-up API responses SHALL use a consistent JSON shape.
-
-#### Scenario: Fill-up JSON structure
-- **WHEN** a fill-up is returned in any endpoint response
-- **THEN** the JSON object SHALL contain exactly these fields: `id` (integer), `vehicle_id` (integer), `date` (string), `odometer` (number or null), `fuel_amount` (number), `fuel_unit` (string), `cost` (number or null), `currency` (string or null), `is_full_tank` (boolean), `is_missed` (boolean), `station` (string or null), `notes` (string or null), `created_at` (string), `updated_at` (string)
-
 ### Requirement: Fill-up default values
 
 The API SHALL apply updated default values for optional boolean fields.
@@ -256,3 +144,20 @@ The API SHALL read `fuel_unit` and `currency` from the application settings tabl
 
 - **WHEN** a fill-up is created or updated
 - **THEN** `currency` SHALL be set to the current `currency` value from the settings table (e.g., `"USD"` or `"EUR"`)
+
+## REMOVED Requirements
+
+### Requirement: Create with null odometer accepted
+
+**Reason**: Odometer is now required to enable efficiency calculations in a future change.
+**Migration**: All create/update requests must include a numeric `odometer` value.
+
+### Requirement: Create with null cost accepted
+
+**Reason**: Cost is now required to enable cost tracking, which is a core feature.
+**Migration**: All create/update requests must include a numeric `cost` value (use `0` if cost is truly unknown).
+
+### Requirement: Odometer ordering validation - null odometer scenario
+
+**Reason**: Null odometer is no longer accepted; this scenario is superseded by the `FILLUP_ODOMETER_REQUIRED` validation.
+**Migration**: N/A -- the scenario simply no longer applies.

@@ -52,7 +52,9 @@ fn default_message(code: &str) -> &'static str {
         "FILLUP_DATE_REQUIRED" => "Fill-up date is required.",
         "FILLUP_FUEL_AMOUNT_REQUIRED" => "Fuel amount is required.",
         "FILLUP_INVALID_FUEL_AMOUNT" => "Fuel amount must be greater than zero.",
+        "FILLUP_ODOMETER_REQUIRED" => "Odometer reading is required.",
         "FILLUP_INVALID_ODOMETER" => "Odometer reading must not be less than the previous reading.",
+        "FILLUP_COST_REQUIRED" => "Cost is required.",
         "FILLUP_INVALID_COST" => "Cost must not be negative.",
         "SETTINGS_INVALID_COLOR_MODE" => "Invalid color mode. Must be light, dark, or system.",
         "SETTINGS_INVALID_UNIT_SYSTEM" => {

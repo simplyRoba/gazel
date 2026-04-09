@@ -101,9 +101,9 @@
 
       <div class="setting-row">
         <span class="setting-label">Theme</span>
-        <div class="chip-group">
+        <div class="segmented">
           <button
-            class="setting-chip"
+            class="segmented-item"
             class:active={getThemePreference() === "light"}
             onclick={() => handleTheme("light")}
           >
@@ -111,7 +111,7 @@
             Light
           </button>
           <button
-            class="setting-chip"
+            class="segmented-item"
             class:active={getThemePreference() === "dark"}
             onclick={() => handleTheme("dark")}
           >
@@ -119,7 +119,7 @@
             Dark
           </button>
           <button
-            class="setting-chip"
+            class="segmented-item"
             class:active={getThemePreference() === "system"}
             onclick={() => handleTheme("system")}
           >
@@ -131,9 +131,9 @@
 
       <div class="setting-row">
         <span class="setting-label">Language</span>
-        <div class="chip-group">
+        <div class="segmented">
           <button
-            class="setting-chip"
+            class="segmented-item"
             class:active={getSettings().locale === "en"}
             onclick={() => handleLocale("en")}
           >
@@ -152,23 +152,23 @@
 
       <div class="setting-row">
         <span class="setting-label">System</span>
-        <div class="chip-group">
+        <div class="segmented">
           <button
-            class="setting-chip"
+            class="segmented-item"
             class:active={getSettings().unit_system === "metric"}
             onclick={() => handleUnitSystem("metric")}
           >
             Metric
           </button>
           <button
-            class="setting-chip"
+            class="segmented-item"
             class:active={getSettings().unit_system === "imperial"}
             onclick={() => handleUnitSystem("imperial")}
           >
             Imperial
           </button>
           <button
-            class="setting-chip"
+            class="segmented-item"
             class:active={getSettings().unit_system === "custom"}
             onclick={() => handleUnitSystem("custom")}
           >
@@ -180,16 +180,16 @@
       {#if getSettings().unit_system === "custom"}
         <div class="setting-row">
           <span class="setting-label">Distance</span>
-          <div class="chip-group">
+          <div class="segmented">
             <button
-              class="setting-chip"
+              class="segmented-item"
               class:active={getSettings().distance_unit === "km"}
               onclick={() => handleDistanceUnit("km")}
             >
               Kilometers
             </button>
             <button
-              class="setting-chip"
+              class="segmented-item"
               class:active={getSettings().distance_unit === "mi"}
               onclick={() => handleDistanceUnit("mi")}
             >
@@ -200,16 +200,16 @@
 
         <div class="setting-row">
           <span class="setting-label">Volume</span>
-          <div class="chip-group">
+          <div class="segmented">
             <button
-              class="setting-chip"
+              class="segmented-item"
               class:active={getSettings().volume_unit === "l"}
               onclick={() => handleVolumeUnit("l")}
             >
               Liters
             </button>
             <button
-              class="setting-chip"
+              class="segmented-item"
               class:active={getSettings().volume_unit === "gal"}
               onclick={() => handleVolumeUnit("gal")}
             >
@@ -221,10 +221,10 @@
 
       <div class="setting-row">
         <span class="setting-label">Currency</span>
-        <div class="chip-group">
+        <div class="segmented">
           {#each currencies as c (c.code)}
             <button
-              class="setting-chip"
+              class="segmented-item"
               class:active={getSettings().currency === c.code}
               onclick={() => handleCurrency(c.code)}
             >
@@ -369,74 +369,6 @@
     margin-right: var(--space-4);
   }
 
-  /* ── Segmented control ──────────────────────────── */
-  /* Chips connect into a single bar with shared borders. */
-
-  .chip-group {
-    display: inline-flex;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg-sunken);
-  }
-
-  .setting-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--space-1);
-    padding: var(--space-2) var(--space-3);
-    border: none;
-    border-right: 1px solid var(--color-border);
-    background: transparent;
-    color: var(--color-text-secondary);
-    font-size: var(--font-sm);
-    font-weight: var(--font-weight-medium);
-    font-family: inherit;
-    line-height: 1.2;
-    white-space: nowrap;
-    cursor: pointer;
-    box-sizing: border-box;
-    position: relative;
-    overflow: hidden;
-    transition:
-      color var(--transition-fast),
-      background var(--transition-fast);
-  }
-
-  .setting-chip::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 0;
-    height: 0;
-    border-style: solid;
-    border-width: 0;
-    border-color: transparent var(--color-accent) transparent transparent;
-    transition: border-width var(--transition-fast);
-  }
-
-  .setting-chip:last-child {
-    border-right: none;
-  }
-
-  .setting-chip:hover {
-    color: var(--color-text);
-    background: var(--color-bg);
-  }
-
-  .setting-chip:hover::after {
-    border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
-  }
-
-  .setting-chip.active {
-    color: var(--color-accent-text);
-    background: var(--color-bg-raised);
-    font-weight: var(--font-weight-semibold);
-  }
-
-  .setting-chip.active::after {
-    border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
-  }
-
   /* ── Vehicles ──────────────────────────────────── */
 
   .vehicle-list {
@@ -485,11 +417,6 @@
       flex-direction: column;
       align-items: flex-start;
       gap: var(--space-2);
-    }
-
-    .setting-chip {
-      min-height: 40px;
-      padding: var(--space-2) var(--space-3);
     }
   }
 </style>

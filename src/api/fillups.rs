@@ -15,11 +15,11 @@ pub struct Fillup {
     pub id: i64,
     pub vehicle_id: i64,
     pub date: String,
-    pub odometer: Option<f64>,
+    pub odometer: f64,
     pub fuel_amount: f64,
     pub fuel_unit: String,
-    pub cost: Option<f64>,
-    pub currency: Option<String>,
+    pub cost: f64,
+    pub currency: String,
     pub is_full_tank: bool,
     pub is_missed: bool,
     pub station: Option<String>,
@@ -31,6 +31,12 @@ pub struct Fillup {
 // ── Database row type ────────────────────────────────────
 
 /// Fill-up row as stored in `SQLite`.
+///
+/// The `odometer`, `cost`, and `currency` columns are `NOT NULL` at the
+/// application level (enforced by validation), but the database schema still
+/// allows `NULL` for backwards compatibility with rows created before these
+/// fields became required. The `From` impl maps `NULL` to sensible defaults
+/// so the API response type always has non-optional values.
 #[derive(sqlx::FromRow)]
 struct FillupRow {
     id: i64,
@@ -55,11 +61,11 @@ impl From<FillupRow> for Fillup {
             id: row.id,
             vehicle_id: row.vehicle_id,
             date: row.date,
-            odometer: row.odometer,
+            odometer: row.odometer.unwrap_or(0.0),
             fuel_amount: row.fuel_amount,
             fuel_unit: row.fuel_unit,
-            cost: row.cost,
-            currency: row.currency,
+            cost: row.cost.unwrap_or(0.0),
+            currency: row.currency.unwrap_or_default(),
             is_full_tank: row.is_full_tank != 0,
             is_missed: row.is_missed != 0,
             station: row.station,
@@ -83,9 +89,7 @@ pub struct CreateFillup {
     pub date: Option<String>,
     pub odometer: Option<f64>,
     pub fuel_amount: Option<f64>,
-    pub fuel_unit: Option<String>,
     pub cost: Option<f64>,
-    pub currency: Option<String>,
     pub is_full_tank: Option<bool>,
     pub is_missed: Option<bool>,
     pub station: Option<String>,
@@ -95,11 +99,9 @@ pub struct CreateFillup {
 #[derive(Deserialize)]
 pub struct UpdateFillup {
     pub date: String,
-    pub odometer: Option<f64>,
+    pub odometer: f64,
     pub fuel_amount: f64,
-    pub fuel_unit: Option<String>,
-    pub cost: Option<f64>,
-    pub currency: Option<String>,
+    pub cost: f64,
     pub is_full_tank: Option<bool>,
     pub is_missed: Option<bool>,
     pub station: Option<String>,
@@ -135,13 +137,9 @@ fn validate_fuel_amount(amount: f64) -> Result<(), ApiError> {
 async fn validate_odometer(
     pool: &SqlitePool,
     vehicle_id: i64,
-    odometer: Option<f64>,
+    odometer: f64,
     exclude_id: Option<i64>,
 ) -> Result<(), ApiError> {
-    let Some(value) = odometer else {
-        return Ok(());
-    };
-
     let max_odometer: Option<f64> = if let Some(eid) = exclude_id {
         sqlx::query_scalar("SELECT MAX(odometer) FROM fillups WHERE vehicle_id = ? AND id != ?")
             .bind(vehicle_id)
@@ -158,7 +156,7 @@ async fn validate_odometer(
     };
 
     if let Some(max) = max_odometer
-        && value < max
+        && odometer < max
     {
         return Err(ApiError::Validation("FILLUP_INVALID_ODOMETER"));
     }
@@ -169,10 +167,8 @@ async fn validate_odometer(
 /// # Errors
 ///
 /// Returns `ApiError::Validation` if the cost is negative.
-fn validate_cost(cost: Option<f64>) -> Result<(), ApiError> {
-    if let Some(c) = cost
-        && c < 0.0
-    {
+fn validate_cost(cost: f64) -> Result<(), ApiError> {
+    if cost < 0.0 {
         return Err(ApiError::Validation("FILLUP_INVALID_COST"));
     }
     Ok(())
@@ -193,6 +189,20 @@ async fn ensure_vehicle_exists(pool: &SqlitePool, vehicle_id: i64) -> Result<(),
     }
 
     Ok(())
+}
+
+/// Read `volume_unit` and `currency` from the settings table.
+///
+/// # Errors
+///
+/// Returns `ApiError::InternalError` on database failures.
+async fn read_settings(pool: &SqlitePool) -> Result<(String, String), ApiError> {
+    let row: (String, String) =
+        sqlx::query_as("SELECT volume_unit, currency FROM settings WHERE id = 1")
+            .fetch_one(pool)
+            .await
+            .map_err(db_error)?;
+    Ok(row)
 }
 
 // ── Handlers ─────────────────────────────────────────────
@@ -264,14 +274,19 @@ pub async fn create(
         .fuel_amount
         .ok_or(ApiError::Validation("FILLUP_FUEL_AMOUNT_REQUIRED"))?;
     validate_fuel_amount(fuel_amount)?;
-    validate_odometer(&pool, vehicle_id, body.odometer, None).await?;
-    validate_cost(body.cost)?;
 
-    let fuel_unit = body
-        .fuel_unit
-        .filter(|u| !u.trim().is_empty())
-        .unwrap_or_else(|| "liters".to_string());
-    let is_full_tank = i32::from(body.is_full_tank.unwrap_or(false));
+    let odometer = body
+        .odometer
+        .ok_or(ApiError::Validation("FILLUP_ODOMETER_REQUIRED"))?;
+    validate_odometer(&pool, vehicle_id, odometer, None).await?;
+
+    let cost = body
+        .cost
+        .ok_or(ApiError::Validation("FILLUP_COST_REQUIRED"))?;
+    validate_cost(cost)?;
+
+    let (fuel_unit, currency) = read_settings(&pool).await?;
+    let is_full_tank = i32::from(body.is_full_tank.unwrap_or(true));
     let is_missed = i32::from(body.is_missed.unwrap_or(false));
 
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
@@ -283,11 +298,11 @@ pub async fn create(
     )
     .bind(vehicle_id)
     .bind(&date)
-    .bind(body.odometer)
+    .bind(odometer)
     .bind(fuel_amount)
     .bind(&fuel_unit)
-    .bind(body.cost)
-    .bind(&body.currency)
+    .bind(cost)
+    .bind(&currency)
     .bind(is_full_tank)
     .bind(is_missed)
     .bind(&body.station)
@@ -340,11 +355,8 @@ pub async fn update(
     validate_odometer(&pool, vehicle_id, body.odometer, Some(id)).await?;
     validate_cost(body.cost)?;
 
-    let fuel_unit = body
-        .fuel_unit
-        .filter(|u| !u.trim().is_empty())
-        .unwrap_or_else(|| "liters".to_string());
-    let is_full_tank = i32::from(body.is_full_tank.unwrap_or(false));
+    let (fuel_unit, currency) = read_settings(&pool).await?;
+    let is_full_tank = i32::from(body.is_full_tank.unwrap_or(true));
     let is_missed = i32::from(body.is_missed.unwrap_or(false));
 
     let now = chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
@@ -359,7 +371,7 @@ pub async fn update(
     .bind(body.fuel_amount)
     .bind(&fuel_unit)
     .bind(body.cost)
-    .bind(&body.currency)
+    .bind(&currency)
     .bind(is_full_tank)
     .bind(is_missed)
     .bind(&body.station)

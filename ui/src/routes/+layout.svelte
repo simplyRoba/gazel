@@ -8,16 +8,31 @@
   import "$lib/styles/badges.css";
   import "$lib/styles/cards.css";
   import "$lib/styles/skeletons.css";
+  import "$lib/styles/segmented.css";
 
+  import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { resolve } from "$app/paths";
   import { onMount } from "svelte";
   import { LayoutDashboard, Settings, Plus } from "lucide-svelte";
   import { initSettings } from "$lib/stores/settings.svelte";
+  import { getVehicles, loadVehicles } from "$lib/stores/vehicles.svelte";
+  import {
+    getActiveVehicleId,
+    setActiveVehicle,
+    createFillup as storeCreateFillup,
+  } from "$lib/stores/fillups.svelte";
   import Logo from "$lib/components/Logo.svelte";
   import ToastHost from "$lib/components/ToastHost.svelte";
+  import FillupModal from "$lib/components/FillupModal.svelte";
+  import type { CreateFillup, Vehicle } from "$lib/api";
 
   let { children } = $props();
+
+  // CTA modal state
+  let showCtaModal = $state(false);
+  let ctaVehicleId = $state<number | null>(null);
+  let showVehiclePicker = $state(false);
 
   function isActive(href: string): boolean {
     if (href === "/") {
@@ -29,11 +44,64 @@
   }
 
   function handleCta(): void {
-    // TODO: open add fill-up modal (wired in fill-up UI change)
+    const vehicles = getVehicles();
+    if (vehicles.length === 0) {
+      goto(resolve("/settings/vehicles/new"));
+      return;
+    }
+    if (vehicles.length === 1) {
+      ctaVehicleId = vehicles[0].id;
+      // Ensure this vehicle's fill-ups are loaded
+      if (getActiveVehicleId() !== vehicles[0].id) {
+        setActiveVehicle(vehicles[0].id);
+      }
+      showCtaModal = true;
+      return;
+    }
+    // Multiple vehicles: show picker
+    showVehiclePicker = true;
   }
 
-  onMount(() => {
-    initSettings();
+  function selectVehicleForCta(vehicle: Vehicle): void {
+    ctaVehicleId = vehicle.id;
+    if (getActiveVehicleId() !== vehicle.id) {
+      setActiveVehicle(vehicle.id);
+    }
+    showVehiclePicker = false;
+    showCtaModal = true;
+  }
+
+  function closeCtaModal(): void {
+    showCtaModal = false;
+    ctaVehicleId = null;
+  }
+
+  function closeVehiclePicker(): void {
+    showVehiclePicker = false;
+  }
+
+  async function handleCtaSave(data: CreateFillup): Promise<void> {
+    if (!ctaVehicleId) return;
+    const result = await storeCreateFillup(ctaVehicleId, data);
+    if (!result) {
+      throw new Error("Save failed");
+    }
+  }
+
+  let pickerDialogEl: HTMLDialogElement | undefined = $state();
+
+  $effect(() => {
+    if (!pickerDialogEl) return;
+    if (showVehiclePicker && !pickerDialogEl.open) {
+      pickerDialogEl.showModal();
+    } else if (!showVehiclePicker && pickerDialogEl.open) {
+      pickerDialogEl.close();
+    }
+  });
+
+  onMount(async () => {
+    await initSettings();
+    await loadVehicles();
   });
 </script>
 
@@ -104,6 +172,53 @@
     <ToastHost />
   </div>
 </div>
+
+<!-- Vehicle picker dialog (CTA with multiple vehicles) -->
+<dialog
+  bind:this={pickerDialogEl}
+  class="picker-dialog"
+  oncancel={(e) => {
+    e.preventDefault();
+    closeVehiclePicker();
+  }}
+  onclick={(e) => {
+    if (e.target === pickerDialogEl) closeVehiclePicker();
+  }}
+>
+  <div class="picker-body corner-tri">
+    <h3 class="picker-title">Select vehicle</h3>
+    <div class="picker-list">
+      {#each getVehicles() as vehicle (vehicle.id)}
+        <button
+          class="picker-item"
+          onclick={() => selectVehicleForCta(vehicle)}
+        >
+          {vehicle.name}
+          {#if vehicle.make || vehicle.model}
+            <span class="picker-meta">
+              {[vehicle.make, vehicle.model].filter(Boolean).join(" ")}
+            </span>
+          {/if}
+        </button>
+      {/each}
+    </div>
+    <div class="picker-actions">
+      <button class="btn btn-secondary" onclick={closeVehiclePicker}
+        >Cancel</button
+      >
+    </div>
+  </div>
+</dialog>
+
+<!-- CTA fill-up modal -->
+{#if ctaVehicleId}
+  <FillupModal
+    open={showCtaModal}
+    vehicleId={ctaVehicleId}
+    onsave={handleCtaSave}
+    onclose={closeCtaModal}
+  />
+{/if}
 
 <style>
   /* ── Layout tokens ──────────────────────────── */
@@ -315,6 +430,72 @@
     .content {
       padding: var(--space-8);
     }
+  }
+
+  /* ── Vehicle picker dialog ────────────────────── */
+  :global(.picker-dialog) {
+    border: none;
+    padding: 0;
+    margin: auto;
+    background: transparent;
+    max-width: 360px;
+    width: calc(100% - var(--space-8));
+    position: fixed;
+    inset: 0;
+    height: fit-content;
+  }
+
+  :global(.picker-dialog::backdrop) {
+    background: color-mix(in srgb, var(--color-bg) 70%, transparent);
+  }
+
+  :global(.picker-body) {
+    background: var(--color-bg-raised);
+    border: 1px solid var(--color-border);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-lg);
+  }
+
+  :global(.picker-title) {
+    font-size: var(--font-lg);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-4);
+  }
+
+  :global(.picker-list) {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    margin-bottom: var(--space-5);
+  }
+
+  :global(.picker-item) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-3);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    font-size: var(--font-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+    transition: border-color var(--transition-fast);
+    text-align: left;
+  }
+
+  :global(.picker-item:hover) {
+    border-color: var(--color-accent);
+  }
+
+  :global(.picker-meta) {
+    font-weight: var(--font-weight-normal);
+    color: var(--color-text-secondary);
+    font-size: var(--font-xs);
+  }
+
+  :global(.picker-actions) {
+    display: flex;
+    justify-content: flex-end;
   }
 
   /* ── Mobile (<=768px) ───────────────────────── */

@@ -56,9 +56,24 @@ async fn list_returns_fillups_sorted_by_date_desc() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    create_fillup(&mut app, vid, r#"{"date":"2026-01-01","fuel_amount":30.0}"#).await;
-    create_fillup(&mut app, vid, r#"{"date":"2026-03-01","fuel_amount":25.0}"#).await;
-    create_fillup(&mut app, vid, r#"{"date":"2026-02-01","fuel_amount":20.0}"#).await;
+    create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+    )
+    .await;
+    create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-03-01","fuel_amount":25.0,"odometer":11000,"cost":45.0}"#,
+    )
+    .await;
+    create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-02-01","fuel_amount":20.0,"odometer":12000,"cost":35.0}"#,
+    )
+    .await;
 
     let resp = app
         .clone()
@@ -103,8 +118,12 @@ async fn get_existing_fillup() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let create_resp =
-        create_fillup(&mut app, vid, r#"{"date":"2026-04-01","fuel_amount":40.0}"#).await;
+    let create_resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-01","fuel_amount":40.0,"odometer":10000,"cost":60.0}"#,
+    )
+    .await;
     let created = common::body_json(create_resp).await;
     let fid = created["id"].as_i64().unwrap();
 
@@ -169,7 +188,7 @@ async fn create_with_all_fields() {
     let resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-04-09","odometer":15230.5,"fuel_amount":45.5,"fuel_unit":"gallons","cost":72.80,"currency":"USD","is_full_tank":true,"is_missed":false,"station":"Shell Main St","notes":"Regular fill"}"#,
+        r#"{"date":"2026-04-09","odometer":15230.5,"fuel_amount":45.5,"cost":72.80,"is_full_tank":true,"is_missed":false,"station":"Shell Main St","notes":"Regular fill"}"#,
     )
     .await;
     assert_eq!(resp.status(), StatusCode::CREATED);
@@ -178,9 +197,10 @@ async fn create_with_all_fields() {
     assert_eq!(json["date"], "2026-04-09");
     assert_eq!(json["odometer"], 15230.5);
     assert_eq!(json["fuel_amount"], 45.5);
-    assert_eq!(json["fuel_unit"], "gallons");
+    // fuel_unit and currency are auto-populated from settings (defaults: "l" and "EUR")
+    assert_eq!(json["fuel_unit"], "l");
     assert_eq!(json["cost"], 72.80);
-    assert_eq!(json["currency"], "USD");
+    assert_eq!(json["currency"], "EUR");
     assert_eq!(json["is_full_tank"], true);
     assert_eq!(json["is_missed"], false);
     assert_eq!(json["station"], "Shell Main St");
@@ -195,15 +215,22 @@ async fn create_with_required_fields_only() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let resp = create_fillup(&mut app, vid, r#"{"date":"2026-04-09","fuel_amount":30.0}"#).await;
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-09","fuel_amount":30.0,"odometer":5000,"cost":45.0}"#,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::CREATED);
     let json = common::body_json(resp).await;
-    assert_eq!(json["fuel_unit"], "liters");
-    assert_eq!(json["is_full_tank"], false);
+    // fuel_unit and currency auto-populated from settings defaults
+    assert_eq!(json["fuel_unit"], "l");
+    assert_eq!(json["currency"], "EUR");
+    // is_full_tank now defaults to true
+    assert_eq!(json["is_full_tank"], true);
     assert_eq!(json["is_missed"], false);
-    assert!(json["odometer"].is_null());
-    assert!(json["cost"].is_null());
-    assert!(json["currency"].is_null());
+    assert_eq!(json["odometer"], 5000.0);
+    assert_eq!(json["cost"], 45.0);
     assert!(json["station"].is_null());
     assert!(json["notes"].is_null());
 }
@@ -211,7 +238,12 @@ async fn create_with_required_fields_only() {
 #[tokio::test]
 async fn create_for_nonexistent_vehicle() {
     let mut app = common::test_app().await;
-    let resp = create_fillup(&mut app, 999, r#"{"date":"2026-04-09","fuel_amount":30.0}"#).await;
+    let resp = create_fillup(
+        &mut app,
+        999,
+        r#"{"date":"2026-04-09","fuel_amount":30.0,"odometer":1000,"cost":40.0}"#,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::NOT_FOUND);
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "VEHICLE_NOT_FOUND");
@@ -224,7 +256,12 @@ async fn create_missing_date() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let resp = create_fillup(&mut app, vid, r#"{"fuel_amount":30.0}"#).await;
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"fuel_amount":30.0,"odometer":1000,"cost":40.0}"#,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "FILLUP_DATE_REQUIRED");
@@ -235,7 +272,12 @@ async fn create_empty_date() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let resp = create_fillup(&mut app, vid, r#"{"date":"   ","fuel_amount":30.0}"#).await;
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"   ","fuel_amount":30.0,"odometer":1000,"cost":40.0}"#,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "FILLUP_DATE_REQUIRED");
@@ -246,7 +288,12 @@ async fn create_missing_fuel_amount() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let resp = create_fillup(&mut app, vid, r#"{"date":"2026-04-09"}"#).await;
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-09","odometer":1000,"cost":40.0}"#,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "FILLUP_FUEL_AMOUNT_REQUIRED");
@@ -257,7 +304,12 @@ async fn create_zero_fuel_amount() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let resp = create_fillup(&mut app, vid, r#"{"date":"2026-04-09","fuel_amount":0}"#).await;
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-09","fuel_amount":0,"odometer":1000,"cost":40.0}"#,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "FILLUP_INVALID_FUEL_AMOUNT");
@@ -268,7 +320,12 @@ async fn create_negative_fuel_amount() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let resp = create_fillup(&mut app, vid, r#"{"date":"2026-04-09","fuel_amount":-5.0}"#).await;
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-09","fuel_amount":-5.0,"odometer":1000,"cost":40.0}"#,
+    )
+    .await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "FILLUP_INVALID_FUEL_AMOUNT");
@@ -282,7 +339,7 @@ async fn create_negative_cost() {
     let resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-04-09","fuel_amount":30.0,"cost":-5.0}"#,
+        r#"{"date":"2026-04-09","fuel_amount":30.0,"odometer":1000,"cost":-5.0}"#,
     )
     .await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -291,19 +348,35 @@ async fn create_negative_cost() {
 }
 
 #[tokio::test]
-async fn create_null_cost_accepted() {
+async fn create_missing_odometer() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
     let resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-04-09","fuel_amount":30.0,"cost":null}"#,
+        r#"{"date":"2026-04-09","fuel_amount":30.0,"cost":40.0}"#,
     )
     .await;
-    assert_eq!(resp.status(), StatusCode::CREATED);
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = common::body_json(resp).await;
-    assert!(json["cost"].is_null());
+    assert_eq!(json["code"], "FILLUP_ODOMETER_REQUIRED");
+}
+
+#[tokio::test]
+async fn create_missing_cost() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-09","fuel_amount":30.0,"odometer":1000}"#,
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "FILLUP_COST_REQUIRED");
 }
 
 #[tokio::test]
@@ -314,7 +387,7 @@ async fn create_trims_date() {
     let resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"  2026-04-09  ","fuel_amount":30.0}"#,
+        r#"{"date":"  2026-04-09  ","fuel_amount":30.0,"odometer":1000,"cost":40.0}"#,
     )
     .await;
     assert_eq!(resp.status(), StatusCode::CREATED);
@@ -331,7 +404,7 @@ async fn create_odometer_lower_than_previous() {
     create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000}"#,
+        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
     )
     .await;
 
@@ -339,7 +412,7 @@ async fn create_odometer_lower_than_previous() {
     let resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-02-01","fuel_amount":30.0,"odometer":5000}"#,
+        r#"{"date":"2026-02-01","fuel_amount":30.0,"odometer":5000,"cost":40.0}"#,
     )
     .await;
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
@@ -348,21 +421,19 @@ async fn create_odometer_lower_than_previous() {
 }
 
 #[tokio::test]
-async fn create_null_odometer_accepted() {
+async fn create_null_odometer_rejected() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    // First fill-up with odometer
-    create_fillup(
+    let resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000}"#,
+        r#"{"date":"2026-02-01","fuel_amount":25.0,"odometer":null,"cost":40.0}"#,
     )
     .await;
-
-    // Second fill-up without odometer should succeed
-    let resp = create_fillup(&mut app, vid, r#"{"date":"2026-02-01","fuel_amount":25.0}"#).await;
-    assert_eq!(resp.status(), StatusCode::CREATED);
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "FILLUP_ODOMETER_REQUIRED");
 }
 
 #[tokio::test]
@@ -373,7 +444,7 @@ async fn create_odometer_equal_to_previous_accepted() {
     create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000}"#,
+        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
     )
     .await;
 
@@ -381,7 +452,7 @@ async fn create_odometer_equal_to_previous_accepted() {
     let resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-01-01","fuel_amount":15.0,"odometer":10000}"#,
+        r#"{"date":"2026-01-01","fuel_amount":15.0,"odometer":10000,"cost":25.0}"#,
     )
     .await;
     assert_eq!(resp.status(), StatusCode::CREATED);
@@ -397,7 +468,7 @@ async fn update_changes_fields() {
     let create_resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-04-01","fuel_amount":30.0,"cost":50.0}"#,
+        r#"{"date":"2026-04-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
     )
     .await;
     let created = common::body_json(create_resp).await;
@@ -411,7 +482,7 @@ async fn update_changes_fields() {
         .oneshot(common::json_request(
             "PUT",
             &format!("/api/vehicles/{vid}/fillups/{fid}"),
-            Some(r#"{"date":"2026-04-02","fuel_amount":35.0,"cost":60.0,"station":"BP"}"#),
+            Some(r#"{"date":"2026-04-02","fuel_amount":35.0,"odometer":10500,"cost":60.0,"station":"BP"}"#),
         ))
         .await
         .unwrap();
@@ -421,6 +492,9 @@ async fn update_changes_fields() {
     assert_eq!(json["fuel_amount"], 35.0);
     assert_eq!(json["cost"], 60.0);
     assert_eq!(json["station"], "BP");
+    // fuel_unit and currency auto-populated from settings on update
+    assert_eq!(json["fuel_unit"], "l");
+    assert_eq!(json["currency"], "EUR");
     assert_ne!(json["updated_at"].as_str().unwrap(), original_updated);
 }
 
@@ -434,7 +508,7 @@ async fn update_nonexistent_fillup() {
         .oneshot(common::json_request(
             "PUT",
             &format!("/api/vehicles/{vid}/fillups/999"),
-            Some(r#"{"date":"2026-04-01","fuel_amount":30.0}"#),
+            Some(r#"{"date":"2026-04-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#),
         ))
         .await
         .unwrap();
@@ -450,7 +524,7 @@ async fn update_for_nonexistent_vehicle() {
         .oneshot(common::json_request(
             "PUT",
             "/api/vehicles/999/fillups/1",
-            Some(r#"{"date":"2026-04-01","fuel_amount":30.0}"#),
+            Some(r#"{"date":"2026-04-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#),
         ))
         .await
         .unwrap();
@@ -468,7 +542,7 @@ async fn update_odometer_excludes_self() {
     let create_resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000}"#,
+        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
     )
     .await;
     let created = common::body_json(create_resp).await;
@@ -481,13 +555,93 @@ async fn update_odometer_excludes_self() {
         .oneshot(common::json_request(
             "PUT",
             &format!("/api/vehicles/{vid}/fillups/{fid}"),
-            Some(r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":9000}"#),
+            Some(r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":9000,"cost":50.0}"#),
         ))
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let json = common::body_json(resp).await;
     assert_eq!(json["odometer"], 9000.0);
+}
+
+#[tokio::test]
+async fn update_odometer_below_other_fillup_rejected() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    // Create two fill-ups
+    create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+    )
+    .await;
+    let create_resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-02-01","fuel_amount":30.0,"odometer":11000,"cost":50.0}"#,
+    )
+    .await;
+    let created = common::body_json(create_resp).await;
+    let fid2 = created["id"].as_i64().unwrap();
+
+    // Updating the second fill-up below the first's odometer should fail
+    let resp = app
+        .clone()
+        .oneshot(common::json_request(
+            "PUT",
+            &format!("/api/vehicles/{vid}/fillups/{fid2}"),
+            Some(r#"{"date":"2026-02-01","fuel_amount":30.0,"odometer":9000,"cost":50.0}"#),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "FILLUP_INVALID_ODOMETER");
+}
+
+#[tokio::test]
+async fn update_negative_cost_rejected() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let create_resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+    )
+    .await;
+    let created = common::body_json(create_resp).await;
+    let fid = created["id"].as_i64().unwrap();
+
+    let resp = app
+        .clone()
+        .oneshot(common::json_request(
+            "PUT",
+            &format!("/api/vehicles/{vid}/fillups/{fid}"),
+            Some(r#"{"date":"2026-04-01","fuel_amount":30.0,"odometer":10000,"cost":-5.0}"#),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "FILLUP_INVALID_COST");
+}
+
+#[tokio::test]
+async fn create_zero_cost_accepted() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-09","fuel_amount":30.0,"odometer":5000,"cost":0}"#,
+    )
+    .await;
+    assert_eq!(resp.status(), StatusCode::CREATED);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["cost"], 0.0);
 }
 
 // ── Delete ───────────────────────────────────────────────
@@ -497,8 +651,12 @@ async fn delete_fillup_returns_204() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let create_resp =
-        create_fillup(&mut app, vid, r#"{"date":"2026-04-01","fuel_amount":30.0}"#).await;
+    let create_resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+    )
+    .await;
     let created = common::body_json(create_resp).await;
     let fid = created["id"].as_i64().unwrap();
 
@@ -568,7 +726,12 @@ async fn vehicle_delete_blocked_when_fillups_exist() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    create_fillup(&mut app, vid, r#"{"date":"2026-04-01","fuel_amount":30.0}"#).await;
+    create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+    )
+    .await;
 
     // Attempt to delete vehicle should fail with 409
     let resp = app
@@ -590,8 +753,12 @@ async fn vehicle_delete_succeeds_after_fillups_removed() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
 
-    let create_resp =
-        create_fillup(&mut app, vid, r#"{"date":"2026-04-01","fuel_amount":30.0}"#).await;
+    let create_resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-04-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+    )
+    .await;
     let created = common::body_json(create_resp).await;
     let fid = created["id"].as_i64().unwrap();
 

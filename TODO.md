@@ -122,14 +122,18 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 > Frontend for recording and browsing fill-ups per vehicle.
 
-- [ ] API client functions for fill-ups
-- [ ] Fill-up store per vehicle
-- [ ] Vehicle detail page (`/vehicles/:id`) showing fill-up history
-- [ ] Add fill-up form (date, odometer, amount, cost, station, full tank toggle)
-- [ ] Edit/delete fill-up
-- [ ] Fill-up list with key info at a glance (date, cost, amount, efficiency)
-- [ ] Empty state for vehicle with no fill-ups
-- [ ] Vitest tests
+- [x] API client functions for fill-ups (`Fillup`, `CreateFillup`, `UpdateFillup` types + CRUD functions)
+- [x] Fill-up store per vehicle (SvelteMap cache keyed by vehicleId)
+- [x] Dashboard (`/`) with vehicle filter chips and fill-up card list
+- [x] Add fill-up form modal (date, odometer with total/trip+ mode, amount, cost, station, full tank toggle)
+- [x] Edit fill-up (tap card to open form in edit mode) + delete with confirmation
+- [x] Fill-up cards showing date, odometer, fuel amount, cost, station, full-tank/missed badges
+- [x] Empty state for vehicle with no fill-ups
+- [x] Global CTA button wired: 1 vehicle opens form, multiple shows vehicle picker, 0 navigates to add vehicle
+- [x] Smart missed fill-up prompt (1.75x average odometer gap)
+- [x] Backend: odometer and cost now required, fuel_unit/currency auto-populated from settings, is_full_tank defaults true
+- [x] Segmented control extracted to global CSS (`segmented.css`)
+- [x] Vitest tests (store, form validation, missed detection) + backend integration tests
 
 ## 8. Settings and preferences
 
@@ -165,18 +169,21 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 - [ ] Integration tests for calculation correctness (edge cases: single fill-up,
       missed fill-ups, partial tanks)
 
-## 10. Dashboard
+## 10. Dashboard enhancements
 
-> The home page. Aggregated overview across all vehicles.
+> Enrich the existing dashboard with stats and summary data. The dashboard
+> already shows vehicle chips with fill-up card lists, an add-fill-up button,
+> and the global CTA (built in chunk 7). This chunk adds aggregate stats
+> once the calculation engine (chunk 9) is available.
 
-- [ ] Dashboard page (`/` or `/dashboard`)
-- [ ] Summary cards: total vehicles, total spend (this month / all-time),
-      best/worst efficiency across fleet
-- [ ] Per-vehicle quick stats row (last fill-up date, current efficiency, monthly cost)
-- [ ] Recent activity feed (last N fill-ups across all vehicles)
-- [ ] Quick action: "Add fill-up" shortcut with vehicle selector
-- [ ] Responsive grid layout -- cards reflow for mobile
-- [ ] Vitest tests
+- [ ] Summary cards above vehicle chips: total vehicles, total spend
+      (this month / all-time), best/worst efficiency across fleet
+- [ ] Per-vehicle stats on each chip or below chip row (last fill-up date,
+      current efficiency, monthly cost) -- depends on chunk 9 stats API
+- [ ] Efficiency badge on fill-up cards (km/L or mpg for each fill-up
+      segment) -- depends on chunk 9 calculation engine
+- [ ] Responsive grid layout for summary cards -- cards reflow for mobile
+- [ ] Vitest tests for stats display and formatting
 
 ## 11. Charts and visualization
 
