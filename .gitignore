@@ -34,3 +34,6 @@ target
 
 # Playwright MCP
 .playwright-mcp/
+
+# Node modules
+node_modules/
