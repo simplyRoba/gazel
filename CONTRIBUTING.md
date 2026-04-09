@@ -145,10 +145,34 @@ Default follows system preference via `prefers-color-scheme`.
 
 | Token | Value | Use |
 |---|---|---|
-| `--color-brand-bg` | `#2F3F53` | Logo background, splash |
+| `--color-brand-bg` | `#2F3F53` | Logo background, sidebar, active chips |
 | `--color-brand-gold-1` | `#E8C88A` | Lightest gazelle tone |
 | `--color-brand-gold-2` | `#D4A56A` | Medium gazelle tone |
 | `--color-brand-gold-3` | `#C49A5E` | Darker gazelle tone |
+
+#### Navigation
+
+The sidebar and bottom bar use the dark slate brand background in both
+themes — this breaks the monotone and creates the warm-gold-on-cool-slate
+contrast from the logo.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `--color-nav-bg` | `#2F3F53` | `#151B28` | Sidebar / bottom bar background |
+| `--color-nav-text` | `#B0B8C8` | `#7A8494` | Inactive nav item text |
+| `--color-nav-text-active` | `#E8C88A` | `#E8C88A` | Active nav item text (gold) |
+| `--color-nav-border` | `rgba(255,255,255,0.08)` | `rgba(255,255,255,0.06)` | Nav border |
+| `--color-nav-hover` | `rgba(255,255,255,0.06)` | `rgba(255,255,255,0.04)` | Nav item hover |
+
+#### Feature surface
+
+A cool blue-tinted surface for data/stat cards, distinguishing them from
+warm neutral content cards.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| `--color-bg-feature` | `#F0F2F6` | `#1E2636` | Summary stat card background |
+| `--color-border-feature` | `#D8DCE6` | `#2A3444` | Summary stat card border |
 
 ### Typography
 
@@ -300,7 +324,10 @@ No decorative animations.
 | **Buttons** | Sharp rectangles, accent triangle appears on hover |
 | **Inputs** | Sharp rectangles, no decoration |
 | **CTA, pills** | Full circle (`--radius-full`) |
-| **Active nav** | Triangle accent marker (bullet) |
+| **Sidebar, bottom bar** | Dark slate brand background (`--color-nav-bg`) in both themes |
+| **Active nav** | Gold text on dark slate, triangle accent marker |
+| **Active chip** | Brand-bg with gold text (ties to sidebar color language) |
+| **Stat cards** | Blue-tinted feature surface (`--color-bg-feature`) |
 | **Stat values** | Oversized (`--font-stat`), monospace, accent-colored |
 | **All numbers** | Monospace font (`--font-family-mono`) |
 | **Corners** | Never `border-radius` on cards or buttons |

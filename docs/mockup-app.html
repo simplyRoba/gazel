@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>gazel — App Mockup</title>
+  <title>gazel — Color Proposal Mockup</title>
   <link rel="stylesheet" href="../ui/src/lib/styles/tokens.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -16,8 +16,69 @@
       background: var(--color-bg);
     }
 
+    /*
+     * ─── COLOR PROPOSAL ──────────────────────────────────────
+     *
+     * Problem: The app is monotone. Light mode is all warm sand,
+     * dark mode is all cool slate. The only color is the amber
+     * accent on corners and active states — too restrained.
+     *
+     * Proposal: Introduce the dark mode's slate-blue as a
+     * "feature surface" color in BOTH themes. This creates
+     * contrast between the warm neutrals and cool blues,
+     * making the amber accent pop more.
+     *
+     * Changes:
+     *   1. Sidebar uses brand-bg (dark slate) in both themes
+     *      — gives the nav identity and breaks the monotone
+     *   2. Summary stat cards use a subtle blue-tinted surface
+     *      — distinguishes data cards from content cards
+     *   3. Active chip gets brand-bg instead of plain accent
+     *      — ties navigation color language together
+     *   4. Accent-subtle gets a warmer, more visible tint
+     *      — active nav items and hover states have more presence
+     *
+     * The key insight: warm gold on cool slate is the brand
+     * (see the logo). The app should use that contrast, not
+     * hide the blue.
+     */
+
+    /* ── Proposed new tokens (override per-theme) ────────── */
+    :root, [data-theme="light"] {
+      /* Sidebar uses the brand dark slate in both themes */
+      --color-nav-bg: var(--color-brand-bg);
+      --color-nav-text: #b0b8c8;
+      --color-nav-text-active: var(--color-brand-gold-1);
+      --color-nav-border: rgba(255,255,255,0.08);
+      --color-nav-hover: rgba(255,255,255,0.06);
+
+      /* Feature surface: subtle blue tint for stat/data cards */
+      --color-bg-feature: #f0f2f6;
+      --color-border-feature: #d8dce6;
+    }
+    [data-theme="dark"] {
+      --color-nav-bg: #151b28;
+      --color-nav-text: #7a8494;
+      --color-nav-text-active: var(--color-brand-gold-1);
+      --color-nav-border: rgba(255,255,255,0.06);
+      --color-nav-hover: rgba(255,255,255,0.04);
+
+      --color-bg-feature: #1e2636;
+      --color-border-feature: #2a3444;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --color-nav-bg: #151b28;
+        --color-nav-text: #7a8494;
+        --color-nav-text-active: var(--color-brand-gold-1);
+        --color-nav-border: rgba(255,255,255,0.06);
+        --color-nav-hover: rgba(255,255,255,0.04);
+        --color-bg-feature: #1e2636;
+        --color-border-feature: #2a3444;
+      }
+    }
+
     /* ── Corner triangle utility ─────────────────── */
-    /* The brand motif: accent triangle in top-right corner */
     .corner-tri {
       position: relative;
       overflow: hidden;
@@ -35,7 +96,6 @@
     .corner-tri:hover::after {
       border-width: 0 calc(var(--corner-tri-md) + 4px) calc(var(--corner-tri-md) + 4px) 0;
     }
-    /* Buttons: triangle hidden, appears on hover */
     .corner-tri-hover { position: relative; overflow: hidden; }
     .corner-tri-hover::after {
       content: '';
@@ -51,14 +111,14 @@
       border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
     }
 
-    /* ── Theme toggle (dev only) ────────────────── */
+    /* ── Dev bar ─────────────────────────────────── */
     .dev-bar {
       position: fixed; top: 0; right: 0; z-index: 1000;
       background: var(--color-bg-raised);
       border: 1px solid var(--color-border);
       padding: var(--space-2) var(--space-3);
       font-size: var(--font-xs);
-      display: flex; gap: var(--space-2);
+      display: flex; gap: var(--space-2); align-items: center;
     }
     .dev-bar button {
       background: var(--color-bg-sunken);
@@ -68,8 +128,9 @@
       color: var(--color-text-secondary);
       cursor: pointer;
     }
+    .dev-bar .label { color: var(--color-accent-text); font-weight: 600; }
 
-    /* ── Layout variables ───────────────────────── */
+    /* ── Layout ──────────────────────────────────── */
     :root {
       --nav-bottom-height: 56px;
       --safe-area-bottom: env(safe-area-inset-bottom, 0px);
@@ -78,14 +139,17 @@
       --content-width: 800px;
     }
 
-    /* ── Sidebar (tablet+) ──────────────────────── */
+    /* ═══════════════════════════════════════════════
+       PROPOSAL 1: Sidebar uses brand-bg (dark slate)
+       in both light and dark themes.
+       ═══════════════════════════════════════════════ */
     .sidebar {
       display: none;
       position: fixed;
       top: 0; left: 0; bottom: 0;
       width: var(--sidebar-width);
-      background: var(--color-bg-raised);
-      border-right: 1px solid var(--color-border);
+      background: var(--color-nav-bg);
+      border-right: 1px solid var(--color-nav-border);
       flex-direction: column;
       align-items: center;
       padding: var(--space-4) 0;
@@ -94,7 +158,7 @@
     .sidebar-logo {
       width: 36px; height: 36px;
       margin-bottom: var(--space-6);
-      color: var(--color-accent-text);
+      color: var(--color-brand-gold-1);
     }
     .nav-item {
       display: flex;
@@ -102,20 +166,23 @@
       align-items: center;
       gap: 2px;
       padding: var(--space-2);
-      color: var(--color-text-secondary);
+      color: var(--color-nav-text);
       text-decoration: none;
       font-size: 11px;
       width: 48px;
       height: 48px;
       justify-content: center;
-      transition: background var(--transition-fast);
+      transition: background var(--transition-fast), color var(--transition-fast);
     }
-    .nav-item:hover { background: var(--color-bg-sunken); }
-    .nav-item.active {
-      background: var(--color-accent-subtle);
-      color: var(--color-accent-text);
+    .sidebar .nav-item:hover {
+      background: var(--color-nav-hover);
+      color: var(--color-brand-gold-2);
     }
-    /* Corner triangle on sidebar nav items only */
+    .sidebar .nav-item.active {
+      background: rgba(212, 165, 106, 0.12);
+      color: var(--color-nav-text-active);
+    }
+    /* Corner triangle on sidebar nav items */
     .sidebar .nav-item {
       position: relative;
       overflow: hidden;
@@ -127,7 +194,7 @@
       width: 0; height: 0;
       border-style: solid;
       border-width: 0;
-      border-color: transparent var(--color-accent) transparent transparent;
+      border-color: transparent var(--color-brand-gold-2) transparent transparent;
       transition: border-width var(--transition-fast);
     }
     .sidebar .nav-item:hover::after {
@@ -140,7 +207,7 @@
     .nav-item .label { display: none; }
     .sidebar .spacer { flex: 1; }
 
-    /* Sidebar CTA button */
+    /* Sidebar CTA — gold on dark slate */
     .sidebar-cta {
       margin: var(--space-4) var(--space-2);
       padding: var(--space-2);
@@ -167,13 +234,13 @@
       top: 0; right: 0;
       width: 0; height: 0;
       border-style: solid;
-      border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
+      border-width: 0;
       border-color: transparent var(--color-text-inverse) transparent transparent;
       transition: border-width var(--transition-fast);
     }
     .sidebar-cta:hover { background: var(--color-accent-hover); }
     .sidebar-cta:hover::after {
-      border-width: 0 calc(var(--corner-tri-sm) + 3px) calc(var(--corner-tri-sm) + 3px) 0;
+      border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
     }
     .sidebar-cta .cta-label { display: none; }
 
@@ -182,8 +249,8 @@
       position: fixed;
       bottom: 0; left: 0; right: 0;
       height: var(--nav-bottom-total);
-      background: var(--color-bg-raised);
-      border-top: 1px solid var(--color-border);
+      background: var(--color-nav-bg);
+      border-top: 1px solid var(--color-nav-border);
       display: flex;
       justify-content: space-around;
       align-items: flex-start;
@@ -196,8 +263,10 @@
       font-size: 10px;
     }
     .bottom-bar .nav-item .label { display: block; }
+    .bottom-bar .nav-item.active {
+      color: var(--color-nav-text-active);
+    }
 
-    /* Center CTA in bottom bar — diamond (rotated square) */
     .bottom-cta {
       width: 42px;
       height: 42px;
@@ -236,13 +305,12 @@
       font-weight: var(--font-weight-bold);
     }
 
-    /* ── Vehicle selector (chips) ────────────────── */
+    /* ── Vehicle chips ──────────────────────────── */
     .vehicle-tabs {
       display: flex;
       gap: var(--space-1);
       margin-bottom: var(--space-6);
       overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
     }
     .vehicle-tab {
       padding: var(--space-2) var(--space-4);
@@ -269,36 +337,46 @@
     }
     .vehicle-tab:hover { border-color: var(--color-accent); }
     .vehicle-tab:hover::after { border-color: transparent var(--color-accent) transparent transparent; }
+    /* PROPOSAL 3: Active chip uses brand-bg — ties to sidebar color */
     .vehicle-tab.active {
-      background: var(--color-accent);
-      color: var(--color-text-inverse);
-      border-color: var(--color-accent);
+      background: var(--color-brand-bg);
+      color: var(--color-brand-gold-1);
+      border-color: var(--color-brand-bg);
     }
-    .vehicle-tab.active::after { border-color: transparent var(--color-text-inverse) transparent transparent; }
+    .vehicle-tab.active::after { border-color: transparent var(--color-brand-gold-2) transparent transparent; }
 
-    /* ── Stats row ──────────────────────────────── */
+    .vehicle-info {
+      font-size: var(--font-xs);
+      color: var(--color-text-tertiary);
+      margin-top: calc(-1 * var(--space-4));
+      margin-bottom: var(--space-6);
+    }
+    .vehicle-info .mono { font-family: var(--font-family-mono); }
+
+    /* ═══════════════════════════════════════════════
+       PROPOSAL 2: Summary stat cards use a blue-tinted
+       "feature surface" — distinguishes data from content.
+       ═══════════════════════════════════════════════ */
     .stats-row {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-3);
+      grid-template-columns: repeat(4, 1fr);
+      gap: var(--space-2);
       margin-bottom: var(--space-6);
     }
     .stat-card {
-      background: var(--color-bg-raised);
-      border: 1px solid var(--color-border);
-      padding: var(--space-4);
-      text-align: center;
+      background: var(--color-bg-feature);
+      border: 1px solid var(--color-border-feature);
+      padding: var(--space-3);
     }
-    /* Corner triangle on stat cards */
     .stat-card::after {
       border-color: transparent var(--color-accent) transparent transparent;
     }
     .stat-value {
-      font-size: var(--font-stat);
-      font-weight: var(--font-stat-weight);
+      font-size: var(--font-md);
+      font-weight: var(--font-weight-semibold);
       font-family: var(--font-family-mono);
       color: var(--color-accent-text);
-      line-height: 1.1;
+      line-height: var(--line-height-tight);
     }
     .stat-label {
       font-size: var(--font-xs);
@@ -306,25 +384,22 @@
       margin-top: var(--space-1);
     }
 
-    /* ── Chart placeholder ──────────────────────── */
-    .chart-section {
-      margin-bottom: var(--space-6);
+    /* ── Per-vehicle stats row ──────────────────── */
+    .vehicle-stats-row {
+      display: flex;
+      gap: var(--space-6);
+      margin-bottom: var(--space-4);
+      padding: var(--space-3) 0;
+      border-bottom: 1px solid var(--color-border-subtle);
     }
-    .chart-section h3 {
+    .vehicle-stat-value {
       font-size: var(--font-sm);
       font-weight: var(--font-weight-semibold);
-      color: var(--color-text-secondary);
-      margin-bottom: var(--space-3);
+      color: var(--color-text);
     }
-    .chart-placeholder {
-      background: var(--color-bg-raised);
-      border: 1px solid var(--color-border);
-      height: 200px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--color-text-tertiary);
-      font-size: var(--font-sm);
+    .vehicle-stat-label {
+      font-size: var(--font-xs);
+      color: var(--color-text-secondary);
     }
 
     /* ── Fill-up list ───────────────────────────── */
@@ -384,144 +459,65 @@
       color: var(--color-text-secondary);
       font-family: var(--font-family-mono);
     }
-    .fillup-badge {
+    .fillup-details {
+      display: flex;
+      gap: var(--space-3);
+      font-size: var(--font-sm);
+    }
+    .fillup-badges {
+      display: flex;
+      gap: var(--space-2);
+      margin-top: var(--space-1);
+    }
+    .badge {
       display: inline-block;
       padding: 1px var(--space-2);
       font-size: 10px;
       font-weight: var(--font-weight-medium);
       background: var(--color-accent-subtle);
       color: var(--color-accent-text);
-    }
-
-    /* ── Modal / Drawer ─────────────────────────── */
-    .modal-overlay {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: rgba(0,0,0,0.4);
-      z-index: 200;
-      align-items: flex-end;
-      justify-content: center;
-    }
-    .modal-overlay.open { display: flex; }
-    .modal {
-      background: var(--color-bg-raised);
-      width: 100%;
-      max-width: 480px;
-      max-height: 90vh;
-      overflow-y: auto;
-      padding: var(--space-6);
-      box-shadow: var(--shadow-lg);
-    }
-    /* Corner triangle on modal */
-    .modal::after {
-      border-width: 0 var(--corner-tri-lg) var(--corner-tri-lg) 0;
-      border-color: transparent var(--color-accent) transparent transparent;
-    }
-    .modal:hover::after {
-      border-width: 0 var(--corner-tri-lg) var(--corner-tri-lg) 0;
-    }
-    .modal-drag-handle {
-      width: 36px;
-      height: 4px;
-      background: var(--color-border);
-      border-radius: var(--radius-full);
-      margin: 0 auto var(--space-4);
-    }
-    .modal-title {
-      font-size: var(--font-lg);
-      font-weight: var(--font-weight-semibold);
-      margin-bottom: var(--space-6);
-    }
-    .form-group {
-      margin-bottom: var(--space-4);
-    }
-    .form-label {
-      display: block;
-      font-size: var(--font-sm);
-      font-weight: var(--font-weight-medium);
-      color: var(--color-text-secondary);
-      margin-bottom: var(--space-1);
-    }
-    .form-input-wrap {
       position: relative;
+      overflow: hidden;
     }
-    .form-input-wrap::after {
+    .badge::after {
       content: '';
       position: absolute;
       top: 0; right: 0;
       width: 0; height: 0;
       border-style: solid;
-      border-width: 0 8px 8px 0;
-      border-color: transparent var(--color-border) transparent transparent;
-      transition: border-color var(--transition-fast);
-      pointer-events: none;
+      border-width: 0 6px 6px 0;
+      border-color: transparent var(--color-accent-text) transparent transparent;
     }
-    .form-input-wrap:focus-within::after {
-      border-color: transparent var(--color-accent) transparent transparent;
-    }
-    .form-input {
-      width: 100%;
-      padding: var(--space-3);
-      font-family: var(--font-family);
-      font-size: var(--font-md);
-      border: 1px solid var(--color-border);
+    .badge-success {
       background: var(--color-bg-sunken);
-      color: var(--color-text);
-      transition: border-color var(--transition-fast);
     }
-    .form-input:focus {
-      outline: none;
-      border-color: var(--color-accent);
+    .badge-success::after {
+      border-color: transparent var(--color-success) transparent transparent;
     }
-    .form-input::placeholder { color: var(--color-text-tertiary); }
-    .form-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: var(--space-3);
+    .badge-warning {
+      background: var(--color-bg-sunken);
     }
-    .form-toggle {
+    .badge-warning::after {
+      border-color: transparent var(--color-warning) transparent transparent;
+    }
+
+    /* ── Add fillup button ──────────────────────── */
+    .actions-row {
       display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      font-size: var(--font-sm);
-      color: var(--color-text-secondary);
-      cursor: pointer;
-    }
-    .toggle-track {
-      width: 40px;
-      height: 22px;
-      background: var(--color-border);
-      border-radius: var(--radius-full);
-      position: relative;
-      transition: background var(--transition-fast);
-    }
-    .toggle-track.on { background: var(--color-accent); }
-    .toggle-knob {
-      width: 18px;
-      height: 18px;
-      background: white;
-      border-radius: 50%;
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      transition: transform var(--transition-fast);
-    }
-    .toggle-track.on .toggle-knob { transform: translateX(18px); }
-    .form-actions {
-      display: flex;
-      gap: var(--space-3);
-      margin-top: var(--space-6);
+      justify-content: flex-end;
+      margin-bottom: var(--space-4);
     }
     .btn {
-      padding: var(--space-3) var(--space-6);
+      padding: var(--space-2) var(--space-4);
       font-family: var(--font-family);
       font-size: var(--font-sm);
       font-weight: var(--font-weight-medium);
       border: none;
       cursor: pointer;
       transition: background var(--transition-fast);
-      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: var(--space-1);
     }
     .btn-primary {
       background: var(--color-accent);
@@ -529,47 +525,23 @@
       --tri-color: var(--color-text-inverse);
     }
     .btn-primary:hover { background: var(--color-accent-hover); }
-    .btn-secondary {
-      background: var(--color-bg-sunken);
-      color: var(--color-text);
-      border: 1px solid var(--color-border);
-      --tri-color: var(--color-accent);
-    }
+    .btn-sm { padding: var(--space-2) var(--space-3); font-size: var(--font-xs); }
 
-    /* ── Vehicle info ───────────────────────────── */
-    .vehicle-info {
-      font-size: var(--font-xs);
-      color: var(--color-text-tertiary);
-      margin-top: calc(-1 * var(--space-4));
-      margin-bottom: var(--space-6);
-    }
-    .vehicle-info .mono {
-      font-family: var(--font-family-mono);
-    }
-
-    /* ── Tablet+ (>768px) ───────────────────────── */
+    /* ── Responsive ──────────────────────────────── */
     @media (min-width: 769px) {
       .sidebar { display: flex; }
       .bottom-bar { display: none; }
-
       .content {
         margin-left: var(--sidebar-width);
         padding: var(--space-6);
         padding-bottom: var(--space-6);
       }
-
-      .modal-overlay { align-items: center; }
-      .modal { margin: var(--space-4); }
-      .modal-drag-handle { display: none; }
     }
-
-    /* ── Widescreen (>=1280px) ──────────────────── */
     @media (min-width: 1280px) {
       :root {
         --sidebar-width: 200px;
         --content-width: 960px;
       }
-
       .nav-item {
         flex-direction: row;
         width: calc(var(--sidebar-width) - var(--space-4) * 2);
@@ -582,44 +554,20 @@
         display: block;
         font-size: var(--font-sm);
       }
-
-      .sidebar-logo {
-        width: 80px;
-        height: 80px;
-        margin-bottom: var(--space-8);
-      }
-
+      .sidebar-logo { width: 80px; height: 80px; margin-bottom: var(--space-8); }
       .sidebar-cta {
         width: calc(var(--sidebar-width) - var(--space-4) * 2);
         font-size: var(--font-sm);
         padding: var(--space-2) var(--space-3);
       }
       .sidebar-cta .cta-label { display: inline; }
-
       .content { padding: var(--space-8); }
-      .chart-placeholder { height: 260px; }
     }
-
-    /* ── Mobile (<=768px) ───────────────────────── */
     @media (max-width: 768px) {
       .sidebar { display: none; }
-
       .stats-row {
-        grid-template-columns: 1fr;
-        gap: var(--space-2);
+        grid-template-columns: repeat(2, 1fr);
       }
-      .stat-card {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        text-align: left;
-        padding: var(--space-3);
-      }
-      .stat-label { margin-top: 0; }
-      .stat-value { font-size: var(--font-lg); }
-
-      .chart-placeholder { height: 160px; }
-      .form-row { grid-template-columns: 1fr; }
     }
   </style>
 </head>
@@ -627,11 +575,11 @@
 
   <!-- Dev toolbar -->
   <div class="dev-bar">
+    <span class="label">COLOR PROPOSAL</span>
     <button onclick="toggleTheme()">Toggle theme</button>
-    <button onclick="toggleModal()">Toggle fill-up form</button>
   </div>
 
-  <!-- ── Sidebar (tablet+) ──────────────────── -->
+  <!-- ── Sidebar (tablet+) — PROPOSAL 1: dark slate bg ── -->
   <nav class="sidebar">
     <svg class="sidebar-logo" viewBox="90 55 280 360" fill="currentColor" aria-hidden="true">
       <polygon points="202,69 289,133 300,131" opacity="0.7" />
@@ -642,7 +590,7 @@
       <polygon points="276,262 143,248 171,400" opacity="0.6" />
       <polygon points="106,206 138,243 155,246" opacity="0.6" />
     </svg>
-    <button class="sidebar-cta" onclick="toggleModal()">
+    <button class="sidebar-cta" onclick="void(0)">
       <span>＋</span>
       <span class="cta-label">Fill-up</span>
     </button>
@@ -657,13 +605,13 @@
     </a>
   </nav>
 
-  <!-- ── Bottom bar (mobile) ────────────────── -->
+  <!-- ── Bottom bar (mobile) — same dark slate ── -->
   <nav class="bottom-bar">
     <a class="nav-item active" href="#">
       <span class="icon">⊞</span>
       <span class="label">Dashboard</span>
     </a>
-    <button class="bottom-cta" onclick="toggleModal()">＋</button>
+    <button class="bottom-cta" onclick="void(0)"><span>＋</span></button>
     <a class="nav-item" href="#">
       <span class="icon">⚙</span>
       <span class="label">Settings</span>
@@ -673,157 +621,151 @@
   <!-- ── Main content ───────────────────────── -->
   <main class="content">
 
-    <!-- Page header -->
     <div class="page-header">
       <h1 class="page-title">Dashboard</h1>
     </div>
 
-    <!-- Vehicle selector (chips — sharp, no radius) -->
+    <!-- PROPOSAL 2: Stat cards with blue-tinted feature surface -->
+    <div class="stats-row">
+      <div class="stat-card corner-tri">
+        <div class="stat-value">1.204 km</div>
+        <div class="stat-label">Total distance</div>
+      </div>
+      <div class="stat-card corner-tri">
+        <div class="stat-value">8</div>
+        <div class="stat-label">Fill-ups</div>
+      </div>
+      <div class="stat-card corner-tri">
+        <div class="stat-value">€0.11/km</div>
+        <div class="stat-label">Cost per km</div>
+      </div>
+      <div class="stat-card corner-tri">
+        <div class="stat-value">€1.82/L</div>
+        <div class="stat-label">Fuel price</div>
+      </div>
+    </div>
+
+    <!-- PROPOSAL 3: Active chip uses brand-bg -->
     <div class="vehicle-tabs">
       <button class="vehicle-tab active">Honda Civic</button>
       <button class="vehicle-tab">Toyota Tacoma</button>
       <button class="vehicle-tab">Kawasaki Z400</button>
     </div>
-    <div class="vehicle-info">2024 · Benzin · <span class="mono">20.040</span> km</div>
 
-    <!-- Stats — corner triangles on each card, monospace numbers -->
-    <div class="stats-row">
-      <div class="stat-card corner-tri">
-        <div>
-          <div class="stat-value">6,8</div>
-          <div class="stat-label">L/100 km</div>
-        </div>
+    <!-- Per-vehicle stats row -->
+    <div class="vehicle-stats-row">
+      <div>
+        <div class="vehicle-stat-value" style="font-family:var(--font-family-mono)">842 km</div>
+        <div class="vehicle-stat-label">Total distance</div>
       </div>
-      <div class="stat-card corner-tri">
-        <div>
-          <div class="stat-value">0,11 €</div>
-          <div class="stat-label">pro km</div>
-        </div>
+      <div>
+        <div class="vehicle-stat-value">5</div>
+        <div class="vehicle-stat-label">Fill-ups</div>
       </div>
-      <div class="stat-card corner-tri">
-        <div>
-          <div class="stat-value">248 €</div>
-          <div class="stat-label">diesen Monat</div>
-        </div>
+      <div>
+        <div class="vehicle-stat-value" style="font-family:var(--font-family-mono)">€0.10/km</div>
+        <div class="vehicle-stat-label">Cost per km</div>
+      </div>
+      <div>
+        <div class="vehicle-stat-value" style="font-family:var(--font-family-mono)">€1.79/L</div>
+        <div class="vehicle-stat-label">Fuel price</div>
       </div>
     </div>
 
-    <!-- Chart — corner triangle -->
-    <div class="chart-section">
-      <h3>Verbrauch</h3>
-      <div class="chart-placeholder corner-tri">📈 Verbrauchsentwicklung</div>
+    <!-- Add fill-up button -->
+    <div class="actions-row">
+      <button class="btn btn-primary btn-sm corner-tri-hover">＋ Add fill-up</button>
     </div>
 
-    <!-- Recent fill-ups — corner triangles on items -->
-    <div class="section-header">
-      <span class="section-title">Letzte Tankfüllungen</span>
-      <span class="section-title" style="color:var(--color-accent-text);cursor:pointer">Alle anzeigen</span>
-    </div>
+    <!-- Fill-up list — unchanged, warm neutral cards -->
     <div class="fillup-list">
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <span class="fillup-date">05.04.2026</span>
-          <span class="fillup-station">Aral — Hauptstraße</span>
+          <div class="fillup-date">Apr 5, 2026</div>
+          <div class="fillup-details">
+            <span style="font-family:var(--font-family-mono);font-weight:500">42.5 L</span>
+            <span style="font-family:var(--font-family-mono);font-weight:500">€87.40</span>
+            <span class="fillup-station">Aral — Hauptstraße</span>
+          </div>
+          <div class="fillup-badges">
+            <span class="badge">6.5 km/L</span>
+            <span class="badge badge-success">Full tank</span>
+          </div>
         </div>
         <div class="fillup-right">
-          <span class="fillup-cost">87,40 €</span>
-          <span class="fillup-efficiency">6,5 L/100km · 48,2 L</span>
+          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">20.490 km</span>
         </div>
       </div>
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <span class="fillup-date">28.03.2026</span>
-          <span class="fillup-station">Shell — Berliner Str.</span>
+          <div class="fillup-date">Mar 28, 2026</div>
+          <div class="fillup-details">
+            <span style="font-family:var(--font-family-mono);font-weight:500">44.8 L</span>
+            <span style="font-family:var(--font-family-mono);font-weight:500">€79.50</span>
+            <span class="fillup-station">Shell — Berliner Str.</span>
+          </div>
+          <div class="fillup-badges">
+            <span class="badge">7.1 km/L</span>
+            <span class="badge badge-success">Full tank</span>
+          </div>
         </div>
         <div class="fillup-right">
-          <span class="fillup-cost">79,50 €</span>
-          <span class="fillup-efficiency">7,1 L/100km · 44,8 L</span>
+          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">19.980 km</span>
         </div>
       </div>
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <span class="fillup-date">20.03.2026</span>
-          <span class="fillup-station">Jet — Industriegebiet</span>
+          <div class="fillup-date">Mar 20, 2026</div>
+          <div class="fillup-details">
+            <span style="font-family:var(--font-family-mono);font-weight:500">41.5 L</span>
+            <span style="font-family:var(--font-family-mono);font-weight:500">€72.30</span>
+            <span class="fillup-station">Jet — Industriegebiet</span>
+          </div>
+          <div class="fillup-badges">
+            <span class="badge badge-warning">Missed</span>
+          </div>
         </div>
         <div class="fillup-right">
-          <span class="fillup-cost">72,30 €</span>
-          <span class="fillup-efficiency">6,9 L/100km · 41,5 L <span class="fillup-badge">teilweise</span></span>
+          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">19.540 km</span>
         </div>
       </div>
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <span class="fillup-date">12.03.2026</span>
-          <span class="fillup-station">Total — Bahnhofstr.</span>
+          <div class="fillup-date">Mar 12, 2026</div>
+          <div class="fillup-details">
+            <span style="font-family:var(--font-family-mono);font-weight:500">52.3 L</span>
+            <span style="font-family:var(--font-family-mono);font-weight:500">€91.80</span>
+            <span class="fillup-station">Total — Bahnhofstr.</span>
+          </div>
+          <div class="fillup-badges">
+            <span class="badge">7.4 km/L</span>
+            <span class="badge badge-success">Full tank</span>
+          </div>
         </div>
         <div class="fillup-right">
-          <span class="fillup-cost">91,80 €</span>
-          <span class="fillup-efficiency">7,4 L/100km · 52,3 L</span>
+          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">19.100 km</span>
         </div>
       </div>
       <div class="fillup-item corner-tri">
         <div class="fillup-left">
-          <span class="fillup-date">03.03.2026</span>
-          <span class="fillup-station">Esso — A7 Raststätte</span>
+          <div class="fillup-date">Mar 3, 2026</div>
+          <div class="fillup-details">
+            <span style="font-family:var(--font-family-mono);font-weight:500">47.8 L</span>
+            <span style="font-family:var(--font-family-mono);font-weight:500">€85.60</span>
+            <span class="fillup-station">Esso — A7 Raststätte</span>
+          </div>
+          <div class="fillup-badges">
+            <span class="badge">6.7 km/L</span>
+            <span class="badge badge-success">Full tank</span>
+          </div>
         </div>
         <div class="fillup-right">
-          <span class="fillup-cost">85,60 €</span>
-          <span class="fillup-efficiency">6,7 L/100km · 47,8 L</span>
+          <span style="font-family:var(--font-family-mono);font-size:var(--font-xs);color:var(--color-text-secondary)">18.710 km</span>
         </div>
       </div>
     </div>
 
   </main>
-
-  <!-- ── Fill-up Modal — corner triangle, sharp inputs ── -->
-  <div class="modal-overlay" id="fillup-modal">
-    <div class="modal corner-tri">
-      <div class="modal-drag-handle"></div>
-      <div class="modal-title">Tankfüllung hinzufügen</div>
-
-      <div class="form-group">
-        <label class="form-label">Datum</label>
-        <div class="form-input-wrap"><input class="form-input" type="date" value="2026-04-08" /></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Kilometerstand</label>
-        <div class="form-input-wrap"><input class="form-input" type="text" placeholder="z.B. 20.490" /></div>
-      </div>
-
-      <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Menge</label>
-          <div class="form-input-wrap"><input class="form-input" type="text" placeholder="Liter" /></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Gesamtpreis</label>
-          <div class="form-input-wrap"><input class="form-input" type="text" placeholder="€" /></div>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Tankstelle</label>
-        <div class="form-input-wrap"><input class="form-input" type="text" placeholder="z.B. Aral — Hauptstraße" /></div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-toggle" onclick="this.querySelector('.toggle-track').classList.toggle('on')">
-          <div class="toggle-track on"><div class="toggle-knob"></div></div>
-          Vollgetankt
-        </label>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Notizen</label>
-        <div class="form-input-wrap"><input class="form-input" type="text" placeholder="Optional" /></div>
-      </div>
-
-      <div class="form-actions">
-        <button class="btn btn-secondary corner-tri-hover" onclick="toggleModal()">Abbrechen</button>
-        <button class="btn btn-primary corner-tri-hover">Speichern</button>
-      </div>
-    </div>
-  </div>
 
   <script>
     function toggleTheme() {
@@ -831,12 +773,6 @@
       const current = html.getAttribute('data-theme');
       html.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
     }
-    function toggleModal() {
-      document.getElementById('fillup-modal').classList.toggle('open');
-    }
-    document.getElementById('fillup-modal').addEventListener('click', function(e) {
-      if (e.target === this) toggleModal();
-    });
   </script>
 
 </body>

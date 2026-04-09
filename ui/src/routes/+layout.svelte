@@ -247,8 +247,8 @@
     left: 0;
     bottom: 0;
     width: var(--sidebar-width);
-    background: var(--color-bg-raised);
-    border-right: 1px solid var(--color-border);
+    background: var(--color-nav-bg);
+    border-right: 1px solid var(--color-nav-border);
     flex-direction: column;
     align-items: center;
     padding: var(--space-4) 0;
@@ -257,7 +257,7 @@
 
   .sidebar-logo {
     margin-bottom: var(--space-4);
-    color: var(--color-accent-text);
+    color: var(--color-brand-gold-1);
   }
 
   .sidebar-cta {
@@ -293,21 +293,24 @@
     justify-content: center;
     gap: 2px;
     padding: var(--space-2);
-    color: var(--color-text-secondary);
+    color: var(--color-nav-text);
     text-decoration: none;
     font-size: 11px;
     width: 48px;
     height: 48px;
-    transition: background var(--transition-fast);
+    transition:
+      background var(--transition-fast),
+      color var(--transition-fast);
   }
 
   .nav-item:hover {
-    background: var(--color-bg-sunken);
+    background: var(--color-nav-hover);
+    color: var(--color-brand-gold-2);
   }
 
   .nav-item.active {
-    background: var(--color-accent-subtle);
-    color: var(--color-accent-text);
+    background: rgba(212, 165, 106, 0.12);
+    color: var(--color-nav-text-active);
   }
 
   .sidebar .nav-label {
@@ -325,8 +328,8 @@
     left: 0;
     right: 0;
     height: var(--nav-bottom-total);
-    background: var(--color-bg-raised);
-    border-top: 1px solid var(--color-border);
+    background: var(--color-nav-bg);
+    border-top: 1px solid var(--color-nav-border);
     display: flex;
     justify-content: space-around;
     align-items: flex-start;
@@ -510,7 +513,7 @@
     }
 
     .bottom-bar .nav-item.active {
-      color: var(--color-accent-text);
+      color: var(--color-nav-text-active);
     }
   }
 </style>

@@ -63,13 +63,13 @@
 }
 
 .chip.active {
-  background: var(--color-accent);
-  color: var(--color-text-inverse);
-  border-color: var(--color-accent);
+  background: var(--color-brand-bg);
+  color: var(--color-brand-gold-1);
+  border-color: var(--color-brand-bg);
 }
 
 .chip.active::after {
-  border-color: transparent var(--color-text-inverse) transparent transparent;
+  border-color: transparent var(--color-brand-gold-2) transparent transparent;
 }
 
 /* Mobile: larger touch targets */

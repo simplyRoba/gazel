@@ -357,11 +357,11 @@
     .chip:hover { border-color: var(--color-accent); }
     .chip:hover::after { border-color: transparent var(--color-accent) transparent transparent; }
     .chip.active {
-      background: var(--color-accent);
-      color: var(--color-text-inverse);
-      border-color: var(--color-accent);
+      background: var(--color-brand-bg);
+      color: var(--color-brand-gold-1);
+      border-color: var(--color-brand-bg);
     }
-    .chip.active::after { border-color: transparent var(--color-text-inverse) transparent transparent; }
+    .chip.active::after { border-color: transparent var(--color-brand-gold-2) transparent transparent; }
 
     .stat-value {
       font-size: var(--font-stat);
@@ -451,6 +451,25 @@
       <div class="swatch"><div class="swatch-color" style="background:var(--color-brand-gold-1)"></div><div class="swatch-label">Gold 1<code>--color-brand-gold-1</code></div></div>
       <div class="swatch"><div class="swatch-color" style="background:var(--color-brand-gold-2)"></div><div class="swatch-label">Gold 2<code>--color-brand-gold-2</code></div></div>
       <div class="swatch"><div class="swatch-color" style="background:var(--color-brand-gold-3)"></div><div class="swatch-label">Gold 3<code>--color-brand-gold-3</code></div></div>
+    </div>
+
+    <h3>Navigation</h3>
+    <p style="font-size:var(--font-xs);color:var(--color-text-tertiary);margin-bottom:var(--space-3)">
+      Dark slate sidebar/bottom bar in both themes — warm gold on cool slate is the brand contrast.
+    </p>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="swatch-color" style="background:var(--color-nav-bg, var(--color-brand-bg))"></div><div class="swatch-label">Nav BG<code>--color-nav-bg</code></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--color-nav-text, #b0b8c8)"></div><div class="swatch-label">Nav Text<code>--color-nav-text</code></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--color-nav-text-active, var(--color-brand-gold-1))"></div><div class="swatch-label">Nav Active<code>--color-nav-text-active</code></div></div>
+    </div>
+
+    <h3>Feature Surface</h3>
+    <p style="font-size:var(--font-xs);color:var(--color-text-tertiary);margin-bottom:var(--space-3)">
+      Blue-tinted background for stat/data cards — distinguishes data from content cards.
+    </p>
+    <div class="swatch-grid">
+      <div class="swatch"><div class="swatch-color" style="background:var(--color-bg-feature, #f0f2f6)"></div><div class="swatch-label">Feature BG<code>--color-bg-feature</code></div></div>
+      <div class="swatch"><div class="swatch-color" style="background:var(--color-border-feature, #d8dce6)"></div><div class="swatch-label">Feature Border<code>--color-border-feature</code></div></div>
     </div>
   </section>
 

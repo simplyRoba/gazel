@@ -119,6 +119,17 @@
   --color-error: #b33d32;
   --color-info: #2e6ba8;
 
+  /* Navigation (dark slate in both themes) */
+  --color-nav-bg: var(--color-brand-bg);
+  --color-nav-text: #b0b8c8;
+  --color-nav-text-active: var(--color-brand-gold-1);
+  --color-nav-border: rgba(255, 255, 255, 0.08);
+  --color-nav-hover: rgba(255, 255, 255, 0.06);
+
+  /* Feature surface (blue-tinted for stat cards) */
+  --color-bg-feature: #f0f2f6;
+  --color-border-feature: #d8dce6;
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(44, 36, 24, 0.06);
   --shadow-md: 0 2px 8px rgba(44, 36, 24, 0.08);
@@ -157,6 +168,16 @@
   --color-error: #e06858;
   --color-info: #5a9adf;
 
+  /* Navigation */
+  --color-nav-bg: #151b28;
+  --color-nav-text: #7a8494;
+  --color-nav-border: rgba(255, 255, 255, 0.06);
+  --color-nav-hover: rgba(255, 255, 255, 0.04);
+
+  /* Feature surface */
+  --color-bg-feature: #1e2636;
+  --color-border-feature: #2a3444;
+
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
   --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -190,6 +211,14 @@
     --color-warning: #d4a040;
     --color-error: #e06858;
     --color-info: #5a9adf;
+
+    --color-nav-bg: #151b28;
+    --color-nav-text: #7a8494;
+    --color-nav-border: rgba(255, 255, 255, 0.06);
+    --color-nav-hover: rgba(255, 255, 255, 0.04);
+
+    --color-bg-feature: #1e2636;
+    --color-border-feature: #2a3444;
 
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.3);

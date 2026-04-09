@@ -374,6 +374,8 @@
     flex-direction: column;
     gap: var(--space-1);
     padding: var(--space-3);
+    background: var(--color-bg-feature);
+    border-color: var(--color-border-feature);
   }
 
   .summary-value {
