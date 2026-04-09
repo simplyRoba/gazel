@@ -1,10 +1,15 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { resolve } from "$app/paths";
-  import { Car, Fuel, Plus } from "lucide-svelte";
+  import { Car, Fuel } from "lucide-svelte";
   import PageContainer from "$lib/components/PageContainer.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import FillupModal from "$lib/components/FillupModal.svelte";
+  import ChartsPanel from "$lib/components/charts/ChartsPanel.svelte";
+  import EfficiencyChart from "$lib/components/charts/EfficiencyChart.svelte";
+  import MonthlyCostChart from "$lib/components/charts/MonthlyCostChart.svelte";
+  import FuelPriceChart from "$lib/components/charts/FuelPriceChart.svelte";
+  import Sparkline from "$lib/components/charts/Sparkline.svelte";
   import {
     loadVehicles,
     getVehicles,
@@ -29,8 +34,8 @@
   import { getSettings } from "$lib/stores/settings.svelte";
   import {
     formatDistance,
-    formatVolume,
     formatCurrency,
+    formatVolume,
     formatEfficiency,
   } from "$lib/format";
   import type { Fillup, CreateFillup } from "$lib/api";
@@ -39,6 +44,7 @@
     getEfficiencyForFillup,
     computeFleetSummary,
   } from "$lib/stats";
+  import { toSparklineData } from "$lib/charts";
 
   // Modal state
   let showFillupModal = $state(false);
@@ -66,9 +72,38 @@
     return getVehicleHistory(id);
   });
 
+  // ── Sparkline data for summary cards ──────────────────
+
+  const costPerDistanceSparkline = $derived(
+    activeHistory.length >= 2
+      ? toSparklineData(activeHistory, (s) => s.cost_per_distance)
+      : [],
+  );
+
+  const fuelPriceSparkline = $derived(
+    activeHistory.length >= 2
+      ? toSparklineData(
+          activeHistory.filter((s) => s.fuel > 0),
+          (s) => s.cost / s.fuel,
+        )
+      : [],
+  );
+
   // ── Segment-to-fillup efficiency map ───────────────────
 
   const efficiencyMap = $derived(buildEfficiencyMap(activeHistory));
+
+  // ── Mobile carousel state ─────────────────────────────
+
+  let activeChartIndex = $state(0);
+  let carouselEl = $state<HTMLDivElement | null>(null);
+
+  function handleCarouselScroll() {
+    if (!carouselEl) return;
+    const scrollLeft = carouselEl.scrollLeft;
+    const cardWidth = carouselEl.offsetWidth;
+    activeChartIndex = Math.round(scrollLeft / cardWidth);
+  }
 
   // ── Lifecycle ──────────────────────────────────────────
 
@@ -176,7 +211,7 @@
           <span class="summary-value">{fleetSummary.totalFillups}</span>
           <span class="summary-label">Fill-ups</span>
         </div>
-        <div class="card summary-card">
+        <div class="card summary-card summary-card--sparkline">
           <span class="summary-value mono">
             {#if fleetSummary.costPerDistance !== null}
               {formatCurrency(
@@ -188,8 +223,13 @@
             {/if}
           </span>
           <span class="summary-label">Cost per {settings.distance_unit}</span>
+          {#if costPerDistanceSparkline.length >= 2}
+            <div class="sparkline-bg">
+              <Sparkline data={costPerDistanceSparkline} />
+            </div>
+          {/if}
         </div>
-        <div class="card summary-card">
+        <div class="card summary-card summary-card--sparkline">
           <span class="summary-value mono">
             {#if fleetSummary.costPerVolume !== null}
               {formatCurrency(
@@ -201,6 +241,11 @@
             {/if}
           </span>
           <span class="summary-label">Fuel price</span>
+          {#if fuelPriceSparkline.length >= 2}
+            <div class="sparkline-bg">
+              <Sparkline data={fuelPriceSparkline} />
+            </div>
+          {/if}
         </div>
       </div>
     {/if}
@@ -273,102 +318,155 @@
       {/if}
     {/if}
 
-    <!-- Add fill-up button -->
-    <div class="actions-row">
-      <button class="btn btn-primary btn-sm" onclick={openCreateModal}>
-        <Plus size={16} />
-        Add fill-up
-      </button>
-    </div>
-
-    <!-- Fill-up list -->
-    {#if getFillupsLoading()}
-      <div class="fillup-list">
-        {#each Array(3) as _, i (i)}
-          <div class="card shimmer skeleton-card"></div>
-        {/each}
-      </div>
-    {:else if getFillups().length === 0}
-      <EmptyState
-        icon={Fuel}
-        heading="No fill-ups yet"
-        description="Record your first fill-up for this vehicle."
-      >
-        {#snippet action()}
-          <button class="btn btn-primary" onclick={openCreateModal}
-            >Add fill-up</button
-          >
-        {/snippet}
-      </EmptyState>
-    {:else}
-      <div class="fillup-list">
-        {#each getFillups() as fillup, i (fillup.id)}
-          {@const eff = getEfficiencyForFillup(fillup, efficiencyMap)}
-          {@const fillups = getFillups()}
-          {@const prev = i < fillups.length - 1 ? fillups[i + 1] : null}
-          {@const odoDiff = prev ? fillup.odometer - prev.odometer : null}
-          {@const fuelPrice =
-            fillup.fuel_amount > 0 ? fillup.cost / fillup.fuel_amount : null}
-          <button
-            class="card fillup-card"
-            onclick={() => openEditModal(fillup)}
-          >
-            <div class="fillup-header">
-              <span class="fillup-date">{formatDate(fillup.date)}</span>
-              <span class="fillup-odo">
-                <span class="fillup-diff mono"
-                  >{#if odoDiff !== null}+{formatDistance(
-                      odoDiff,
-                      settings.distance_unit,
-                    )}{:else}&mdash;{/if}</span
-                >
-                <span class="fillup-abs mono"
-                  >{fillup.odometer.toLocaleString()}</span
-                >
-              </span>
-            </div>
-            <div class="fillup-details">
-              <span class="fillup-fuel mono"
-                >{formatVolume(fillup.fuel_amount, settings.volume_unit)}</span
-              >
-              <span class="fillup-cost mono"
-                >{formatCurrency(fillup.cost, settings.currency)}</span
-              >
-              {#if fuelPrice !== null}
-                <span class="fillup-price mono"
-                  >{formatCurrency(
-                    fuelPrice,
-                    settings.currency,
-                  )}/{settings.volume_unit === "l"
-                    ? "L"
-                    : settings.volume_unit}</span
-                >
-              {/if}
-              {#if fillup.station}
-                <span class="fillup-station">{fillup.station}</span>
-              {/if}
-            </div>
-            <div class="fillup-badges">
-              {#if eff !== null}
-                <span class="badge" data-testid="efficiency-badge"
-                  >{formatEfficiency(
-                    eff,
-                    settings.distance_unit,
-                    settings.volume_unit,
-                  )}</span
-                >
-              {/if}
-              {#if fillup.is_full_tank}
-                <span class="badge badge-success">Full tank</span>
-              {/if}
-              {#if fillup.is_missed}
-                <span class="badge badge-warning">Missed</span>
-              {/if}
-            </div>
-          </button>
-        {/each}
+    <!-- ── Mobile chart carousel (<=768px) ────────────── -->
+    {#if activeHistory.length >= 2}
+      <div class="chart-carousel-wrapper">
+        <div
+          class="chart-carousel"
+          bind:this={carouselEl}
+          onscroll={handleCarouselScroll}
+        >
+          <div class="chart-carousel-item">
+            <EfficiencyChart
+              segments={activeHistory}
+              distanceUnit={settings.distance_unit}
+              volumeUnit={settings.volume_unit}
+            />
+          </div>
+          <div class="chart-carousel-item">
+            <MonthlyCostChart
+              segments={activeHistory}
+              currency={settings.currency}
+            />
+          </div>
+          <div class="chart-carousel-item">
+            <FuelPriceChart
+              segments={activeHistory}
+              currency={settings.currency}
+              volumeUnit={settings.volume_unit}
+            />
+          </div>
+        </div>
+        <div class="carousel-dots">
+          {#each [0, 1, 2] as idx (idx)}
+            <span class="carousel-dot" class:active={activeChartIndex === idx}
+            ></span>
+          {/each}
+        </div>
       </div>
     {/if}
+
+    <!-- ── Two-column layout (desktop: charts + fill-ups) ── -->
+    <div class="dashboard-content">
+      <!-- Charts panel (desktop/tablet only, sticky) -->
+      {#if activeHistory.length >= 2}
+        <div class="charts-column">
+          <ChartsPanel
+            segments={activeHistory}
+            distanceUnit={settings.distance_unit}
+            volumeUnit={settings.volume_unit}
+            currency={settings.currency}
+          />
+        </div>
+      {/if}
+
+      <!-- Fill-up list column -->
+      <div class="fillups-column">
+        <!-- Fill-up list -->
+        {#if getFillupsLoading()}
+          <div class="fillup-list">
+            {#each Array(3) as _, i (i)}
+              <div class="card shimmer skeleton-card"></div>
+            {/each}
+          </div>
+        {:else if getFillups().length === 0}
+          <EmptyState
+            icon={Fuel}
+            heading="No fill-ups yet"
+            description="Record your first fill-up for this vehicle."
+          >
+            {#snippet action()}
+              <button class="btn btn-primary" onclick={openCreateModal}
+                >Add fill-up</button
+              >
+            {/snippet}
+          </EmptyState>
+        {:else}
+          <div class="fillup-list">
+            {#each getFillups() as fillup, i (fillup.id)}
+              {@const eff = getEfficiencyForFillup(fillup, efficiencyMap)}
+              {@const fillups = getFillups()}
+              {@const prev = i < fillups.length - 1 ? fillups[i + 1] : null}
+              {@const odoDiff = prev ? fillup.odometer - prev.odometer : null}
+              {@const fuelPrice =
+                fillup.fuel_amount > 0
+                  ? fillup.cost / fillup.fuel_amount
+                  : null}
+              <button
+                class="card fillup-card"
+                onclick={() => openEditModal(fillup)}
+              >
+                <div class="fillup-header">
+                  <span class="fillup-date">{formatDate(fillup.date)}</span>
+                  <span class="fillup-odo">
+                    <span class="fillup-diff mono"
+                      >{#if odoDiff !== null}+{formatDistance(
+                          odoDiff,
+                          settings.distance_unit,
+                        )}{:else}&mdash;{/if}</span
+                    >
+                    <span class="fillup-abs mono"
+                      >{fillup.odometer.toLocaleString()}</span
+                    >
+                  </span>
+                </div>
+                <div class="fillup-details">
+                  <span class="fillup-fuel mono"
+                    >{formatVolume(
+                      fillup.fuel_amount,
+                      settings.volume_unit,
+                    )}</span
+                  >
+                  <span class="fillup-cost mono"
+                    >{formatCurrency(fillup.cost, settings.currency)}</span
+                  >
+                  {#if fuelPrice !== null}
+                    <span class="fillup-price mono"
+                      >{formatCurrency(
+                        fuelPrice,
+                        settings.currency,
+                      )}/{settings.volume_unit === "l"
+                        ? "L"
+                        : settings.volume_unit}</span
+                    >
+                  {/if}
+                  {#if fillup.station}
+                    <span class="fillup-station">{fillup.station}</span>
+                  {/if}
+                </div>
+                <div class="fillup-badges">
+                  {#if eff !== null}
+                    <span class="badge" data-testid="efficiency-badge"
+                      >{formatEfficiency(
+                        eff,
+                        settings.distance_unit,
+                        settings.volume_unit,
+                      )}</span
+                    >
+                  {/if}
+                  {#if fillup.is_full_tank}
+                    <span class="badge badge-success">Full tank</span>
+                  {/if}
+                  {#if fillup.is_missed}
+                    <span class="badge badge-warning">Missed</span>
+                  {/if}
+                </div>
+              </button>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    </div>
   {/if}
 </PageContainer>
 
@@ -401,16 +499,34 @@
     border-color: var(--color-border-feature);
   }
 
+  .summary-card--sparkline {
+    position: relative;
+    overflow: hidden;
+  }
+
   .summary-value {
     font-size: var(--font-md);
     font-weight: var(--font-weight-semibold);
     color: var(--color-accent-text);
     line-height: var(--line-height-tight);
+    position: relative;
+    z-index: 1;
   }
 
   .summary-label {
     font-size: var(--font-xs);
     color: var(--color-text-secondary);
+    position: relative;
+    z-index: 1;
+  }
+
+  .sparkline-bg {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 32px;
+    opacity: 0.4;
   }
 
   .summary-skeleton {
@@ -456,11 +572,82 @@
     height: 36px;
   }
 
-  /* ── Actions row ────────────────────────────────────── */
-  .actions-row {
-    display: flex;
-    justify-content: flex-end;
+  /* ── Mobile chart carousel (shown <=768px) ──────────── */
+  .chart-carousel-wrapper {
+    display: block;
     margin-bottom: var(--space-4);
+  }
+
+  .chart-carousel {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    gap: var(--space-3);
+  }
+
+  .chart-carousel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .chart-carousel-item {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+  }
+
+  .carousel-dots {
+    display: flex;
+    justify-content: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .carousel-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--color-border);
+    transition: background var(--transition-fast);
+  }
+
+  .carousel-dot.active {
+    background: var(--color-accent);
+  }
+
+  /* ── Two-column dashboard content ──────────────────── */
+  .dashboard-content {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .charts-column {
+    display: none;
+  }
+
+  .fillups-column {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Desktop/tablet: side-by-side layout */
+  @media (min-width: 769px) {
+    .chart-carousel-wrapper {
+      display: none;
+    }
+
+    .dashboard-content {
+      display: grid;
+      grid-template-columns: 2fr 3fr;
+      gap: var(--space-4);
+      align-items: start;
+    }
+
+    .charts-column {
+      display: block;
+      position: sticky;
+      top: var(--space-4);
+    }
   }
 
   /* ── Fill-up list ───────────────────────────────────── */
