@@ -49,7 +49,12 @@
       <div class="error-banner">{getError()}</div>
     {/if}
 
-    <VehicleForm initial={vehicle} onsave={handleSave} {saving} />
+    <VehicleForm
+      initial={vehicle}
+      onsave={handleSave}
+      oncancel={() => goto(resolve("/settings"))}
+      {saving}
+    />
   {/if}
 </PageContainer>
 

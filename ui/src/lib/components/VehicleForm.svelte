@@ -14,10 +14,12 @@
   let {
     initial,
     onsave,
+    oncancel,
     saving = false,
   }: {
     initial?: Vehicle;
     onsave: (data: CreateVehicle) => Promise<void>;
+    oncancel: () => void;
     saving?: boolean;
   } = $props();
 
@@ -158,8 +160,11 @@
   </div>
 
   <div class="form-actions">
-    <button type="submit" class="btn btn-primary btn-full" disabled={saving}>
+    <button type="submit" class="btn btn-primary" disabled={saving}>
       {saving ? "Saving..." : initial ? "Save changes" : "Add vehicle"}
+    </button>
+    <button type="button" class="btn" disabled={saving} onclick={oncancel}>
+      Cancel
     </button>
   </div>
 </form>
@@ -184,6 +189,8 @@
   }
 
   .form-actions {
+    display: flex;
+    gap: var(--space-3);
     margin-top: var(--space-6);
   }
 
