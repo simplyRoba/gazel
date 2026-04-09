@@ -114,7 +114,7 @@
       </div>
 
       <button
-        class="sidebar-cta corner-tri corner-tri-sm"
+        class="sidebar-cta corner-tri-hover corner-tri-sm"
         style="--_tri-color: var(--color-text-inverse)"
         onclick={handleCta}
       >
