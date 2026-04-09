@@ -134,31 +134,86 @@ fn validate_fuel_amount(amount: f64) -> Result<(), ApiError> {
 ///
 /// Returns `ApiError::Validation` if the odometer is less than the max
 /// existing reading for the vehicle.
+/// Validate that the odometer reading is consistent with neighboring
+/// fill-ups.
+///
+/// For **creates** (`exclude_id = None`): the new odometer must be ≥ the
+/// current maximum (new fill-ups go at the top).
+///
+/// For **updates** (`exclude_id = Some`): the odometer must fit between
+/// its chronological neighbors — ≥ the previous fill-up and ≤ the next
+/// fill-up (by date, then by id as tie-breaker).
 async fn validate_odometer(
     pool: &SqlitePool,
     vehicle_id: i64,
     odometer: f64,
     exclude_id: Option<i64>,
 ) -> Result<(), ApiError> {
-    let max_odometer: Option<f64> = if let Some(eid) = exclude_id {
-        sqlx::query_scalar("SELECT MAX(odometer) FROM fillups WHERE vehicle_id = ? AND id != ?")
-            .bind(vehicle_id)
-            .bind(eid)
-            .fetch_one(pool)
-            .await
-            .map_err(db_error)?
-    } else {
-        sqlx::query_scalar("SELECT MAX(odometer) FROM fillups WHERE vehicle_id = ?")
-            .bind(vehicle_id)
-            .fetch_one(pool)
-            .await
-            .map_err(db_error)?
-    };
+    if let Some(eid) = exclude_id {
+        // Find the date of the fill-up being edited.
+        let date: String =
+            sqlx::query_scalar("SELECT date FROM fillups WHERE id = ? AND vehicle_id = ?")
+                .bind(eid)
+                .bind(vehicle_id)
+                .fetch_one(pool)
+                .await
+                .map_err(db_error)?;
 
-    if let Some(max) = max_odometer
-        && odometer < max
-    {
-        return Err(ApiError::Validation("FILLUP_INVALID_ODOMETER"));
+        // Previous fill-up: the one right before this one chronologically.
+        let prev: Option<f64> = sqlx::query_scalar(
+            "SELECT odometer FROM fillups \
+             WHERE vehicle_id = ? AND id != ? AND (date < ? OR (date = ? AND id < ?)) \
+             ORDER BY date DESC, id DESC LIMIT 1",
+        )
+        .bind(vehicle_id)
+        .bind(eid)
+        .bind(&date)
+        .bind(&date)
+        .bind(eid)
+        .fetch_optional(pool)
+        .await
+        .map_err(db_error)?;
+
+        if let Some(p) = prev
+            && odometer < p
+        {
+            return Err(ApiError::Validation("FILLUP_INVALID_ODOMETER"));
+        }
+
+        // Next fill-up: the one right after this one chronologically.
+        let next: Option<f64> = sqlx::query_scalar(
+            "SELECT odometer FROM fillups \
+             WHERE vehicle_id = ? AND id != ? AND (date > ? OR (date = ? AND id > ?)) \
+             ORDER BY date ASC, id ASC LIMIT 1",
+        )
+        .bind(vehicle_id)
+        .bind(eid)
+        .bind(&date)
+        .bind(&date)
+        .bind(eid)
+        .fetch_optional(pool)
+        .await
+        .map_err(db_error)?;
+
+        if let Some(n) = next
+            && odometer > n
+        {
+            return Err(ApiError::Validation("FILLUP_INVALID_ODOMETER"));
+        }
+    } else {
+        // Create: new fill-up must have the highest odometer.
+        let max_odometer: Option<f64> =
+            sqlx::query_scalar("SELECT MAX(odometer) FROM fillups WHERE vehicle_id = ?")
+                .bind(vehicle_id)
+                .fetch_one(pool)
+                .await
+                .map_err(db_error)?;
+
+        if let Some(max) = max_odometer
+            && odometer < max
+        {
+            return Err(ApiError::Validation("FILLUP_INVALID_ODOMETER"));
+        }
     }
 
     Ok(())
