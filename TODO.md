@@ -189,16 +189,16 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 > Trend charts for efficiency, cost, and fuel price over time per vehicle.
 
-- [ ] Select and integrate a chart library (evaluate: Chart.js, LayerCake, uPlot)
-- [ ] Efficiency trend chart (line chart, per vehicle, over time)
-- [ ] Cost trend chart (bar or line, monthly spend per vehicle)
-- [ ] Fuel price trend chart (cost per unit of fuel over time)
-- [ ] Charts on vehicle detail page
-- [ ] Summary chart(s) on dashboard (fleet-wide or selectable vehicle)
-- [ ] Responsive chart sizing
-- [ ] Sparkline background visuals on dashboard summary cards for cost per km
+- [x] Select and integrate a chart library (evaluate: Chart.js, LayerCake, uPlot)
+- [x] Efficiency trend chart (line chart, per vehicle, over time)
+- [x] Cost trend chart (bar or line, monthly spend per vehicle)
+- [x] Fuel price trend chart (cost per unit of fuel over time)
+- [x] Charts on vehicle detail page
+- [x] Summary chart(s) on dashboard (fleet-wide or selectable vehicle)
+- [x] Responsive chart sizing
+- [x] Sparkline background visuals on dashboard summary cards for cost per km
       and fuel price -- subtle inline trend graph behind the stat value
-- [ ] Vitest tests for data transformation logic
+- [x] Vitest tests for data transformation logic
 
 ## 12. Data export
 
