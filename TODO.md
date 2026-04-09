@@ -196,6 +196,8 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 - [ ] Charts on vehicle detail page
 - [ ] Summary chart(s) on dashboard (fleet-wide or selectable vehicle)
 - [ ] Responsive chart sizing
+- [ ] Sparkline background visuals on dashboard summary cards for cost per km
+      and fuel price -- subtle inline trend graph behind the stat value
 - [ ] Vitest tests for data transformation logic
 
 ## 12. Data export
