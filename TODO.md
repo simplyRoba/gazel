@@ -108,15 +108,15 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 > Backend CRUD for fuel fill-ups, linked to a vehicle.
 
-- [ ] `fillups` table migration (id, vehicle_id FK, date, odometer,
+- [x] `fillups` table migration (id, vehicle_id FK, date, odometer,
       fuel_amount, fuel_unit, cost, currency, is_full_tank, is_missed,
       station, notes, created_at, updated_at)
-- [ ] `GET /api/vehicles/:id/fillups` -- list for vehicle (paginated, sorted by date desc)
-- [ ] `GET /api/vehicles/:id/fillups/:fillup_id` -- single fill-up
-- [ ] `POST /api/vehicles/:id/fillups` -- create (validate odometer > previous, etc.)
-- [ ] `PUT /api/vehicles/:id/fillups/:fillup_id` -- update
-- [ ] `DELETE /api/vehicles/:id/fillups/:fillup_id` -- delete
-- [ ] Integration tests
+- [x] `GET /api/vehicles/:id/fillups` -- list for vehicle (paginated, sorted by date desc)
+- [x] `GET /api/vehicles/:id/fillups/:fillup_id` -- single fill-up
+- [x] `POST /api/vehicles/:id/fillups` -- create (validate odometer > previous, etc.)
+- [x] `PUT /api/vehicles/:id/fillups/:fillup_id` -- update
+- [x] `DELETE /api/vehicles/:id/fillups/:fillup_id` -- delete
+- [x] Integration tests
 
 ## 7. Fill-up logging UI
 

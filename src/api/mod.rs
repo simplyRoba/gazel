@@ -1,4 +1,5 @@
 pub mod error;
+pub mod fillups;
 pub mod settings;
 pub mod vehicles;
 
@@ -21,5 +22,15 @@ pub fn router(_state: AppState) -> Router<AppState> {
                 .put(vehicles::update)
                 .patch(vehicles::patch)
                 .delete(vehicles::delete),
+        )
+        .route(
+            "/vehicles/{vehicle_id}/fillups",
+            get(fillups::list).post(fillups::create),
+        )
+        .route(
+            "/vehicles/{vehicle_id}/fillups/{id}",
+            get(fillups::get)
+                .put(fillups::update)
+                .delete(fillups::delete),
         )
 }

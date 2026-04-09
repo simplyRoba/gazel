@@ -342,20 +342,40 @@ pub async fn patch(
 ///
 /// # Errors
 ///
-/// Returns `ApiError::NotFound` if the vehicle does not exist.
+/// Returns `ApiError::NotFound` if the vehicle does not exist, or
+/// `ApiError::Conflict` if the vehicle has existing fill-ups.
 pub async fn delete(
     State(pool): State<SqlitePool>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    let result = sqlx::query("DELETE FROM vehicles WHERE id = ?")
+    // Check vehicle exists first
+    let exists: Option<i32> = sqlx::query_scalar("SELECT 1 FROM vehicles WHERE id = ?")
+        .bind(id)
+        .fetch_optional(&pool)
+        .await
+        .map_err(db_error)?;
+
+    if exists.is_none() {
+        return Err(ApiError::NotFound("VEHICLE_NOT_FOUND"));
+    }
+
+    // Check for existing fill-ups
+    let has_fillups: bool =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM fillups WHERE vehicle_id = ?)")
+            .bind(id)
+            .fetch_one(&pool)
+            .await
+            .map_err(db_error)?;
+
+    if has_fillups {
+        return Err(ApiError::Conflict("VEHICLE_HAS_FILLUPS"));
+    }
+
+    sqlx::query("DELETE FROM vehicles WHERE id = ?")
         .bind(id)
         .execute(&pool)
         .await
         .map_err(db_error)?;
-
-    if result.rows_affected() == 0 {
-        return Err(ApiError::NotFound("VEHICLE_NOT_FOUND"));
-    }
 
     info!(vehicle_id = id, "Vehicle deleted");
     Ok(StatusCode::NO_CONTENT)

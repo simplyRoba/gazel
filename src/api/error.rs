@@ -48,6 +48,12 @@ fn default_message(code: &str) -> &'static str {
         "VEHICLE_INVALID_FUEL_TYPE" => "Invalid fuel type.",
         "VEHICLE_INVALID_YEAR" => "Invalid year.",
         "VEHICLE_HAS_FILLUPS" => "Cannot delete vehicle with existing fill-ups.",
+        "FILLUP_NOT_FOUND" => "Fill-up not found.",
+        "FILLUP_DATE_REQUIRED" => "Fill-up date is required.",
+        "FILLUP_FUEL_AMOUNT_REQUIRED" => "Fuel amount is required.",
+        "FILLUP_INVALID_FUEL_AMOUNT" => "Fuel amount must be greater than zero.",
+        "FILLUP_INVALID_ODOMETER" => "Odometer reading must not be less than the previous reading.",
+        "FILLUP_INVALID_COST" => "Cost must not be negative.",
         "SETTINGS_INVALID_COLOR_MODE" => "Invalid color mode. Must be light, dark, or system.",
         "SETTINGS_INVALID_UNIT_SYSTEM" => {
             "Invalid unit system. Must be metric, imperial, or custom."
