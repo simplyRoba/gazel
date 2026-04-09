@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.4.0](https://github.com/simplyRoba/gazel/compare/v0.3.0...v0.4.0) (2026-04-09)
+
+
+### Features
+
+* add dashboard stats with summary cards, efficiency badges, and stats store ([4e98936](https://github.com/simplyRoba/gazel/commit/4e989366f199a42ce398c5e5746e7474ad052dbe))
+* add fill-up CRUD API with validation and vehicle delete guard ([a351de2](https://github.com/simplyRoba/gazel/commit/a351de277a4dd4d19166969382202ac0be9fa298))
+* add fill-up logging UI with dashboard integration ([aefc914](https://github.com/simplyRoba/gazel/commit/aefc9143df66dc79f06b09c7d6173097554ba13c))
+* add settings and preferences — API, store, formatting utilities, theme server sync ([fe603fd](https://github.com/simplyRoba/gazel/commit/fe603fdf2e42ebba81b1dbf3ef23a0fdabfe7a91))
+* add vehicle stats API with efficiency and cost calculations ([50b9dfb](https://github.com/simplyRoba/gazel/commit/50b9dfb7014bffb897c94ccf268af9b4883d0ac4))
+
+
+### Bug Fixes
+
+* add cancel button to vehicle add/edit forms ([344e816](https://github.com/simplyRoba/gazel/commit/344e816e807079fd216097efd8884b28865d7baa))
+* change default currency from USD to EUR ([dff1ed1](https://github.com/simplyRoba/gazel/commit/dff1ed100817a77db0b06c8f73282528778edfaa))
+* **deps:** bump tokio from 1.51.0 to 1.51.1 in the tokio group ([8ec36a7](https://github.com/simplyRoba/gazel/commit/8ec36a7a61d7c96aba1bb60a597c0c9796a9038f))
+* **deps:** bump vite from 8.0.7 to 8.0.8 in /ui ([d944bb7](https://github.com/simplyRoba/gazel/commit/d944bb735b78a697e78b4ff0cb610f4c1c0df6b4))
+
 ## [0.3.0](https://github.com/simplyRoba/gazel/compare/v0.2.0...v0.3.0) (2026-04-08)
 
 
