@@ -36,7 +36,7 @@
 <div class="card chart-card">
   <span class="chart-title">{title}</span>
   {#if hasEnoughData}
-    <div class="chart-container" style="min-height: {height}px">
+    <div class="chart-container" style="height: {height}px">
       <LayerCake {data} {x} {y} {xScale} {yDomain} {padding}>
         <Svg>
           {@render children()}
@@ -66,9 +66,9 @@
   }
 
   .chart-container {
+    position: relative;
     width: 100%;
-    flex: 1;
-    min-height: 0;
+    flex: 1 1 auto;
   }
 
   .chart-empty {
