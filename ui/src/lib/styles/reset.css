@@ -33,6 +33,7 @@ img {
 
 button {
   font-family: inherit;
+  color: inherit;
   cursor: pointer;
 }
 
