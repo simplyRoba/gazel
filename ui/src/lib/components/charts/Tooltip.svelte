@@ -90,28 +90,26 @@
   <circle cx={x} cy={y} r={4} fill="var(--color-accent)" />
   <circle cx={x} cy={y} r={6} fill="var(--color-accent)" opacity="0.3" />
 
-  <!-- Tooltip box -->
-  {@const tooltipX = x > $width / 2 ? x - 8 : x + 8}
-  {@const anchor = x > $width / 2 ? "end" : "start"}
-  <g transform="translate({tooltipX}, {Math.max(y - 8, 16)})">
-    <text
-      text-anchor={anchor}
-      fill="var(--color-text)"
-      font-size="12"
-      font-family="var(--font-family)"
-      font-weight="600"
-      dy="-4"
-    >
-      {formatY(d)}
-    </text>
-    <text
-      text-anchor={anchor}
-      fill="var(--color-text-secondary)"
-      font-size="10"
-      font-family="var(--font-family)"
-      dy="10"
-    >
-      {formatX(d)}
-    </text>
-  </g>
+  <!-- Tooltip text pinned to top-right of chart -->
+  <text
+    x={$width}
+    y={-2}
+    text-anchor="end"
+    fill="var(--color-text)"
+    font-size="12"
+    font-family="var(--font-family)"
+    font-weight="600"
+  >
+    {formatY(d)}
+  </text>
+  <text
+    x={$width}
+    y={12}
+    text-anchor="end"
+    fill="var(--color-text-secondary)"
+    font-size="10"
+    font-family="var(--font-family)"
+  >
+    {formatX(d)}
+  </text>
 {/if}
