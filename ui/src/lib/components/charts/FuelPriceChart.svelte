@@ -1,8 +1,10 @@
 <script lang="ts">
   import { scaleTime } from "d3-scale";
   import type { SegmentHistory } from "$lib/api";
+  import { t } from "$lib/i18n";
   import { toFuelPriceData } from "$lib/charts";
   import { formatCurrency } from "$lib/format";
+  import { getSettings } from "$lib/stores/settings.svelte";
   import ChartCard from "./ChartCard.svelte";
   import Line from "./Line.svelte";
   import AxisX from "./AxisX.svelte";
@@ -19,6 +21,8 @@
     volumeUnit: string;
   } = $props();
 
+  const settings = $derived(getSettings());
+
   const chartData = $derived(toFuelPriceData(segments));
 
   // Dynamic y-domain: floor below min value with padding
@@ -32,16 +36,18 @@
 
   const volLabel = $derived(volumeUnit === "l" ? "L" : volumeUnit);
 
-  const yFormat = $derived((v: number) => `${formatCurrency(v, currency)}`);
+  const yFormat = $derived(
+    (v: number) => `${formatCurrency(v, currency, settings.locale)}`,
+  );
 
   const tooltipFormatY = $derived((d: Record<string, unknown>) => {
     const v = d.value as number;
-    return `${formatCurrency(v, currency)}/${volLabel}`;
+    return `${formatCurrency(v, currency, settings.locale)}/${volLabel}`;
   });
 </script>
 
 <ChartCard
-  title="Fuel price ({currency}/{volLabel})"
+  title={t("charts.fuelPrice", { currency, unit: volLabel })}
   data={chartData}
   x={(d: { date: Date }) => d.date}
   y={(d: { value: number }) => d.value}

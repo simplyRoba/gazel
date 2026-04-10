@@ -38,6 +38,7 @@
     formatVolume,
     formatEfficiency,
   } from "$lib/format";
+  import { t } from "$lib/i18n";
   import type { Fillup, CreateFillup } from "$lib/api";
   import {
     buildEfficiencyMap,
@@ -153,7 +154,7 @@
 
   function formatDate(dateStr: string): string {
     const d = new Date(dateStr + "T00:00:00");
-    return d.toLocaleDateString(undefined, {
+    return d.toLocaleDateString(settings.locale, {
       month: "short",
       day: "numeric",
       year: "numeric",
@@ -170,12 +171,12 @@
   {:else if vehicles.length === 0}
     <EmptyState
       icon={Car}
-      heading="No vehicles yet"
-      description="Add your first vehicle to start tracking fill-ups and fuel efficiency."
+      heading={t("dashboard.empty.title")}
+      description={t("dashboard.empty.description")}
     >
       {#snippet action()}
         <a href={resolve("/settings/vehicles/new")} class="btn btn-primary"
-          >Add vehicle</a
+          >{t("dashboard.empty.action")}</a
         >
       {/snippet}
     </EmptyState>
@@ -197,19 +198,26 @@
             >{formatDistance(
               fleetSummary.totalDistance,
               settings.distance_unit,
+              settings.locale,
             )}</span
           >
-          <span class="summary-label">Total distance</span>
+          <span class="summary-label"
+            >{t("dashboard.summary.totalDistance")}</span
+          >
         </div>
         <div class="card summary-card">
           <span class="summary-value mono">
-            {formatCurrency(fleetSummary.totalCost, settings.currency)}
+            {formatCurrency(
+              fleetSummary.totalCost,
+              settings.currency,
+              settings.locale,
+            )}
           </span>
-          <span class="summary-label">Total spent</span>
+          <span class="summary-label">{t("dashboard.summary.totalSpent")}</span>
         </div>
         <div class="card summary-card">
           <span class="summary-value">{fleetSummary.totalFillups}</span>
-          <span class="summary-label">Fill-ups</span>
+          <span class="summary-label">{t("dashboard.summary.fillups")}</span>
         </div>
         <div class="card summary-card summary-card--sparkline">
           <span class="summary-value mono">
@@ -217,12 +225,17 @@
               {formatCurrency(
                 fleetSummary.costPerDistance,
                 settings.currency,
+                settings.locale,
               )}/{settings.distance_unit}
             {:else}
               &mdash;
             {/if}
           </span>
-          <span class="summary-label">Cost per {settings.distance_unit}</span>
+          <span class="summary-label"
+            >{t("dashboard.summary.costPer", {
+              unit: settings.distance_unit,
+            })}</span
+          >
           {#if costPerDistanceSparkline.length >= 2}
             <div class="sparkline-bg">
               <Sparkline data={costPerDistanceSparkline} />
@@ -260,19 +273,30 @@
               >{formatDistance(
                 activeStats.total_distance,
                 settings.distance_unit,
+                settings.locale,
               )}</span
             >
-            <span class="vehicle-stat-label">Total distance</span>
+            <span class="vehicle-stat-label"
+              >{t("dashboard.summary.totalDistance")}</span
+            >
           </div>
           <div class="vehicle-stat">
             <span class="vehicle-stat-value mono">
-              {formatCurrency(activeStats.total_cost, settings.currency)}
+              {formatCurrency(
+                activeStats.total_cost,
+                settings.currency,
+                settings.locale,
+              )}
             </span>
-            <span class="vehicle-stat-label">Total spent</span>
+            <span class="vehicle-stat-label"
+              >{t("dashboard.summary.totalSpent")}</span
+            >
           </div>
           <div class="vehicle-stat">
             <span class="vehicle-stat-value">{activeStats.fill_up_count}</span>
-            <span class="vehicle-stat-label">Fill-ups</span>
+            <span class="vehicle-stat-label"
+              >{t("dashboard.summary.fillups")}</span
+            >
           </div>
           <div class="vehicle-stat">
             <span class="vehicle-stat-value mono">
@@ -280,13 +304,16 @@
                 {formatCurrency(
                   activeStats.average_cost_per_distance,
                   settings.currency,
+                  settings.locale,
                 )}/{settings.distance_unit}
               {:else}
                 &mdash;
               {/if}
             </span>
             <span class="vehicle-stat-label"
-              >Cost per {settings.distance_unit}</span
+              >{t("dashboard.summary.costPer", {
+                unit: settings.distance_unit,
+              })}</span
             >
           </div>
         </div>
@@ -395,12 +422,12 @@
         {:else if getFillups().length === 0}
           <EmptyState
             icon={Fuel}
-            heading="No fill-ups yet"
-            description="Record your first fill-up for this vehicle."
+            heading={t("dashboard.fillups.empty.title")}
+            description={t("dashboard.fillups.empty.description")}
           >
             {#snippet action()}
               <button class="btn btn-primary" onclick={openCreateModal}
-                >Add fill-up</button
+                >{t("dashboard.fillups.empty.action")}</button
               >
             {/snippet}
           </EmptyState>
@@ -426,6 +453,7 @@
                       >{#if odoDiff !== null}+{formatDistance(
                           odoDiff,
                           settings.distance_unit,
+                          settings.locale,
                         )}{:else}&mdash;{/if}</span
                     >
                     <span class="fillup-abs mono"
@@ -438,16 +466,22 @@
                     >{formatVolume(
                       fillup.fuel_amount,
                       settings.volume_unit,
+                      settings.locale,
                     )}</span
                   >
                   <span class="fillup-cost mono"
-                    >{formatCurrency(fillup.cost, settings.currency)}</span
+                    >{formatCurrency(
+                      fillup.cost,
+                      settings.currency,
+                      settings.locale,
+                    )}</span
                   >
                   {#if fuelPrice !== null}
                     <span class="fillup-price mono"
                       >{formatCurrency(
                         fuelPrice,
                         settings.currency,
+                        settings.locale,
                       )}/{settings.volume_unit === "l"
                         ? "L"
                         : settings.volume_unit}</span
@@ -464,14 +498,19 @@
                         eff,
                         settings.distance_unit,
                         settings.volume_unit,
+                        settings.locale,
                       )}</span
                     >
                   {/if}
                   {#if fillup.is_full_tank}
-                    <span class="badge badge-success">Full tank</span>
+                    <span class="badge badge-success"
+                      >{t("dashboard.fillups.fullTank")}</span
+                    >
                   {/if}
                   {#if fillup.is_missed}
-                    <span class="badge badge-warning">Missed</span>
+                    <span class="badge badge-warning"
+                      >{t("dashboard.fillups.missed")}</span
+                    >
                   {/if}
                 </div>
               </button>

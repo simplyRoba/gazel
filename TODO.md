@@ -227,16 +227,16 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > Multi-language support. English as default, structure supports adding
 > languages easily.
 
-- [ ] Translation file structure and loading mechanism
+- [x] Translation file structure and loading mechanism
       -- flowl `ui/src/lib/i18n/`: look at how translations are structured, loaded, and switched
-- [ ] Translation keys for all existing UI strings (extract from components)
-- [ ] Language selector in settings (wired to `locale` in settings table)
-- [ ] `resolveError()` for i18n-aware API error messages
+- [x] Translation keys for all existing UI strings (extract from components)
+- [x] Language selector in settings (wired to `locale` in settings table)
+- [x] `resolveError()` for i18n-aware API error messages
       -- flowl `ui/src/lib/stores/errors.ts`: maps `ApiError.code` to translated message, falls back to generic key
-- [ ] Error codes in backend map to translation keys (not raw English strings)
+- [x] Error codes in backend map to translation keys (not raw English strings)
       -- flowl `src/api/error.rs`: variants carry `&'static str` code, `default_message()` maps to English
-- [ ] Date/number formatting respects locale
-- [ ] Vitest tests for translation completeness (all keys present in all languages)
+- [x] Date/number formatting respects locale
+- [x] Vitest tests for translation completeness (all keys present in all languages)
 
 ## 15. Polish and release prep
 

@@ -21,6 +21,14 @@ describe("formatDistance", () => {
   it("rounds to one decimal place", () => {
     expect(formatDistance(100.456, "km")).toBe("100.5 km");
   });
+
+  it("uses locale-aware formatting for German", () => {
+    expect(formatDistance(1142.5, "km", "de")).toBe("1.142,5 km");
+  });
+
+  it("defaults to English locale", () => {
+    expect(formatDistance(1142.5, "km")).toBe("1,142.5 km");
+  });
 });
 
 describe("formatVolume", () => {
@@ -34,6 +42,10 @@ describe("formatVolume", () => {
 
   it("rounds to one decimal place", () => {
     expect(formatVolume(33.789, "l")).toBe("33.8 L");
+  });
+
+  it("uses German locale formatting", () => {
+    expect(formatVolume(45.2, "l", "de")).toBe("45,2 L");
   });
 });
 
@@ -101,6 +113,10 @@ describe("formatEfficiency", () => {
   it("rounds to one decimal place", () => {
     expect(formatEfficiency(28.456, "mi", "gal")).toBe("28.5 mpg");
   });
+
+  it("uses German locale formatting", () => {
+    expect(formatEfficiency(12.5, "km", "l", "de")).toBe("8,0 L/100 km");
+  });
 });
 
 describe("formatCurrency", () => {
@@ -118,5 +134,13 @@ describe("formatCurrency", () => {
 
   it("falls back to code prefix for unknown currency", () => {
     expect(formatCurrency(42.5, "XYZ")).toBe("XYZ 42.50");
+  });
+
+  it("uses German locale formatting for EUR", () => {
+    expect(formatCurrency(1042.5, "EUR", "de")).toBe("\u20AC1.042,50");
+  });
+
+  it("uses German locale formatting for USD", () => {
+    expect(formatCurrency(1042.5, "USD", "de")).toBe("$1.042,50");
   });
 });

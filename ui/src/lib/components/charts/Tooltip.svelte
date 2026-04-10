@@ -1,10 +1,13 @@
 <script lang="ts">
   import { getContext } from "svelte";
   import type { LayerCakeContext } from "$lib/charts";
+  import { getSettings } from "$lib/stores/settings.svelte";
 
   const { data, xGet, yGet, xScale, width, height } = getContext(
     "LayerCake",
   ) as LayerCakeContext;
+
+  const locale = $derived(getSettings().locale);
 
   // Half-bandwidth offset for band scales (bar charts); 0 for continuous scales
   const bandOffset = $derived(
@@ -17,7 +20,7 @@
     formatX = (d: Record<string, unknown>) => {
       const date = d.date ?? d.month;
       if (date instanceof Date) {
-        return date.toLocaleDateString("en", {
+        return date.toLocaleDateString(locale, {
           month: "short",
           day: "numeric",
           year: "numeric",

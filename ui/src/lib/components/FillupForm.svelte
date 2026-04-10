@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Fillup, CreateFillup } from "$lib/api";
+  import { t } from "$lib/i18n";
   import { getSettings } from "$lib/stores/settings.svelte";
   import { getFillupsByVehicle } from "$lib/stores/fillups.svelte";
 
@@ -163,41 +164,41 @@
     let valid = true;
 
     if (!date.trim()) {
-      dateError = "Date is required.";
+      dateError = t("fillup.form.dateRequired");
       valid = false;
     }
 
     const odoRaw = parseFloat(String(odometer));
     const odoVal = resolveOdometer();
     if (String(odometer).trim() === "" || isNaN(odoRaw)) {
-      odometerError = "Odometer is required.";
+      odometerError = t("fillup.form.odometerRequired");
       valid = false;
     } else if (odoMode === "trip" && odoRaw < 0) {
-      odometerError = "Trip distance must be positive.";
+      odometerError = t("fillup.form.tripPositive");
       valid = false;
     } else if (odoMode === "total" && odoVal < 0) {
-      odometerError = "Odometer must be positive.";
+      odometerError = t("fillup.form.odometerPositive");
       valid = false;
     } else if (lastOdometer != null && odoVal < lastOdometer) {
-      odometerError = `Must be at least ${lastOdometer} (last reading).`;
+      odometerError = t("fillup.form.odometerMin", { min: lastOdometer });
       valid = false;
     }
 
     const fuelVal = parseFloat(String(fuelAmount));
     if (String(fuelAmount).trim() === "" || isNaN(fuelVal)) {
-      fuelAmountError = "Fuel amount is required.";
+      fuelAmountError = t("fillup.form.fuelRequired");
       valid = false;
     } else if (fuelVal <= 0) {
-      fuelAmountError = "Fuel amount must be greater than zero.";
+      fuelAmountError = t("fillup.form.fuelPositive");
       valid = false;
     }
 
     const costVal = parseFloat(String(cost));
     if (String(cost).trim() === "" || isNaN(costVal)) {
-      costError = "Cost is required.";
+      costError = t("fillup.form.costRequired");
       valid = false;
     } else if (costVal < 0) {
-      costError = "Cost must not be negative.";
+      costError = t("fillup.form.costPositive");
       valid = false;
     }
 
@@ -221,7 +222,7 @@
 
 <form id="fillup-form" onsubmit={handleSubmit}>
   <div class="form-group">
-    <label class="form-label" for="f-date">Date *</label>
+    <label class="form-label" for="f-date">{t("fillup.form.date")}</label>
     <div class="input-wrap" class:input-error={!!dateError}>
       <input
         id="f-date"
@@ -236,7 +237,9 @@
 
   <div class="form-group">
     <label class="form-label" for="f-odometer"
-      >{odoMode === "trip" ? `Trip distance` : `Odometer`} ({distanceUnit}) *</label
+      >{odoMode === "trip"
+        ? t("fillup.form.tripDistance")
+        : t("fillup.form.odometer")} ({distanceUnit}) *</label
     >
     <div class="input-wrap" class:input-error={!!odometerError}>
       <input
@@ -246,20 +249,22 @@
         step="any"
         min={odoMode === "trip" ? 0 : lastOdometer}
         bind:value={odometer}
-        placeholder={odoMode === "trip" ? "e.g. 520" : "e.g. 45230"}
+        placeholder={odoMode === "trip"
+          ? t("fillup.form.tripPlaceholder")
+          : t("fillup.form.odometerPlaceholder")}
         disabled={saving}
       />
     </div>
     {#if odometerError}<span class="field-error">{odometerError}</span>{/if}
     {#if showMissedPrompt && !isMissed}
       <div class="missed-prompt">
-        <span>That's a larger gap than usual. Did you miss a fill-up?</span>
+        <span>{t("fillup.missed.prompt")}</span>
         <button
           type="button"
           class="btn btn-ghost btn-sm"
           onclick={() => (isMissed = true)}
         >
-          Yes, mark as missed
+          {t("fillup.missed.confirm")}
         </button>
       </div>
     {/if}
@@ -267,7 +272,8 @@
 
   <div class="form-row">
     <div class="form-group">
-      <label class="form-label" for="f-fuel">Fuel amount ({volumeUnit}) *</label
+      <label class="form-label" for="f-fuel"
+        >{t("fillup.form.fuelAmount")} ({volumeUnit}) *</label
       >
       <div class="input-wrap" class:input-error={!!fuelAmountError}>
         <input
@@ -276,7 +282,7 @@
           type="number"
           step="any"
           bind:value={fuelAmount}
-          placeholder="e.g. 42.3"
+          placeholder={t("fillup.form.fuelPlaceholder")}
           disabled={saving}
         />
       </div>
@@ -284,7 +290,9 @@
         >{/if}
     </div>
     <div class="form-group">
-      <label class="form-label" for="f-cost">Cost ({currencySymbol}) *</label>
+      <label class="form-label" for="f-cost"
+        >{t("fillup.form.cost")} ({currencySymbol}) *</label
+      >
       <div class="input-wrap" class:input-error={!!costError}>
         <input
           id="f-cost"
@@ -292,7 +300,7 @@
           type="number"
           step="any"
           bind:value={cost}
-          placeholder="e.g. 78.50"
+          placeholder={t("fillup.form.costPlaceholder")}
           disabled={saving}
         />
       </div>
@@ -301,27 +309,27 @@
   </div>
 
   <div class="form-group">
-    <label class="form-label" for="f-station">Station</label>
+    <label class="form-label" for="f-station">{t("fillup.form.station")}</label>
     <div class="input-wrap">
       <input
         id="f-station"
         class="input"
         type="text"
         bind:value={station}
-        placeholder="e.g. Shell Main St"
+        placeholder={t("fillup.form.stationPlaceholder")}
         disabled={saving}
       />
     </div>
   </div>
 
   <div class="form-group">
-    <label class="form-label" for="f-notes">Notes</label>
+    <label class="form-label" for="f-notes">{t("fillup.form.notes")}</label>
     <div class="input-wrap">
       <textarea
         id="f-notes"
         class="input"
         bind:value={notes}
-        placeholder="Optional"
+        placeholder={t("common.optional")}
         rows="2"
         disabled={saving}
       ></textarea>
@@ -331,17 +339,21 @@
   <div class="toggle-row">
     <label class="toggle-label">
       <input type="checkbox" bind:checked={isFullTank} disabled={saving} />
-      <span>Full tank</span>
+      <span>{t("fillup.form.fullTank")}</span>
     </label>
     <label class="toggle-label">
       <input type="checkbox" bind:checked={isMissed} disabled={saving} />
-      <span>Missed fill-up before this</span>
+      <span>{t("fillup.form.missedBefore")}</span>
     </label>
   </div>
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary" disabled={saving}>
-      {saving ? "Saving..." : initial ? "Save changes" : "Add fill-up"}
+      {saving
+        ? t("common.saving")
+        : initial
+          ? t("fillup.form.saveChanges")
+          : t("fillup.form.addFillup")}
     </button>
     {#if initial && ondelete}
       <button
@@ -350,11 +362,11 @@
         disabled={saving}
         onclick={ondelete}
       >
-        Delete
+        {t("common.delete")}
       </button>
     {/if}
     <button type="button" class="btn" disabled={saving} onclick={oncancel}>
-      Cancel
+      {t("common.cancel")}
     </button>
   </div>
 </form>

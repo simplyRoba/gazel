@@ -43,6 +43,7 @@
   import { pushNotification } from "$lib/stores/notifications.svelte";
   import { clearCache as clearFillupCache } from "$lib/stores/fillups.svelte";
   import { clearCache as clearStatsCache } from "$lib/stores/stats.svelte";
+  import { t } from "$lib/i18n";
 
   let deleteTarget = $state<Vehicle | null>(null);
 
@@ -119,10 +120,11 @@
       await exportAll();
       pushNotification({
         variant: "success",
-        message: "Data exported successfully.",
+        message: t("settings.export.success"),
       });
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Export failed.";
+      const msg =
+        e instanceof ApiError ? e.message : t("settings.export.failed");
       pushNotification({ variant: "error", message: msg });
     } finally {
       exporting = false;
@@ -133,7 +135,8 @@
     try {
       await exportVehicle(id);
     } catch (e) {
-      const msg = e instanceof ApiError ? e.message : "Export failed.";
+      const msg =
+        e instanceof ApiError ? e.message : t("settings.export.failed");
       pushNotification({ variant: "error", message: msg });
     }
   }
@@ -161,9 +164,9 @@
       if (e instanceof ApiError) {
         importError = e.message;
       } else if (e instanceof SyntaxError) {
-        importError = "Invalid JSON file.";
+        importError = t("settings.import.invalidJson");
       } else {
-        importError = "Failed to read file.";
+        importError = t("settings.import.readFailed");
       }
       importFileData = null;
     } finally {
@@ -182,7 +185,10 @@
       try {
         importPreview = await previewImport(importFileData, mode);
       } catch (e) {
-        importError = e instanceof ApiError ? e.message : "Preview failed.";
+        importError =
+          e instanceof ApiError
+            ? e.message
+            : t("settings.import.previewFailed");
         importPreview = null;
       } finally {
         previewing = false;
@@ -198,20 +204,36 @@
       const result = await importData(importFileData, importMode);
       const parts: string[] = [];
       if ("vehicles_created" in result) {
-        parts.push(`${result.vehicles_created} vehicle(s) created`);
+        parts.push(
+          t("settings.import.vehiclesCreated", {
+            count: result.vehicles_created,
+          }),
+        );
       }
       if ("vehicles_updated" in result && result.vehicles_updated > 0) {
-        parts.push(`${result.vehicles_updated} vehicle(s) updated`);
+        parts.push(
+          t("settings.import.vehiclesUpdated", {
+            count: result.vehicles_updated,
+          }),
+        );
       }
       if ("fillups_created" in result) {
-        parts.push(`${result.fillups_created} fill-up(s) created`);
+        parts.push(
+          t("settings.import.fillupsCreated", {
+            count: result.fillups_created,
+          }),
+        );
       }
       if ("fillups_skipped" in result && result.fillups_skipped > 0) {
-        parts.push(`${result.fillups_skipped} fill-up(s) skipped`);
+        parts.push(
+          t("settings.import.fillupsSkipped", {
+            count: result.fillups_skipped,
+          }),
+        );
       }
       pushNotification({
         variant: "success",
-        message: `Import complete: ${parts.join(", ")}.`,
+        message: t("settings.import.success", { summary: parts.join(", ") }),
       });
       // Reset import state
       importFileData = null;
@@ -222,7 +244,8 @@
       clearStatsCache();
       loadVehicles();
     } catch (e) {
-      importError = e instanceof ApiError ? e.message : "Import failed.";
+      importError =
+        e instanceof ApiError ? e.message : t("settings.import.importFailed");
     } finally {
       importing = false;
     }
@@ -237,19 +260,19 @@
 </script>
 
 <PageContainer>
-  <h1 class="page-title">Settings</h1>
-  <p class="page-subtitle">Configure vehicles, units, appearance, and data.</p>
+  <h1 class="page-title">{t("settings.title")}</h1>
+  <p class="page-subtitle">{t("settings.subtitle")}</p>
 
   <div class="settings-grid">
     <!-- Display -->
     <section class="section corner-tri corner-tri-sm">
       <h2 class="section-title">
         <Sun size={14} />
-        Display
+        {t("settings.display")}
       </h2>
 
       <div class="setting-row">
-        <span class="setting-label">Theme</span>
+        <span class="setting-label">{t("settings.theme")}</span>
         <div class="segmented">
           <button
             class="segmented-item"
@@ -257,7 +280,7 @@
             onclick={() => handleTheme("light")}
           >
             <Sun size={14} />
-            Light
+            {t("settings.theme.light")}
           </button>
           <button
             class="segmented-item"
@@ -265,7 +288,7 @@
             onclick={() => handleTheme("dark")}
           >
             <Moon size={14} />
-            Dark
+            {t("settings.theme.dark")}
           </button>
           <button
             class="segmented-item"
@@ -273,20 +296,27 @@
             onclick={() => handleTheme("system")}
           >
             <Monitor size={14} />
-            System
+            {t("settings.theme.system")}
           </button>
         </div>
       </div>
 
       <div class="setting-row">
-        <span class="setting-label">Language</span>
+        <span class="setting-label">{t("settings.language")}</span>
         <div class="segmented">
           <button
             class="segmented-item"
             class:active={getSettings().locale === "en"}
             onclick={() => handleLocale("en")}
           >
-            English
+            {t("settings.language.en")}
+          </button>
+          <button
+            class="segmented-item"
+            class:active={getSettings().locale === "de"}
+            onclick={() => handleLocale("de")}
+          >
+            {t("settings.language.de")}
           </button>
         </div>
       </div>
@@ -296,80 +326,80 @@
     <section class="section corner-tri corner-tri-sm">
       <h2 class="section-title">
         <Ruler size={14} />
-        Units
+        {t("settings.units")}
       </h2>
 
       <div class="setting-row">
-        <span class="setting-label">System</span>
+        <span class="setting-label">{t("settings.units.system")}</span>
         <div class="segmented">
           <button
             class="segmented-item"
             class:active={getSettings().unit_system === "metric"}
             onclick={() => handleUnitSystem("metric")}
           >
-            Metric
+            {t("settings.units.metric")}
           </button>
           <button
             class="segmented-item"
             class:active={getSettings().unit_system === "imperial"}
             onclick={() => handleUnitSystem("imperial")}
           >
-            Imperial
+            {t("settings.units.imperial")}
           </button>
           <button
             class="segmented-item"
             class:active={getSettings().unit_system === "custom"}
             onclick={() => handleUnitSystem("custom")}
           >
-            Custom
+            {t("settings.units.custom")}
           </button>
         </div>
       </div>
 
       {#if getSettings().unit_system === "custom"}
         <div class="setting-row">
-          <span class="setting-label">Distance</span>
+          <span class="setting-label">{t("settings.units.distance")}</span>
           <div class="segmented">
             <button
               class="segmented-item"
               class:active={getSettings().distance_unit === "km"}
               onclick={() => handleDistanceUnit("km")}
             >
-              Kilometers
+              {t("settings.units.kilometers")}
             </button>
             <button
               class="segmented-item"
               class:active={getSettings().distance_unit === "mi"}
               onclick={() => handleDistanceUnit("mi")}
             >
-              Miles
+              {t("settings.units.miles")}
             </button>
           </div>
         </div>
 
         <div class="setting-row">
-          <span class="setting-label">Volume</span>
+          <span class="setting-label">{t("settings.units.volume")}</span>
           <div class="segmented">
             <button
               class="segmented-item"
               class:active={getSettings().volume_unit === "l"}
               onclick={() => handleVolumeUnit("l")}
             >
-              Liters
+              {t("settings.units.liters")}
             </button>
             <button
               class="segmented-item"
               class:active={getSettings().volume_unit === "gal"}
               onclick={() => handleVolumeUnit("gal")}
             >
-              Gallons
+              {t("settings.units.gallons")}
             </button>
           </div>
         </div>
       {/if}
 
       <div class="setting-row">
-        <span class="setting-label">Currency</span>
+        <span class="setting-label">{t("settings.currency")}</span>
         <div class="segmented">
           {#each currencies as c (c.code)}
             <button
@@ -388,7 +418,7 @@
     <section class="section corner-tri corner-tri-sm">
       <h2 class="section-title">
         <Car size={14} />
-        Vehicles
+        {t("settings.vehicles")}
       </h2>
 
       {#if getLoading()}
@@ -410,13 +440,13 @@
       {:else if getVehicles().length === 0}
         <EmptyState
           icon={Car}
-          heading="No vehicles yet"
-          description="Add your first vehicle to start tracking fill-ups."
+          heading={t("settings.vehicles.empty.title")}
+          description={t("settings.vehicles.empty.description")}
         >
           {#snippet action()}
             <a href={resolve("/settings/vehicles/new")} class="btn btn-primary">
               <Plus size={16} />
-              Add vehicle
+              {t("settings.vehicles.add")}
             </a>
           {/snippet}
         </EmptyState>
@@ -435,7 +465,7 @@
               <div class="row-actions">
                 <button
                   class="btn btn-icon"
-                  title="Export vehicle"
+                  title={t("settings.vehicles.export")}
                   onclick={() => handleExportVehicle(vehicle.id)}
                 >
                   <Download size={16} />
@@ -462,7 +492,7 @@
         <div class="add-action">
           <a href={resolve("/settings/vehicles/new")} class="btn btn-primary">
             <Plus size={16} />
-            Add vehicle
+            {t("settings.vehicles.add")}
           </a>
         </div>
       {/if}
@@ -472,14 +502,14 @@
     <section class="section corner-tri corner-tri-sm">
       <h2 class="section-title">
         <Database size={14} />
-        Data
+        {t("settings.data")}
       </h2>
 
       <div class="setting-row">
         <div class="data-row-info">
-          <span class="setting-label">Export</span>
+          <span class="setting-label">{t("settings.export")}</span>
           <span class="data-description"
-            >Download all vehicles and fill-ups as JSON.</span
+            >{t("settings.export.description")}</span
           >
         </div>
         <button
@@ -488,22 +518,26 @@
           onclick={handleExportAll}
         >
           <Download size={14} />
-          {exporting ? "Exporting..." : "Export data"}
+          {exporting
+            ? t("settings.export.exporting")
+            : t("settings.export.button")}
         </button>
       </div>
 
       <div class="setting-row data-import-row">
         <div class="data-row-info">
-          <span class="setting-label">Import</span>
+          <span class="setting-label">{t("settings.import")}</span>
           <span class="data-description"
-            >Upload a JSON export file to restore or merge data.</span
+            >{t("settings.import.description")}</span
           >
         </div>
 
         {#if !importPreview && !importError}
           <label class="btn btn-secondary import-file-btn">
             <Upload size={14} />
-            {previewing ? "Reading..." : "Choose file"}
+            {previewing
+              ? t("settings.import.reading")
+              : t("settings.import.chooseFile")}
             <input
               type="file"
               accept=".json,application/json"
@@ -518,32 +552,32 @@
         <div class="import-error">
           <p>{importError}</p>
           <button class="btn btn-secondary btn-sm" onclick={handleImportCancel}>
-            Dismiss
+            {t("common.dismiss")}
           </button>
         </div>
       {/if}
 
       {#if importPreview}
         <div class="import-preview card">
-          <h3 class="import-preview-title">Import preview</h3>
+          <h3 class="import-preview-title">{t("settings.import.preview")}</h3>
           <p class="import-preview-file">{importFileName}</p>
 
           <div class="import-mode-row">
-            <span class="setting-label">Mode</span>
+            <span class="setting-label">{t("settings.import.mode")}</span>
             <div class="segmented">
               <button
                 class="segmented-item"
                 class:active={importMode === "replace"}
                 onclick={() => handleModeChange("replace")}
               >
-                Replace
+                {t("settings.import.replace")}
               </button>
               <button
                 class="segmented-item"
                 class:active={importMode === "merge"}
                 onclick={() => handleModeChange("merge")}
               >
-                Merge
+                {t("settings.import.merge")}
               </button>
             </div>
           </div>
@@ -552,26 +586,34 @@
             <div class="import-summary">
               <p>
                 {#if "vehicles" in importPreview}
-                  <strong>{importPreview.vehicles}</strong> vehicle(s),
-                  <strong>{importPreview.fillups}</strong> fill-up(s) will be imported.
+                  {t("settings.import.vehiclesCount", {
+                    count: importPreview.vehicles,
+                  })}, {t("settings.import.fillupsCount", {
+                    count: importPreview.fillups,
+                  })}
+                  {t("settings.import.willBeImported")}
                 {/if}
               </p>
               <p class="import-warning">
-                This will replace all existing data. This cannot be undone.
+                {t("settings.import.replaceWarning")}
               </p>
             </div>
           {:else}
             <div class="import-summary">
               {#if "vehicles_new" in importPreview}
                 <p>
-                  <strong>{importPreview.vehicles_new}</strong> new vehicle(s),
-                  <strong>{importPreview.vehicles_existing}</strong> existing vehicle(s)
-                  to update.
+                  {t("settings.import.newVehicles", {
+                    count: importPreview.vehicles_new,
+                  })}, {t("settings.import.existingVehicles", {
+                    count: importPreview.vehicles_existing,
+                  })}
                 </p>
                 <p>
-                  <strong>{importPreview.fillups_new}</strong> new fill-up(s),
-                  <strong>{importPreview.fillups_existing}</strong> duplicate(s) to
-                  skip.
+                  {t("settings.import.newFillups", {
+                    count: importPreview.fillups_new,
+                  })}, {t("settings.import.duplicateFillups", {
+                    count: importPreview.fillups_existing,
+                  })}
                 </p>
               {/if}
             </div>
@@ -579,14 +621,16 @@
 
           <div class="import-actions">
             <button class="btn btn-secondary" onclick={handleImportCancel}>
-              Cancel
+              {t("common.cancel")}
             </button>
             <button
               class="btn btn-primary"
               disabled={importing}
               onclick={handleImportConfirm}
             >
-              {importing ? "Importing..." : "Confirm import"}
+              {importing
+                ? t("settings.import.importing")
+                : t("settings.import.confirm")}
             </button>
           </div>
         </div>
@@ -597,13 +641,13 @@
 
 <ModalDialog
   open={!!deleteTarget}
-  title="Delete vehicle"
+  title={t("settings.deleteVehicle.title")}
   message={deleteTarget
-    ? `Delete "${deleteTarget.name}"? This cannot be undone.`
+    ? t("settings.deleteVehicle.message", { name: deleteTarget.name })
     : ""}
   mode="confirm"
   variant="danger"
-  confirmLabel="Delete"
+  confirmLabel={t("common.delete")}
   onconfirm={handleDeleteConfirm}
   oncancel={() => (deleteTarget = null)}
 />

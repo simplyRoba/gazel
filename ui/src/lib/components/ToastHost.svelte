@@ -2,6 +2,7 @@
   import { onDestroy } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { X } from "lucide-svelte";
+  import { t } from "$lib/i18n";
   import {
     getVisibleNotifications,
     dismissNotification,
@@ -57,7 +58,7 @@
 </script>
 
 {#if getVisibleNotifications().length > 0}
-  <div class="toast-host" aria-label="Notifications">
+  <div class="toast-host" aria-label={t("toast.notifications")}>
     {#each getVisibleNotifications() as notification (notification.id)}
       <div
         class="toast corner-tri corner-tri-sm {variantClass(
@@ -86,7 +87,7 @@
         <button
           class="toast-close"
           onclick={() => dismissNotification(notification.id)}
-          aria-label="Dismiss"
+          aria-label={t("toast.dismiss")}
         >
           <X size={14} />
         </button>

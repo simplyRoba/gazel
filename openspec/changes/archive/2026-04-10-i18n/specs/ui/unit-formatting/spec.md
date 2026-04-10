@@ -1,8 +1,4 @@
-## Purpose
-
-Defines pure formatting functions for distances, volumes, fuel efficiency, and currency values used throughout the UI.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: Distance formatting
 

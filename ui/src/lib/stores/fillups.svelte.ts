@@ -2,6 +2,8 @@ import { SvelteMap } from "svelte/reactivity";
 
 import type { Fillup, CreateFillup, UpdateFillup } from "$lib/api";
 import * as api from "$lib/api";
+import { t } from "$lib/i18n";
+import { resolveError } from "$lib/i18n/errors";
 import { pushNotification } from "$lib/stores/notifications.svelte";
 
 // ── State ────────────────────────────────────────────────
@@ -13,8 +15,8 @@ let activeVehicleId = $state<number | null>(null);
 
 // ── Helpers ──────────────────────────────────────────────
 
-function setError(e: unknown, fallback: string): void {
-  const msg = e instanceof api.ApiError ? e.message : fallback;
+function setError(e: unknown, fallbackKey: string): void {
+  const msg = e instanceof api.ApiError ? resolveError(e, t) : t(fallbackKey);
   error = msg;
   pushNotification({ variant: "error", message: msg });
 }
@@ -51,7 +53,7 @@ export async function loadFillups(vehicleId: number): Promise<void> {
     const fillups = await api.fetchFillups(vehicleId);
     fillupCache.set(vehicleId, fillups);
   } catch (e) {
-    setError(e, "Failed to load fill-ups");
+    setError(e, "store.fillups.loadFailed");
   } finally {
     loading = false;
   }
@@ -72,7 +74,7 @@ export async function createFillup(
     fillupCache.set(vehicleId, updated);
     return fillup;
   } catch (e) {
-    setError(e, "Failed to create fill-up");
+    setError(e, "store.fillups.createFailed");
     return null;
   }
 }
@@ -92,7 +94,7 @@ export async function updateFillup(
     fillupCache.set(vehicleId, updated);
     return fillup;
   } catch (e) {
-    setError(e, "Failed to update fill-up");
+    setError(e, "store.fillups.updateFailed");
     return null;
   }
 }
@@ -111,7 +113,7 @@ export async function deleteFillup(
     );
     return true;
   } catch (e) {
-    setError(e, "Failed to delete fill-up");
+    setError(e, "store.fillups.deleteFailed");
     return false;
   }
 }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { SegmentHistory } from "$lib/api";
+  import { t } from "$lib/i18n";
   import EfficiencyChart from "./EfficiencyChart.svelte";
   import MonthlyCostChart from "./MonthlyCostChart.svelte";
   import FuelPriceChart from "./FuelPriceChart.svelte";
@@ -27,7 +28,7 @@
   </div>
 {:else}
   <div class="card charts-empty">
-    <span class="charts-empty-text">Add more fill-ups to see trends</span>
+    <span class="charts-empty-text">{t("charts.empty")}</span>
   </div>
 {/if}
 

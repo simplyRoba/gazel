@@ -1,11 +1,13 @@
 <script lang="ts">
+  import { t } from "$lib/i18n";
+
   let {
     open = false,
     title = "",
     message = "",
     mode = "confirm",
     variant = "warning",
-    confirmLabel = "Confirm",
+    confirmLabel = t("common.confirm"),
     onconfirm,
     oncancel,
     onclose,
@@ -66,7 +68,7 @@
     <div class="modal-actions">
       {#if mode === "confirm"}
         <button type="button" class="btn btn-secondary" onclick={oncancel}>
-          Cancel
+          {t("common.cancel")}
         </button>
         <button
           type="button"
@@ -81,7 +83,7 @@
           class="btn {variant === 'danger' ? 'btn-danger' : 'btn-primary'}"
           onclick={onclose}
         >
-          OK
+          {t("common.ok")}
         </button>
       {/if}
     </div>

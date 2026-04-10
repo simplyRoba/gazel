@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
+  import { t } from "$lib/i18n";
   import { LayerCake, Svg } from "layercake";
   import type { ScaleTime, ScaleBand, ScaleLinear } from "d3-scale";
 
@@ -45,7 +46,7 @@
     </div>
   {:else}
     <div class="chart-empty" style="min-height: {height}px">
-      <span class="chart-empty-text">More fill-ups needed for chart</span>
+      <span class="chart-empty-text">{t("charts.needMore")}</span>
     </div>
   {/if}
 </div>

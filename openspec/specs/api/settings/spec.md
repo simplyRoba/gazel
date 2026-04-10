@@ -129,5 +129,5 @@ The API SHALL accept only values from the following domains.
 
 #### Scenario: Valid locale values
 
-- **WHEN** `locale` is one of `en`
+- **WHEN** `locale` is one of `en`, `de`
 - **THEN** the value SHALL be accepted

@@ -5,6 +5,7 @@
   import { onMount } from "svelte";
   import type { Vehicle, CreateVehicle } from "$lib/api";
   import { fetchVehicle } from "$lib/api";
+  import { t } from "$lib/i18n";
   import PageContainer from "$lib/components/PageContainer.svelte";
   import VehicleForm from "$lib/components/VehicleForm.svelte";
   import { updateVehicle, getError } from "$lib/stores/vehicles.svelte";
@@ -16,13 +17,13 @@
   onMount(async () => {
     const id = Number(page.params.id);
     if (isNaN(id)) {
-      loadError = "Invalid vehicle ID.";
+      loadError = t("vehicle.edit.invalidId");
       return;
     }
     try {
       vehicle = await fetchVehicle(id);
     } catch {
-      loadError = "Vehicle not found.";
+      loadError = t("vehicle.edit.notFound");
     }
   });
 
@@ -38,12 +39,12 @@
 </script>
 
 <PageContainer width="narrow">
-  <h1 class="page-title">Edit Vehicle</h1>
+  <h1 class="page-title">{t("vehicle.edit.title")}</h1>
 
   {#if loadError}
     <div class="error-banner">{loadError}</div>
   {:else if !vehicle}
-    <p class="loading">Loading...</p>
+    <p class="loading">{t("common.loading")}</p>
   {:else}
     {#if getError()}
       <div class="error-banner">{getError()}</div>

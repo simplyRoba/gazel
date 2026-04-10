@@ -26,6 +26,7 @@
   import ToastHost from "$lib/components/ToastHost.svelte";
   import FillupModal from "$lib/components/FillupModal.svelte";
   import type { CreateFillup, Vehicle } from "$lib/api";
+  import { t } from "$lib/i18n";
 
   let { children } = $props();
 
@@ -119,7 +120,7 @@
         onclick={handleCta}
       >
         <Plus size={20} />
-        <span class="cta-label">Fill-up</span>
+        <span class="cta-label">{t("nav.fillup")}</span>
       </button>
 
       <a
@@ -128,7 +129,7 @@
         class:active={isActive("/")}
       >
         <LayoutDashboard size={20} />
-        <span class="nav-label">Dashboard</span>
+        <span class="nav-label">{t("nav.dashboard")}</span>
       </a>
 
       <div class="spacer"></div>
@@ -139,7 +140,7 @@
         class:active={isActive("/settings")}
       >
         <Settings size={20} />
-        <span class="nav-label">Settings</span>
+        <span class="nav-label">{t("nav.settings")}</span>
       </a>
     </nav>
 
@@ -147,7 +148,7 @@
     <nav class="bottom-bar">
       <a href={resolve("/")} class="nav-item" class:active={isActive("/")}>
         <LayoutDashboard size={20} />
-        <span class="nav-label">Dashboard</span>
+        <span class="nav-label">{t("nav.dashboard")}</span>
       </a>
 
       <button class="bottom-cta" onclick={handleCta}>
@@ -160,7 +161,7 @@
         class:active={isActive("/settings")}
       >
         <Settings size={20} />
-        <span class="nav-label">Settings</span>
+        <span class="nav-label">{t("nav.settings")}</span>
       </a>
     </nav>
 
@@ -186,7 +187,7 @@
   }}
 >
   <div class="picker-body corner-tri">
-    <h3 class="picker-title">Select vehicle</h3>
+    <h3 class="picker-title">{t("nav.selectVehicle")}</h3>
     <div class="picker-list">
       {#each getVehicles() as vehicle (vehicle.id)}
         <button
@@ -204,7 +205,7 @@
     </div>
     <div class="picker-actions">
       <button class="btn btn-secondary" onclick={closeVehiclePicker}
-        >Cancel</button
+        >{t("common.cancel")}</button
       >
     </div>
   </div>

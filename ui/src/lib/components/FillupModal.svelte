@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Fillup, CreateFillup } from "$lib/api";
+  import { t } from "$lib/i18n";
   import { getFillupsByVehicle } from "$lib/stores/fillups.svelte";
   import FillupForm from "./FillupForm.svelte";
   import ModalDialog from "./ModalDialog.svelte";
@@ -71,7 +72,7 @@
     } catch {
       // onsave threw — store already pushed a toast with details.
       // Show a generic inline message so the user sees the form stayed open.
-      saveError = "Could not save. Check the values and try again.";
+      saveError = t("fillup.modal.saveError");
     } finally {
       saving = false;
     }
@@ -102,7 +103,9 @@
 >
   <div class="modal-body corner-tri">
     <div class="modal-header">
-      <h3 class="modal-title">{initial ? "Edit fill-up" : "Add fill-up"}</h3>
+      <h3 class="modal-title">
+        {initial ? t("fillup.edit.title") : t("fillup.add.title")}
+      </h3>
       {#if showOdoSwitch}
         <div class="segmented">
           <button
@@ -114,7 +117,7 @@
               odoMode = "total";
             }}
           >
-            Total
+            {t("fillup.modal.total")}
           </button>
           <button
             type="button"
@@ -125,7 +128,7 @@
               odoMode = "trip";
             }}
           >
-            Trip +
+            {t("fillup.modal.trip")}
           </button>
         </div>
       {/if}
@@ -149,11 +152,11 @@
 
 <ModalDialog
   open={showDeleteConfirm}
-  title="Delete fill-up"
-  message="Are you sure you want to delete this fill-up? This action cannot be undone."
+  title={t("fillup.modal.deleteTitle")}
+  message={t("fillup.modal.deleteMessage")}
   mode="confirm"
   variant="danger"
-  confirmLabel="Delete"
+  confirmLabel={t("common.delete")}
   onconfirm={handleDeleteConfirm}
   oncancel={() => (showDeleteConfirm = false)}
 />

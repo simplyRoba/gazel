@@ -14,6 +14,17 @@ vi.mock("$lib/api", async (importOriginal) => {
   };
 });
 
+vi.mock("$lib/stores/settings.svelte", () => ({
+  getSettings: () => ({
+    unit_system: "metric",
+    distance_unit: "km",
+    volume_unit: "l",
+    currency: "USD",
+    color_mode: "system",
+    locale: "en",
+  }),
+}));
+
 import * as api from "$lib/api";
 
 const mockFillup: Fillup = {
@@ -78,7 +89,8 @@ describe("fillup store", () => {
         new ApiError(500, "INTERNAL_ERROR", "Database error"),
       );
       await store.loadFillups(10);
-      expect(store.getError()).toBe("Database error");
+      // resolveError maps INTERNAL_ERROR via t() to the en.json value
+      expect(store.getError()).toBe("An unexpected error occurred.");
     });
 
     it("uses fallback message for non-ApiError", async () => {
@@ -119,7 +131,8 @@ describe("fillup store", () => {
         cost: 50,
       });
       expect(result).toBeNull();
-      expect(store.getError()).toBe("Odometer required");
+      // resolveError maps FILLUP_ODOMETER_REQUIRED to en.json translation
+      expect(store.getError()).toBe("Odometer reading is required.");
     });
   });
 
@@ -193,7 +206,7 @@ describe("fillup store", () => {
         new ApiError(500, "INTERNAL_ERROR", "First error"),
       );
       await store.loadFillups(10);
-      expect(store.getError()).toBe("First error");
+      expect(store.getError()).toBe("An unexpected error occurred.");
 
       vi.mocked(api.fetchFillups).mockResolvedValue([mockFillup]);
       await store.loadFillups(10);

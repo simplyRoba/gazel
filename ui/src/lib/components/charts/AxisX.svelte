@@ -1,20 +1,29 @@
 <script lang="ts">
   import { getContext } from "svelte";
   import type { LayerCakeContext } from "$lib/charts";
+  import { getSettings } from "$lib/stores/settings.svelte";
 
   const { xScale, height, width } = getContext("LayerCake") as LayerCakeContext;
+
+  const locale = $derived(getSettings().locale);
 
   let {
     ticks = 5,
     formatTick = (v: Date | string) => {
       if (v instanceof Date) {
-        return v.toLocaleDateString("en", { month: "short", year: "2-digit" });
+        return v.toLocaleDateString(locale, {
+          month: "short",
+          year: "2-digit",
+        });
       }
       // For band scale month labels like "2025-03", format nicely
       if (typeof v === "string" && /^\d{4}-\d{2}$/.test(v)) {
         const [y, m] = v.split("-");
         const d = new Date(Number(y), Number(m) - 1);
-        return d.toLocaleDateString("en", { month: "short", year: "2-digit" });
+        return d.toLocaleDateString(locale, {
+          month: "short",
+          year: "2-digit",
+        });
       }
       return String(v);
     },

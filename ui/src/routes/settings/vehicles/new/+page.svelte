@@ -2,6 +2,7 @@
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
   import type { CreateVehicle } from "$lib/api";
+  import { t } from "$lib/i18n";
   import PageContainer from "$lib/components/PageContainer.svelte";
   import VehicleForm from "$lib/components/VehicleForm.svelte";
   import { createVehicle, getError } from "$lib/stores/vehicles.svelte";
@@ -19,7 +20,7 @@
 </script>
 
 <PageContainer width="narrow">
-  <h1 class="page-title">Add Vehicle</h1>
+  <h1 class="page-title">{t("vehicle.add.title")}</h1>
 
   {#if getError()}
     <div class="error-banner">{getError()}</div>

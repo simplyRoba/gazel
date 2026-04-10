@@ -55,7 +55,7 @@ const VALID_DISTANCE_UNITS: &[&str] = &["km", "mi"];
 const VALID_VOLUME_UNITS: &[&str] = &["l", "gal"];
 const VALID_COLOR_MODES: &[&str] = &["light", "dark", "system"];
 const VALID_CURRENCIES: &[&str] = &["USD", "EUR"];
-const VALID_LOCALES: &[&str] = &["en"];
+const VALID_LOCALES: &[&str] = &["en", "de"];
 
 /// Validate a single optional field against allowed values.
 ///

@@ -1,14 +1,15 @@
 <script lang="ts">
   import type { Vehicle, CreateVehicle } from "$lib/api";
+  import { t } from "$lib/i18n";
 
   const FUEL_TYPES = [
-    { value: "gasoline", label: "Gasoline" },
-    { value: "diesel", label: "Diesel" },
-    { value: "electric", label: "Electric" },
-    { value: "hybrid", label: "Hybrid" },
-    { value: "lpg", label: "LPG" },
-    { value: "cng", label: "CNG" },
-    { value: "other", label: "Other" },
+    { value: "gasoline", key: "vehicle.fuel.gasoline" },
+    { value: "diesel", key: "vehicle.fuel.diesel" },
+    { value: "electric", key: "vehicle.fuel.electric" },
+    { value: "hybrid", key: "vehicle.fuel.hybrid" },
+    { value: "lpg", key: "vehicle.fuel.lpg" },
+    { value: "cng", key: "vehicle.fuel.cng" },
+    { value: "other", key: "vehicle.fuel.other" },
   ];
 
   let {
@@ -48,7 +49,7 @@
     nameError = "";
 
     if (!name.trim()) {
-      nameError = "Vehicle name is required.";
+      nameError = t("vehicle.form.nameRequired");
       return;
     }
 
@@ -67,14 +68,14 @@
 
 <form id="vehicle-form" onsubmit={handleSubmit}>
   <div class="form-group">
-    <label class="form-label" for="v-name">Name *</label>
+    <label class="form-label" for="v-name">{t("vehicle.form.name")}</label>
     <div class="input-wrap" class:input-error={!!nameError}>
       <input
         id="v-name"
         class="input"
         type="text"
         bind:value={name}
-        placeholder="e.g. Daily Driver"
+        placeholder={t("vehicle.form.namePlaceholder")}
         disabled={saving}
       />
     </div>
@@ -85,27 +86,27 @@
 
   <div class="form-row">
     <div class="form-group">
-      <label class="form-label" for="v-make">Make</label>
+      <label class="form-label" for="v-make">{t("vehicle.form.make")}</label>
       <div class="input-wrap">
         <input
           id="v-make"
           class="input"
           type="text"
           bind:value={make}
-          placeholder="e.g. Honda"
+          placeholder={t("vehicle.form.makePlaceholder")}
           disabled={saving}
         />
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label" for="v-model">Model</label>
+      <label class="form-label" for="v-model">{t("vehicle.form.model")}</label>
       <div class="input-wrap">
         <input
           id="v-model"
           class="input"
           type="text"
           bind:value={model}
-          placeholder="e.g. Civic"
+          placeholder={t("vehicle.form.modelPlaceholder")}
           disabled={saving}
         />
       </div>
@@ -114,14 +115,14 @@
 
   <div class="form-row">
     <div class="form-group">
-      <label class="form-label" for="v-year">Year</label>
+      <label class="form-label" for="v-year">{t("vehicle.form.year")}</label>
       <div class="input-wrap">
         <input
           id="v-year"
           class="input"
           type="number"
           bind:value={year}
-          placeholder="e.g. 2024"
+          placeholder={t("vehicle.form.yearPlaceholder")}
           min="1900"
           max="2100"
           disabled={saving}
@@ -129,7 +130,8 @@
       </div>
     </div>
     <div class="form-group">
-      <label class="form-label" for="v-fuel">Fuel type</label>
+      <label class="form-label" for="v-fuel">{t("vehicle.form.fuelType")}</label
+      >
       <div class="input-wrap">
         <select
           id="v-fuel"
@@ -138,7 +140,7 @@
           disabled={saving}
         >
           {#each FUEL_TYPES as ft (ft.value)}
-            <option value={ft.value}>{ft.label}</option>
+            <option value={ft.value}>{t(ft.key)}</option>
           {/each}
         </select>
       </div>
@@ -146,13 +148,13 @@
   </div>
 
   <div class="form-group">
-    <label class="form-label" for="v-notes">Notes</label>
+    <label class="form-label" for="v-notes">{t("vehicle.form.notes")}</label>
     <div class="input-wrap">
       <textarea
         id="v-notes"
         class="input"
         bind:value={notes}
-        placeholder="Optional"
+        placeholder={t("common.optional")}
         rows="3"
         disabled={saving}
       ></textarea>
@@ -161,10 +163,14 @@
 
   <div class="form-actions">
     <button type="submit" class="btn btn-primary" disabled={saving}>
-      {saving ? "Saving..." : initial ? "Save changes" : "Add vehicle"}
+      {saving
+        ? t("common.saving")
+        : initial
+          ? t("vehicle.form.saveChanges")
+          : t("vehicle.form.addVehicle")}
     </button>
     <button type="button" class="btn" disabled={saving} onclick={oncancel}>
-      Cancel
+      {t("common.cancel")}
     </button>
   </div>
 </form>

@@ -1,13 +1,15 @@
 import type { Vehicle, CreateVehicle } from "$lib/api";
 import * as api from "$lib/api";
+import { t } from "$lib/i18n";
+import { resolveError } from "$lib/i18n/errors";
 import { pushNotification } from "$lib/stores/notifications.svelte";
 
 let vehicles = $state<Vehicle[]>([]);
 let loading = $state(false);
 let error = $state<string | null>(null);
 
-function setError(e: unknown, fallback: string): void {
-  const msg = e instanceof api.ApiError ? e.message : fallback;
+function setError(e: unknown, fallbackKey: string): void {
+  const msg = e instanceof api.ApiError ? resolveError(e, t) : t(fallbackKey);
   error = msg;
   pushNotification({ variant: "error", message: msg });
 }
@@ -30,7 +32,7 @@ export async function loadVehicles(): Promise<void> {
   try {
     vehicles = await api.fetchVehicles();
   } catch (e) {
-    setError(e, "Failed to load vehicles");
+    setError(e, "store.vehicles.loadFailed");
   } finally {
     loading = false;
   }
@@ -45,7 +47,7 @@ export async function createVehicle(
     vehicles = [...vehicles, vehicle];
     return vehicle;
   } catch (e) {
-    setError(e, "Failed to create vehicle");
+    setError(e, "store.vehicles.createFailed");
     return null;
   }
 }
@@ -60,7 +62,7 @@ export async function updateVehicle(
     vehicles = vehicles.map((v) => (v.id === id ? vehicle : v));
     return vehicle;
   } catch (e) {
-    setError(e, "Failed to update vehicle");
+    setError(e, "store.vehicles.updateFailed");
     return null;
   }
 }
@@ -72,7 +74,7 @@ export async function deleteVehicle(id: number): Promise<boolean> {
     vehicles = vehicles.filter((v) => v.id !== id);
     return true;
   } catch (e) {
-    setError(e, "Failed to delete vehicle");
+    setError(e, "store.vehicles.deleteFailed");
     return false;
   }
 }

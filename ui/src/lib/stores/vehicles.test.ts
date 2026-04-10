@@ -14,6 +14,17 @@ vi.mock("$lib/api", async (importOriginal) => {
   };
 });
 
+vi.mock("$lib/stores/settings.svelte", () => ({
+  getSettings: () => ({
+    unit_system: "metric",
+    distance_unit: "km",
+    volume_unit: "l",
+    currency: "USD",
+    color_mode: "system",
+    locale: "en",
+  }),
+}));
+
 import * as api from "$lib/api";
 
 const mockVehicle: Vehicle = {
@@ -58,12 +69,13 @@ describe("vehicle store", () => {
       expect(store.getLoading()).toBe(false);
     });
 
-    it("sets error on failure", async () => {
+    it("sets error on failure with API error", async () => {
       vi.mocked(api.fetchVehicles).mockRejectedValue(
         new ApiError(500, "INTERNAL_ERROR", "An unexpected error occurred."),
       );
       await store.loadVehicles();
       expect(store.getVehicles()).toEqual([]);
+      // resolveError maps INTERNAL_ERROR via t() to the en.json value
       expect(store.getError()).toBe("An unexpected error occurred.");
     });
 
@@ -72,6 +84,7 @@ describe("vehicle store", () => {
         new Error("Network error"),
       );
       await store.loadVehicles();
+      // t('store.vehicles.loadFailed') returns the en.json value
       expect(store.getError()).toBe("Failed to load vehicles");
     });
   });
@@ -161,7 +174,8 @@ describe("vehicle store", () => {
         new ApiError(500, "INTERNAL_ERROR", "First error"),
       );
       await store.loadVehicles();
-      expect(store.getError()).toBe("First error");
+      // resolveError sees 'INTERNAL_ERROR' and returns the en.json translation
+      expect(store.getError()).toBe("An unexpected error occurred.");
 
       // Succeed — error should be cleared
       vi.mocked(api.fetchVehicles).mockResolvedValue([mockVehicle]);

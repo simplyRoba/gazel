@@ -1,6 +1,8 @@
 <script lang="ts">
   import { scaleTime } from "d3-scale";
   import type { SegmentHistory } from "$lib/api";
+  import { t } from "$lib/i18n";
+  import { getSettings } from "$lib/stores/settings.svelte";
   import { toEfficiencyData } from "$lib/charts";
   import { toDisplayEfficiency, efficiencyUnitLabel } from "$lib/format";
   import ChartCard from "./ChartCard.svelte";
@@ -27,6 +29,7 @@
     })),
   );
 
+  const settings = $derived(getSettings());
   const unitLabel = $derived(efficiencyUnitLabel(distanceUnit, volumeUnit));
 
   // Dynamic y-domain: floor at ~90% of min value, rounded down
@@ -38,17 +41,24 @@
     return Math.max(0, Math.floor((min - padding) * 2) / 2);
   });
 
-  const yFormat = $derived((v: number) => v.toFixed(1));
+  function fmtNum(v: number): string {
+    return new Intl.NumberFormat(settings.locale, {
+      minimumFractionDigits: 1,
+      maximumFractionDigits: 1,
+    }).format(v);
+  }
+
+  const yFormat = $derived((v: number) => fmtNum(v));
 
   const tooltipFormatY = $derived((d: Record<string, unknown>) => {
     const v = d.value as number;
     const unit = efficiencyUnitLabel(distanceUnit, volumeUnit);
-    return `${v.toFixed(1)} ${unit}`;
+    return `${fmtNum(v)} ${unit}`;
   });
 </script>
 
 <ChartCard
-  title="Efficiency ({unitLabel})"
+  title={t("charts.efficiency", { unit: unitLabel })}
   data={chartData}
   x={(d: { date: Date }) => d.date}
   y={(d: { value: number }) => d.value}

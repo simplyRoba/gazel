@@ -1,8 +1,24 @@
+// ── Number formatting helper ─────────────────────────────
+
+function formatNumber(
+  value: number,
+  decimals: number,
+  locale: string = "en",
+): string {
+  return new Intl.NumberFormat(locale, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  }).format(value);
+}
+
 // ── Distance ─────────────────────────────────────────────
 
-export function formatDistance(value: number, unit: string): string {
-  const rounded = value.toFixed(1);
-  return `${rounded} ${unit}`;
+export function formatDistance(
+  value: number,
+  unit: string,
+  locale: string = "en",
+): string {
+  return `${formatNumber(value, 1, locale)} ${unit}`;
 }
 
 // ── Volume ───────────────────────────────────────────────
@@ -12,10 +28,13 @@ const VOLUME_LABELS: Record<string, string> = {
   gal: "gal",
 };
 
-export function formatVolume(value: number, unit: string): string {
-  const rounded = value.toFixed(1);
+export function formatVolume(
+  value: number,
+  unit: string,
+  locale: string = "en",
+): string {
   const label = VOLUME_LABELS[unit] ?? unit;
-  return `${rounded} ${label}`;
+  return `${formatNumber(value, 1, locale)} ${label}`;
 }
 
 // ── Efficiency ───────────────────────────────────────────
@@ -61,11 +80,11 @@ export function formatEfficiency(
   value: number,
   distanceUnit: string,
   volumeUnit: string,
+  locale: string = "en",
 ): string {
   const display = toDisplayEfficiency(value, distanceUnit, volumeUnit);
-  const rounded = display.toFixed(1);
   const unit = efficiencyUnitLabel(distanceUnit, volumeUnit);
-  return `${rounded} ${unit}`;
+  return `${formatNumber(display, 1, locale)} ${unit}`;
 }
 
 // ── Currency ─────────────────────────────────────────────
@@ -75,8 +94,12 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   EUR: "\u20AC",
 };
 
-export function formatCurrency(value: number, currency: string): string {
-  const rounded = value.toFixed(2);
+export function formatCurrency(
+  value: number,
+  currency: string,
+  locale: string = "en",
+): string {
+  const rounded = formatNumber(value, 2, locale);
   const symbol = CURRENCY_SYMBOLS[currency];
   if (symbol !== undefined) {
     return `${symbol}${rounded}`;

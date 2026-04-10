@@ -204,3 +204,20 @@ async fn invalid_locale_returns_422() {
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "SETTINGS_INVALID_LOCALE");
 }
+
+#[tokio::test]
+async fn update_locale_to_de_returns_200() {
+    let app = common::test_app().await;
+    let resp = app
+        .clone()
+        .oneshot(common::json_request(
+            "PUT",
+            "/api/settings",
+            Some(r#"{"locale":"de"}"#),
+        ))
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["locale"], "de");
+}
