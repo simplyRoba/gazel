@@ -349,15 +349,15 @@
   }
 
   .bottom-cta {
-    width: 42px;
-    height: 42px;
+    width: 52px;
+    height: 52px;
     background: var(--color-accent);
     color: var(--color-text-inverse);
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-top: -16px;
+    margin-top: -22px;
     box-shadow: var(--shadow-md);
     transform: rotate(45deg);
     transition: background var(--transition-fast);
