@@ -14,6 +14,7 @@
 
 .input-wrap {
   position: relative;
+  overflow: hidden;
 }
 
 .input-wrap::after {
@@ -37,6 +38,7 @@
 .input {
   width: 100%;
   min-width: 0;
+  max-width: 100%;
   padding: var(--space-3);
   border: 1px solid var(--color-border);
   font-size: var(--font-md);
@@ -46,6 +48,8 @@
   outline: none;
   box-sizing: border-box;
   transition: border-color var(--transition-fast);
+  -webkit-appearance: none;
+  appearance: none;
 }
 
 .input:focus {
