@@ -22,9 +22,13 @@
 
   const chartData = $derived(toEfficiencyData(segments));
 
-  const yFormat = $derived((v: number) =>
-    formatEfficiency(v, distanceUnit, volumeUnit).replace(/ .*/, ""),
+  const unitLabel = $derived(
+    distanceUnit === "mi" && volumeUnit === "gal"
+      ? "mpg"
+      : `${distanceUnit}/${volumeUnit === "l" ? "L" : volumeUnit}`,
   );
+
+  const yFormat = $derived((v: number) => v.toFixed(1));
 
   const tooltipFormatY = $derived((d: Record<string, unknown>) => {
     const v = d.value as number;
@@ -33,7 +37,7 @@
 </script>
 
 <ChartCard
-  title="Efficiency"
+  title="Efficiency ({unitLabel})"
   data={chartData}
   x={(d: { date: Date }) => d.date}
   y={(d: { value: number }) => d.value}

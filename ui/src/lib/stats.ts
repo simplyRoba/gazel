@@ -34,6 +34,7 @@ export function getEfficiencyForFillup(
 export interface FleetSummary {
   totalDistance: number;
   totalFillups: number;
+  totalCost: number;
   costPerDistance: number | null;
   costPerVolume: number | null;
 }
@@ -64,6 +65,7 @@ export function computeFleetSummary(
     return {
       totalDistance: 0,
       totalFillups: 0,
+      totalCost: 0,
       costPerDistance: null,
       costPerVolume: null,
     };
@@ -72,5 +74,11 @@ export function computeFleetSummary(
   const costPerDistance = totalDistance > 0 ? totalCost / totalDistance : null;
   const costPerVolume = totalFuel > 0 ? totalCost / totalFuel : null;
 
-  return { totalDistance, totalFillups, costPerDistance, costPerVolume };
+  return {
+    totalDistance,
+    totalFillups,
+    totalCost,
+    costPerDistance,
+    costPerVolume,
+  };
 }

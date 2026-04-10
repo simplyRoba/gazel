@@ -46,7 +46,7 @@
 </script>
 
 <ChartCard
-  title="Monthly cost (last 12 mo)"
+  title="Monthly cost in {currency} (last 12 mo)"
   data={chartData}
   x="month"
   y="value"

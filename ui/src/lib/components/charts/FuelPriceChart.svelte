@@ -32,7 +32,7 @@
 </script>
 
 <ChartCard
-  title="Fuel price"
+  title="Fuel price ({currency}/{volLabel})"
   data={chartData}
   x={(d: { date: Date }) => d.date}
   y={(d: { value: number }) => d.value}

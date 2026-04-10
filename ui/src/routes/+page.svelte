@@ -80,15 +80,6 @@
       : [],
   );
 
-  const fuelPriceSparkline = $derived(
-    activeHistory.length >= 2
-      ? toSparklineData(
-          activeHistory.filter((s) => s.fuel > 0),
-          (s) => s.cost / s.fuel,
-        )
-      : [],
-  );
-
   // ── Segment-to-fillup efficiency map ───────────────────
 
   const efficiencyMap = $derived(buildEfficiencyMap(activeHistory));
@@ -232,23 +223,11 @@
             </div>
           {/if}
         </div>
-        <div class="card summary-card summary-card--sparkline">
+        <div class="card summary-card">
           <span class="summary-value mono">
-            {#if fleetSummary.costPerVolume !== null}
-              {formatCurrency(
-                fleetSummary.costPerVolume,
-                settings.currency,
-              )}/{settings.volume_unit === "l" ? "L" : settings.volume_unit}
-            {:else}
-              &mdash;
-            {/if}
+            {formatCurrency(fleetSummary.totalCost, settings.currency)}
           </span>
-          <span class="summary-label">Fuel price</span>
-          {#if fuelPriceSparkline.length >= 2}
-            <div class="sparkline-bg">
-              <Sparkline data={fuelPriceSparkline} />
-            </div>
-          {/if}
+          <span class="summary-label">Total spent</span>
         </div>
       </div>
     {/if}
