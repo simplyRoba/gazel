@@ -498,9 +498,15 @@
   /* ── Summary cards grid ─────────────────────────────── */
   .summary-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--space-2);
     margin-bottom: var(--space-4);
+  }
+
+  @media (min-width: 640px) {
+    .summary-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
   }
 
   .summary-card {
