@@ -17,7 +17,8 @@
     currency: string;
   } = $props();
 
-  const chartData = $derived(toMonthlyCostData(segments));
+  const MAX_MONTHS = 12;
+  const chartData = $derived(toMonthlyCostData(segments).slice(-MAX_MONTHS));
 
   const bandScale = $derived(
     scaleBand<string>()
@@ -45,7 +46,7 @@
 </script>
 
 <ChartCard
-  title="Monthly cost"
+  title="Monthly cost (last 12 mo)"
   data={chartData}
   x="month"
   y="value"

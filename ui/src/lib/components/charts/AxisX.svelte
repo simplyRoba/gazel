@@ -45,22 +45,30 @@
       </g>
     {/each}
   {:else if "domain" in $xScale}
-    {#each ($xScale as { domain: () => string[] }).domain() as tick (tick)}
+    {@const domain = ($xScale as { domain: () => string[] }).domain()}
+    {@const bw =
+      "bandwidth" in $xScale
+        ? ($xScale as { bandwidth: () => number }).bandwidth()
+        : 0}
+    {@const labelWidth = 48}
+    {@const step = Math.max(
+      1,
+      Math.ceil((domain.length * labelWidth) / $width),
+    )}
+    {#each domain as tick, i (tick)}
       {@const x = ($xScale as (v: string) => number)(tick)}
-      {@const bw =
-        "bandwidth" in $xScale
-          ? ($xScale as { bandwidth: () => number }).bandwidth()
-          : 0}
       <g transform="translate({x + bw / 2}, {$height})">
-        <text
-          y={16}
-          text-anchor="middle"
-          fill="var(--color-text-tertiary)"
-          font-size="11"
-          font-family="var(--font-family)"
-        >
-          {formatTick(tick)}
-        </text>
+        {#if i % step === 0}
+          <text
+            y={16}
+            text-anchor="middle"
+            fill="var(--color-text-tertiary)"
+            font-size="11"
+            font-family="var(--font-family)"
+          >
+            {formatTick(tick)}
+          </text>
+        {/if}
       </g>
     {/each}
   {/if}

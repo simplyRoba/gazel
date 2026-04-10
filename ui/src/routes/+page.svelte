@@ -668,8 +668,11 @@
     min-width: 0;
   }
 
-  /* Desktop/tablet: side-by-side layout */
-  @media (min-width: 769px) {
+  /* Desktop/tablet: side-by-side layout.
+     Breakpoint at 960px ensures charts column gets >=320px
+     (enough for axis labels). Below 960px the mobile carousel
+     + full-width list provides a better experience. */
+  @media (min-width: 960px) {
     .chart-carousel-wrapper {
       display: none;
     }
@@ -685,6 +688,13 @@
       display: block;
       position: sticky;
       top: var(--space-4);
+    }
+  }
+
+  /* Widescreen: give charts more room */
+  @media (min-width: 1280px) {
+    .dashboard-content:has(.charts-column) {
+      grid-template-columns: 1fr 1fr;
     }
   }
 
