@@ -116,6 +116,11 @@ export async function deleteFillup(
   }
 }
 
+export function clearCache(): void {
+  fillupCache.clear();
+  activeVehicleId = null;
+}
+
 export async function setActiveVehicle(vehicleId: number): Promise<void> {
   activeVehicleId = vehicleId;
   await loadFillups(vehicleId);

@@ -204,23 +204,23 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 > Export vehicle and fill-up data as JSON.
 
-- [ ] `GET /api/export` -- export all data as JSON (vehicles + fill-ups)
-- [ ] `GET /api/vehicles/:id/export` -- export single vehicle + fill-ups
-- [ ] Documented JSON schema for the export format
-- [ ] Download button in UI (settings page or per-vehicle)
-- [ ] Integration tests
+- [x] `GET /api/export` -- export all data as JSON (vehicles + fill-ups)
+- [x] `GET /api/vehicles/:id/export` -- export single vehicle + fill-ups
+- [x] Documented JSON schema for the export format
+- [x] Download button in UI (settings page or per-vehicle)
+- [x] Integration tests
 
 ## 13. Data import
 
 > Import data from a JSON file matching the export schema.
 
-- [ ] `POST /api/import` -- upload JSON, validate against schema
-- [ ] Preview step: show what will be imported (N vehicles, M fill-ups)
+- [x] `POST /api/import` -- upload JSON, validate against schema
+- [x] Preview step: show what will be imported (N vehicles, M fill-ups)
       and any conflicts/duplicates
-- [ ] Confirm step: actually write to database
-- [ ] Import page or modal in settings
-- [ ] Handle merge vs. replace semantics
-- [ ] Integration tests with valid/invalid/partial payloads
+- [x] Confirm step: actually write to database
+- [x] Import page or modal in settings
+- [x] Handle merge vs. replace semantics
+- [x] Integration tests with valid/invalid/partial payloads
 
 ## 14. Internationalization (i18n)
 

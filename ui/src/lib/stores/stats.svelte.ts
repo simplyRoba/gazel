@@ -77,6 +77,11 @@ async function loadSingle(vehicleId: number): Promise<void> {
   historyCache.set(vehicleId, history);
 }
 
+export function clearCache(): void {
+  statsCache.clear();
+  historyCache.clear();
+}
+
 export async function invalidateStats(vehicleId: number): Promise<void> {
   statsCache.delete(vehicleId);
   historyCache.delete(vehicleId);

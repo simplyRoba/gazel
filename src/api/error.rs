@@ -65,6 +65,9 @@ fn default_message(code: &str) -> &'static str {
         "SETTINGS_INVALID_CURRENCY" => "Invalid currency.",
         "SETTINGS_INVALID_LOCALE" => "Invalid locale.",
         "STATS_INVALID_DATE_FILTER" => "Invalid date filter. Use YYYY-MM-DD format.",
+        "IMPORT_VERSION_MISMATCH" => "Export version is incompatible with this server version.",
+        "IMPORT_INVALID_MODE" => "Invalid import mode. Must be replace or merge.",
+        "IMPORT_VALIDATION_ERROR" => "Import data contains invalid records.",
         _ => "An error occurred.",
     }
 }

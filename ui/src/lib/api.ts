@@ -237,3 +237,97 @@ export function fetchSettings(): Promise<Settings> {
 export function updateSettings(data: UpdateSettingsRequest): Promise<Settings> {
   return request("PUT", "/api/settings", data);
 }
+
+// ── Export/Import types ─────────────────────────────────
+
+export interface ImportReplaceResult {
+  vehicles_created: number;
+  fillups_created: number;
+}
+
+export interface ImportMergeResult {
+  vehicles_created: number;
+  vehicles_updated: number;
+  fillups_created: number;
+  fillups_skipped: number;
+}
+
+export interface ImportReplacePreview {
+  preview: true;
+  vehicles: number;
+  fillups: number;
+}
+
+export interface ImportMergePreview {
+  preview: true;
+  vehicles_new: number;
+  vehicles_existing: number;
+  fillups_new: number;
+  fillups_existing: number;
+}
+
+export type ImportMode = "replace" | "merge";
+
+export type ImportPreviewResult = ImportReplacePreview | ImportMergePreview;
+export type ImportResult = ImportReplaceResult | ImportMergeResult;
+
+// ── Export/Import API functions ──────────────────────────
+
+export async function exportAll(): Promise<void> {
+  const resp = await fetch("/api/export");
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({ message: resp.statusText }));
+    throw new ApiError(
+      resp.status,
+      data.code || "UNKNOWN_ERROR",
+      data.message || resp.statusText,
+    );
+  }
+  const blob = await resp.blob();
+  const disposition = resp.headers.get("content-disposition");
+  const filename =
+    disposition?.match(/filename="(.+)"/)?.[1] ?? "gazel-export.json";
+  downloadBlob(blob, filename);
+}
+
+export async function exportVehicle(id: number): Promise<void> {
+  const resp = await fetch(`/api/vehicles/${id}/export`);
+  if (!resp.ok) {
+    const data = await resp.json().catch(() => ({ message: resp.statusText }));
+    throw new ApiError(
+      resp.status,
+      data.code || "UNKNOWN_ERROR",
+      data.message || resp.statusText,
+    );
+  }
+  const blob = await resp.blob();
+  const disposition = resp.headers.get("content-disposition");
+  const filename =
+    disposition?.match(/filename="(.+)"/)?.[1] ?? "gazel-export.json";
+  downloadBlob(blob, filename);
+}
+
+export function previewImport(
+  data: unknown,
+  mode: ImportMode = "replace",
+): Promise<ImportPreviewResult> {
+  return request("POST", `/api/import?preview=true&mode=${mode}`, data);
+}
+
+export function importData(
+  data: unknown,
+  mode: ImportMode = "replace",
+): Promise<ImportResult> {
+  return request("POST", `/api/import?mode=${mode}`, data);
+}
+
+function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}

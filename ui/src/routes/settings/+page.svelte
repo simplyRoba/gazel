@@ -10,11 +10,21 @@
     Moon,
     Monitor,
     Ruler,
+    Download,
+    Upload,
+    Database,
   } from "lucide-svelte";
   import PageContainer from "$lib/components/PageContainer.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ModalDialog from "$lib/components/ModalDialog.svelte";
-  import type { Vehicle } from "$lib/api";
+  import type { Vehicle, ImportMode, ImportPreviewResult } from "$lib/api";
+  import {
+    exportAll,
+    exportVehicle,
+    previewImport,
+    importData,
+    ApiError,
+  } from "$lib/api";
   import {
     loadVehicles,
     getVehicles,
@@ -30,8 +40,23 @@
     getThemePreference,
     type ThemePreference,
   } from "$lib/stores/theme.svelte";
+  import { pushNotification } from "$lib/stores/notifications.svelte";
+  import { clearCache as clearFillupCache } from "$lib/stores/fillups.svelte";
+  import { clearCache as clearStatsCache } from "$lib/stores/stats.svelte";
 
   let deleteTarget = $state<Vehicle | null>(null);
+
+  // ── Export state ──────────────────────────────────
+  let exporting = $state(false);
+
+  // ── Import state ──────────────────────────────────
+  let importMode = $state<ImportMode>("replace");
+  let importFileData = $state<unknown>(null);
+  let importFileName = $state<string>("");
+  let importPreview = $state<ImportPreviewResult | null>(null);
+  let importError = $state<string | null>(null);
+  let importing = $state(false);
+  let previewing = $state(false);
 
   onMount(() => {
     loadVehicles();
@@ -85,6 +110,130 @@
     { code: "USD", label: "USD" },
     { code: "EUR", label: "EUR" },
   ];
+
+  // ── Export handlers ────────────────────────────────
+
+  async function handleExportAll() {
+    exporting = true;
+    try {
+      await exportAll();
+      pushNotification({
+        variant: "success",
+        message: "Data exported successfully.",
+      });
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Export failed.";
+      pushNotification({ variant: "error", message: msg });
+    } finally {
+      exporting = false;
+    }
+  }
+
+  async function handleExportVehicle(id: number) {
+    try {
+      await exportVehicle(id);
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Export failed.";
+      pushNotification({ variant: "error", message: msg });
+    }
+  }
+
+  // ── Import handlers ────────────────────────────────
+
+  async function handleFileSelect(event: Event) {
+    importError = null;
+    importPreview = null;
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+    importFileName = file.name;
+
+    try {
+      const text = await file.text();
+      const parsed = JSON.parse(text);
+      importFileData = parsed;
+
+      // Auto-preview
+      previewing = true;
+      const result = await previewImport(parsed, importMode);
+      importPreview = result;
+    } catch (e) {
+      if (e instanceof ApiError) {
+        importError = e.message;
+      } else if (e instanceof SyntaxError) {
+        importError = "Invalid JSON file.";
+      } else {
+        importError = "Failed to read file.";
+      }
+      importFileData = null;
+    } finally {
+      previewing = false;
+      // Reset file input so the same file can be re-selected
+      input.value = "";
+    }
+  }
+
+  async function handleModeChange(mode: ImportMode) {
+    importMode = mode;
+    // Re-preview with new mode if we have data
+    if (importFileData) {
+      importError = null;
+      previewing = true;
+      try {
+        importPreview = await previewImport(importFileData, mode);
+      } catch (e) {
+        importError = e instanceof ApiError ? e.message : "Preview failed.";
+        importPreview = null;
+      } finally {
+        previewing = false;
+      }
+    }
+  }
+
+  async function handleImportConfirm() {
+    if (!importFileData) return;
+    importing = true;
+    importError = null;
+    try {
+      const result = await importData(importFileData, importMode);
+      const parts: string[] = [];
+      if ("vehicles_created" in result) {
+        parts.push(`${result.vehicles_created} vehicle(s) created`);
+      }
+      if ("vehicles_updated" in result && result.vehicles_updated > 0) {
+        parts.push(`${result.vehicles_updated} vehicle(s) updated`);
+      }
+      if ("fillups_created" in result) {
+        parts.push(`${result.fillups_created} fill-up(s) created`);
+      }
+      if ("fillups_skipped" in result && result.fillups_skipped > 0) {
+        parts.push(`${result.fillups_skipped} fill-up(s) skipped`);
+      }
+      pushNotification({
+        variant: "success",
+        message: `Import complete: ${parts.join(", ")}.`,
+      });
+      // Reset import state
+      importFileData = null;
+      importPreview = null;
+      importFileName = "";
+      // Clear stale caches and refresh vehicles
+      clearFillupCache();
+      clearStatsCache();
+      loadVehicles();
+    } catch (e) {
+      importError = e instanceof ApiError ? e.message : "Import failed.";
+    } finally {
+      importing = false;
+    }
+  }
+
+  function handleImportCancel() {
+    importFileData = null;
+    importPreview = null;
+    importFileName = "";
+    importError = null;
+  }
 </script>
 
 <PageContainer>
@@ -284,6 +433,13 @@
                 </span>
               </div>
               <div class="row-actions">
+                <button
+                  class="btn btn-icon"
+                  title="Export vehicle"
+                  onclick={() => handleExportVehicle(vehicle.id)}
+                >
+                  <Download size={16} />
+                </button>
                 <a
                   href={resolve("/settings/vehicles/[id]/edit", {
                     id: String(vehicle.id),
@@ -308,6 +464,131 @@
             <Plus size={16} />
             Add vehicle
           </a>
+        </div>
+      {/if}
+    </section>
+
+    <!-- Data -->
+    <section class="section corner-tri corner-tri-sm">
+      <h2 class="section-title">
+        <Database size={14} />
+        Data
+      </h2>
+
+      <div class="setting-row">
+        <div class="data-row-info">
+          <span class="setting-label">Export</span>
+          <span class="data-description"
+            >Download all vehicles and fill-ups as JSON.</span
+          >
+        </div>
+        <button
+          class="btn btn-secondary"
+          disabled={exporting}
+          onclick={handleExportAll}
+        >
+          <Download size={14} />
+          {exporting ? "Exporting..." : "Export data"}
+        </button>
+      </div>
+
+      <div class="setting-row data-import-row">
+        <div class="data-row-info">
+          <span class="setting-label">Import</span>
+          <span class="data-description"
+            >Upload a JSON export file to restore or merge data.</span
+          >
+        </div>
+
+        {#if !importPreview && !importError}
+          <label class="btn btn-secondary import-file-btn">
+            <Upload size={14} />
+            {previewing ? "Reading..." : "Choose file"}
+            <input
+              type="file"
+              accept=".json,application/json"
+              onchange={handleFileSelect}
+              hidden
+            />
+          </label>
+        {/if}
+      </div>
+
+      {#if importError}
+        <div class="import-error">
+          <p>{importError}</p>
+          <button class="btn btn-secondary btn-sm" onclick={handleImportCancel}>
+            Dismiss
+          </button>
+        </div>
+      {/if}
+
+      {#if importPreview}
+        <div class="import-preview card">
+          <h3 class="import-preview-title">Import preview</h3>
+          <p class="import-preview-file">{importFileName}</p>
+
+          <div class="import-mode-row">
+            <span class="setting-label">Mode</span>
+            <div class="segmented">
+              <button
+                class="segmented-item"
+                class:active={importMode === "replace"}
+                onclick={() => handleModeChange("replace")}
+              >
+                Replace
+              </button>
+              <button
+                class="segmented-item"
+                class:active={importMode === "merge"}
+                onclick={() => handleModeChange("merge")}
+              >
+                Merge
+              </button>
+            </div>
+          </div>
+
+          {#if importMode === "replace"}
+            <div class="import-summary">
+              <p>
+                {#if "vehicles" in importPreview}
+                  <strong>{importPreview.vehicles}</strong> vehicle(s),
+                  <strong>{importPreview.fillups}</strong> fill-up(s) will be imported.
+                {/if}
+              </p>
+              <p class="import-warning">
+                This will replace all existing data. This cannot be undone.
+              </p>
+            </div>
+          {:else}
+            <div class="import-summary">
+              {#if "vehicles_new" in importPreview}
+                <p>
+                  <strong>{importPreview.vehicles_new}</strong> new vehicle(s),
+                  <strong>{importPreview.vehicles_existing}</strong> existing vehicle(s)
+                  to update.
+                </p>
+                <p>
+                  <strong>{importPreview.fillups_new}</strong> new fill-up(s),
+                  <strong>{importPreview.fillups_existing}</strong> duplicate(s) to
+                  skip.
+                </p>
+              {/if}
+            </div>
+          {/if}
+
+          <div class="import-actions">
+            <button class="btn btn-secondary" onclick={handleImportCancel}>
+              Cancel
+            </button>
+            <button
+              class="btn btn-primary"
+              disabled={importing}
+              onclick={handleImportConfirm}
+            >
+              {importing ? "Importing..." : "Confirm import"}
+            </button>
+          </div>
         </div>
       {/if}
     </section>
@@ -410,10 +691,101 @@
     margin-top: var(--space-4);
   }
 
+  /* ── Data section ───────────────────────────────── */
+
+  .data-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .data-description {
+    font-size: var(--font-xs);
+    color: var(--color-text-tertiary);
+  }
+
+  .data-import-row {
+    flex-wrap: wrap;
+  }
+
+  .import-file-btn {
+    cursor: pointer;
+  }
+
+  .import-error {
+    background: var(--color-surface-danger, rgba(220, 38, 38, 0.08));
+    border: 1px solid var(--color-border-danger, rgba(220, 38, 38, 0.2));
+    border-radius: var(--radius-md);
+    padding: var(--space-3) var(--space-4);
+    margin-top: var(--space-2);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--space-3);
+  }
+
+  .import-error p {
+    font-size: var(--font-sm);
+    color: var(--color-text-danger, #dc2626);
+    margin: 0;
+  }
+
+  .import-preview {
+    margin-top: var(--space-3);
+    padding: var(--space-4);
+  }
+
+  .import-preview-title {
+    font-size: var(--font-md);
+    font-weight: var(--font-weight-semibold);
+    margin-bottom: var(--space-1);
+  }
+
+  .import-preview-file {
+    font-size: var(--font-xs);
+    color: var(--color-text-tertiary);
+    margin-bottom: var(--space-3);
+  }
+
+  .import-mode-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-2) 0;
+    margin-bottom: var(--space-2);
+  }
+
+  .import-summary {
+    font-size: var(--font-sm);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--space-3);
+  }
+
+  .import-summary p {
+    margin: var(--space-1) 0;
+  }
+
+  .import-warning {
+    color: var(--color-text-danger, #dc2626);
+    font-weight: var(--font-weight-medium);
+  }
+
+  .import-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--space-2);
+  }
+
   /* ── Responsive ────────────────────────────────── */
 
   @media (max-width: 768px) {
     .setting-row {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: var(--space-2);
+    }
+
+    .import-mode-row {
       flex-direction: column;
       align-items: flex-start;
       gap: var(--space-2);
