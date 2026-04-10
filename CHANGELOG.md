@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.6.0](https://github.com/simplyRoba/gazel/compare/v0.5.0...v0.6.0) (2026-04-10)
+
+
+### Features
+
+* add data export and import with versioned JSON format ([329b256](https://github.com/simplyRoba/gazel/commit/329b256e19e8143031d8d8dda6fc2211fe436ef7))
+* independent fill-up scrolling on desktop ([4eee4e2](https://github.com/simplyRoba/gazel/commit/4eee4e2caeea5ba8443a06e6124010c28d113eae))
+
+
+### Bug Fixes
+
+* add structured skeleton for summary cards ([1f50c22](https://github.com/simplyRoba/gazel/commit/1f50c223266150a2ad46e65cd51aa80ef1a7b643))
+* add structured skeleton loaders for fill-up cards and charts ([320c5f8](https://github.com/simplyRoba/gazel/commit/320c5f8057f9877b39e9c1c2cfeb2b250112ad63))
+* cap fill-up column width to reduce whitespace on wide screens ([29d494f](https://github.com/simplyRoba/gazel/commit/29d494fac8ed89fe90576d22defb20bd57d05ec5))
+* center empty state when no fill-ups exist ([6085e86](https://github.com/simplyRoba/gazel/commit/6085e86e39592f48b4d8bf7d156922e5f68912c5))
+* center tooltip indicator on bar chart columns ([183c0c4](https://github.com/simplyRoba/gazel/commit/183c0c446f88852f2ab88fe992f19ca1bfc56e9e))
+* charts column scrolls when viewport is too short ([bfc6fdd](https://github.com/simplyRoba/gazel/commit/bfc6fddd746425995f86eb679e365d5337dd6fbb))
+* **deps:** bump @sveltejs/kit in /ui in the svelte group ([6673301](https://github.com/simplyRoba/gazel/commit/6673301f48eaee406c3c2870916a026159c32ba7))
+* **deps:** bump prettier in /ui in the prettier group ([392c76e](https://github.com/simplyRoba/gazel/commit/392c76ed4715b6708cad39509aaad15221d1b0fc))
+* **deps:** bump vitest from 4.1.3 to 4.1.4 in /ui ([a694788](https://github.com/simplyRoba/gazel/commit/a694788a273bb0dfc04b1b0a17f29a4e16c6f305))
+* display efficiency as L/100km for metric users ([c26ebbd](https://github.com/simplyRoba/gazel/commit/c26ebbd7f1fe3f357407c0c7b680132f0af1994c))
+* grow charts to fill available vertical space on desktop ([9ffceb6](https://github.com/simplyRoba/gazel/commit/9ffceb678ad773c5c237b2b5319e0a5ffd454fcc))
+* improve chart labels and replace fuel price card with total spent ([aa58fcd](https://github.com/simplyRoba/gazel/commit/aa58fcdee857eddca979bda97f6e230192fa5a92))
+* improve chart responsiveness and readability ([ec3a4eb](https://github.com/simplyRoba/gazel/commit/ec3a4eb3b0842faa8692834c2ea7af16869e6d15))
+* pin tooltip text to top-right of chart area ([99e866c](https://github.com/simplyRoba/gazel/commit/99e866c7271c507190bc9116d166a412dbe9a55d))
+* prevent date input overflow on iOS Safari ([36ca034](https://github.com/simplyRoba/gazel/commit/36ca0349f4a0696dbdebd97ab61faac057d96de6))
+* remove mockup app HTML file ([8d2c365](https://github.com/simplyRoba/gazel/commit/8d2c365c50c9e95bdbc85de8536dc2ae48b4ce63))
+* reorder dashboard summary cards ([8c170c0](https://github.com/simplyRoba/gazel/commit/8c170c0181c6156134bdc2089dbd8f51f7c6f730))
+* smooth line charts and remove bar chart rounded corners ([6f1b33a](https://github.com/simplyRoba/gazel/commit/6f1b33a69eb73a3fb3f2b426ba3759d7e29ec430))
+* stretch summary cards to fill full width on desktop ([dc8e783](https://github.com/simplyRoba/gazel/commit/dc8e78349c43eb065717d299fe677ce45c608645))
+* use dynamic Y-axis floor for line charts ([4261ed2](https://github.com/simplyRoba/gazel/commit/4261ed26400889a8716a196da483be22b8d035d7))
+
 ## [0.5.0](https://github.com/simplyRoba/gazel/compare/v0.4.0...v0.5.0) (2026-04-09)
 
 
