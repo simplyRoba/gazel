@@ -7,7 +7,7 @@
     "LayerCake",
   ) as LayerCakeContext;
 
-  let { fill = "var(--color-accent)", rx = 3 } = $props();
+  let { fill = "var(--color-accent)" } = $props();
 
   const bandwidth = $derived(
     "bandwidth" in $xScale ? ($xScale as ScaleBand<string>).bandwidth() : 20,
@@ -20,7 +20,7 @@
     {@const y = $yGet(d)}
     {@const barHeight = $height - y}
     {#if barHeight > 0}
-      <rect {x} {y} width={bandwidth} height={barHeight} {fill} {rx} />
+      <rect {x} {y} width={bandwidth} height={barHeight} {fill} />
     {/if}
   {/each}
 </g>
