@@ -202,6 +202,12 @@
           <span class="summary-label">Total distance</span>
         </div>
         <div class="card summary-card">
+          <span class="summary-value mono">
+            {formatCurrency(fleetSummary.totalCost, settings.currency)}
+          </span>
+          <span class="summary-label">Total spent</span>
+        </div>
+        <div class="card summary-card">
           <span class="summary-value">{fleetSummary.totalFillups}</span>
           <span class="summary-label">Fill-ups</span>
         </div>
@@ -222,12 +228,6 @@
               <Sparkline data={costPerDistanceSparkline} />
             </div>
           {/if}
-        </div>
-        <div class="card summary-card">
-          <span class="summary-value mono">
-            {formatCurrency(fleetSummary.totalCost, settings.currency)}
-          </span>
-          <span class="summary-label">Total spent</span>
         </div>
       </div>
     {/if}
@@ -265,6 +265,12 @@
             <span class="vehicle-stat-label">Total distance</span>
           </div>
           <div class="vehicle-stat">
+            <span class="vehicle-stat-value mono">
+              {formatCurrency(activeStats.total_cost, settings.currency)}
+            </span>
+            <span class="vehicle-stat-label">Total spent</span>
+          </div>
+          <div class="vehicle-stat">
             <span class="vehicle-stat-value">{activeStats.fill_up_count}</span>
             <span class="vehicle-stat-label">Fill-ups</span>
           </div>
@@ -282,19 +288,6 @@
             <span class="vehicle-stat-label"
               >Cost per {settings.distance_unit}</span
             >
-          </div>
-          <div class="vehicle-stat">
-            <span class="vehicle-stat-value mono">
-              {#if activeStats.total_fuel > 0}
-                {formatCurrency(
-                  activeStats.total_cost / activeStats.total_fuel,
-                  settings.currency,
-                )}/{settings.volume_unit === "l" ? "L" : settings.volume_unit}
-              {:else}
-                &mdash;
-              {/if}
-            </span>
-            <span class="vehicle-stat-label">Fuel price</span>
           </div>
         </div>
       {/if}
