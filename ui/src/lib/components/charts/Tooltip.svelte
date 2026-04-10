@@ -2,9 +2,16 @@
   import { getContext } from "svelte";
   import type { LayerCakeContext } from "$lib/charts";
 
-  const { data, xGet, yGet, width, height } = getContext(
+  const { data, xGet, yGet, xScale, width, height } = getContext(
     "LayerCake",
   ) as LayerCakeContext;
+
+  // Half-bandwidth offset for band scales (bar charts); 0 for continuous scales
+  const bandOffset = $derived(
+    "bandwidth" in $xScale && typeof $xScale.bandwidth === "function"
+      ? ($xScale as { bandwidth: () => number }).bandwidth() / 2
+      : 0,
+  );
 
   let {
     formatX = (d: Record<string, unknown>) => {
@@ -31,11 +38,11 @@
     const rect = target.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
 
-    // Find nearest data point
+    // Find nearest data point (use center of band for bar charts)
     let nearest = 0;
     let nearestDist = Infinity;
     for (let i = 0; i < $data.length; i++) {
-      const dist = Math.abs($xGet($data[i]) - mouseX);
+      const dist = Math.abs($xGet($data[i]) + bandOffset - mouseX);
       if (dist < nearestDist) {
         nearestDist = dist;
         nearest = i;
@@ -71,7 +78,7 @@
 
 {#if hoveredIndex !== null}
   {@const d = $data[hoveredIndex]}
-  {@const x = $xGet(d)}
+  {@const x = $xGet(d) + bandOffset}
   {@const y = $yGet(d)}
 
   <!-- Vertical indicator line -->
