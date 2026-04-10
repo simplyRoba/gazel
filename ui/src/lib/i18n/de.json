@@ -19,6 +19,7 @@
   "dashboard.empty.description": "Füge dein erstes Fahrzeug hinzu, um Tankfüllungen und Kraftstoffeffizienz zu verfolgen.",
   "dashboard.empty.action": "Fahrzeug hinzufügen",
   "dashboard.summary.totalDistance": "Gesamtstrecke",
+  "dashboard.summary.monthlyDistance": "Monatliche Strecke",
   "dashboard.summary.totalSpent": "Gesamtausgaben",
   "dashboard.summary.fillups": "Tankfüllungen",
   "dashboard.summary.costPer": "Kosten pro {unit}",

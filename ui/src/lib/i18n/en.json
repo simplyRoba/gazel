@@ -19,6 +19,7 @@
   "dashboard.empty.description": "Add your first vehicle to start tracking fill-ups and fuel efficiency.",
   "dashboard.empty.action": "Add vehicle",
   "dashboard.summary.totalDistance": "Total distance",
+  "dashboard.summary.monthlyDistance": "Monthly distance",
   "dashboard.summary.totalSpent": "Total spent",
   "dashboard.summary.fillups": "Fill-ups",
   "dashboard.summary.costPer": "Cost per {unit}",

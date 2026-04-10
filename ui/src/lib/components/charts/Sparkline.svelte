@@ -33,8 +33,24 @@
       sy: 100 - ((p.y - yMin) / yRange) * 80 - 10, // 10-90 range for padding
     }));
 
-    const linePoints = mapped.map((p) => `${p.sx},${p.sy}`).join(" L");
-    const line = `M${linePoints}`;
+    // Build smooth cubic Bezier curve (Catmull-Rom → cubic control points)
+    let line = `M${mapped[0].sx},${mapped[0].sy}`;
+    const t = 0.3; // tension (0 = sharp, 1 = very smooth)
+
+    for (let i = 0; i < mapped.length - 1; i++) {
+      const p0 = mapped[Math.max(0, i - 1)];
+      const p1 = mapped[i];
+      const p2 = mapped[i + 1];
+      const p3 = mapped[Math.min(mapped.length - 1, i + 2)];
+
+      const cp1x = p1.sx + ((p2.sx - p0.sx) * t) / 3;
+      const cp1y = p1.sy + ((p2.sy - p0.sy) * t) / 3;
+      const cp2x = p2.sx - ((p3.sx - p1.sx) * t) / 3;
+      const cp2y = p2.sy - ((p3.sy - p1.sy) * t) / 3;
+
+      line += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${p2.sx},${p2.sy}`;
+    }
+
     const area = `${line} L${mapped[mapped.length - 1].sx},100 L${mapped[0].sx},100 Z`;
 
     return { line, area };

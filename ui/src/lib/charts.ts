@@ -111,6 +111,70 @@ export function toYearlyCostData(
 }
 
 /**
+ * Distributes segment distances proportionally across the months they span.
+ * A segment from Jan 15 to Mar 20 has its distance split across Jan, Feb,
+ * and Mar based on how many days of the segment fall in each month.
+ * Returns sorted (chronological) monthly totals with zero-filled gaps.
+ */
+export function toMonthlyDistanceData(
+  segments: SegmentHistory[],
+): MonthlyCostPoint[] {
+  if (segments.length === 0) return [];
+
+  const MS_PER_DAY = 86_400_000;
+  const monthMap = new Map<string, number>();
+
+  for (const s of segments) {
+    const start = new Date(s.start_date);
+    const end = new Date(s.end_date);
+    const totalDays = Math.max(
+      1,
+      (end.getTime() - start.getTime()) / MS_PER_DAY,
+    );
+
+    // Walk month by month from start to end, distributing distance
+    let cursor = new Date(start);
+    while (cursor <= end) {
+      const y = cursor.getFullYear();
+      const m = cursor.getMonth();
+      const key = `${y}-${String(m + 1).padStart(2, "0")}`;
+
+      // Slice: from max(cursor, segStart) to min(firstOfNextMonth, segEnd)
+      const nextMonth = new Date(y, m + 1, 1);
+      const sliceEnd = nextMonth.getTime() <= end.getTime() ? nextMonth : end;
+      const daysInSlice = (sliceEnd.getTime() - cursor.getTime()) / MS_PER_DAY;
+
+      if (daysInSlice > 0) {
+        const fraction = daysInSlice / totalDays;
+        monthMap.set(key, (monthMap.get(key) ?? 0) + s.distance * fraction);
+      }
+
+      cursor = nextMonth;
+    }
+  }
+
+  const keys = Array.from(monthMap.keys()).sort();
+  const first = keys[0];
+  const last = keys[keys.length - 1];
+
+  const result: MonthlyCostPoint[] = [];
+  let [fy, fm] = first.split("-").map(Number);
+  const [endY, endM] = last.split("-").map(Number);
+
+  while (fy < endY || (fy === endY && fm <= endM)) {
+    const key = `${fy}-${String(fm).padStart(2, "0")}`;
+    result.push({ month: key, value: Math.round(monthMap.get(key) ?? 0) });
+    fm++;
+    if (fm > 12) {
+      fm = 1;
+      fy++;
+    }
+  }
+
+  return result;
+}
+
+/**
  * Maps segments to fuel price time-series data (cost / fuel).
  * Excludes segments with zero fuel.
  */

@@ -45,7 +45,7 @@
     getEfficiencyForFillup,
     computeFleetSummary,
   } from "$lib/stats";
-  import { toSparklineData } from "$lib/charts";
+  import { toSparklineData, toMonthlyDistanceData } from "$lib/charts";
 
   // Modal state
   let showFillupModal = $state(false);
@@ -79,6 +79,31 @@
     activeHistory.length >= 2
       ? toSparklineData(activeHistory, (s) => s.cost_per_distance)
       : [],
+  );
+
+  // Monthly distance sparkline — uses all vehicle histories for fleet,
+  // active vehicle history for per-vehicle view
+  const allHistory = $derived(vehicles.flatMap((v) => getVehicleHistory(v.id)));
+
+  const monthlyDistanceData = $derived(toMonthlyDistanceData(allHistory));
+  const monthlyDistanceSparkline = $derived(
+    monthlyDistanceData.length >= 2
+      ? monthlyDistanceData.map((d, i) => ({ x: i, y: d.value }))
+      : [],
+  );
+  const currentMonthDistance = $derived(
+    monthlyDistanceData.length > 0
+      ? monthlyDistanceData[monthlyDistanceData.length - 1].value
+      : 0,
+  );
+
+  const activeMonthlyDistanceData = $derived(
+    toMonthlyDistanceData(activeHistory),
+  );
+  const activeCurrentMonthDistance = $derived(
+    activeMonthlyDistanceData.length > 0
+      ? activeMonthlyDistanceData[activeMonthlyDistanceData.length - 1].value
+      : 0,
   );
 
   // ── Segment-to-fillup efficiency map ───────────────────
@@ -194,16 +219,8 @@
     {:else if fleetSummary}
       <div class="summary-grid" data-testid="summary-cards">
         <div class="card summary-card">
-          <span class="summary-value mono"
-            >{formatDistance(
-              fleetSummary.totalDistance,
-              settings.distance_unit,
-              settings.locale,
-            )}</span
-          >
-          <span class="summary-label"
-            >{t("dashboard.summary.totalDistance")}</span
-          >
+          <span class="summary-value">{fleetSummary.totalFillups}</span>
+          <span class="summary-label">{t("dashboard.summary.fillups")}</span>
         </div>
         <div class="card summary-card">
           <span class="summary-value mono">
@@ -215,9 +232,22 @@
           </span>
           <span class="summary-label">{t("dashboard.summary.totalSpent")}</span>
         </div>
-        <div class="card summary-card">
-          <span class="summary-value">{fleetSummary.totalFillups}</span>
-          <span class="summary-label">{t("dashboard.summary.fillups")}</span>
+        <div class="card summary-card summary-card--sparkline">
+          <span class="summary-value mono"
+            >{formatDistance(
+              currentMonthDistance,
+              settings.distance_unit,
+              settings.locale,
+            )}</span
+          >
+          <span class="summary-label"
+            >{t("dashboard.summary.monthlyDistance")}</span
+          >
+          {#if monthlyDistanceSparkline.length >= 2}
+            <div class="sparkline-bg">
+              <Sparkline data={monthlyDistanceSparkline} />
+            </div>
+          {/if}
         </div>
         <div class="card summary-card summary-card--sparkline">
           <span class="summary-value mono">
@@ -269,15 +299,9 @@
       {:else if activeStats}
         <div class="vehicle-stats-row" data-testid="vehicle-stats">
           <div class="vehicle-stat">
-            <span class="vehicle-stat-value mono"
-              >{formatDistance(
-                activeStats.total_distance,
-                settings.distance_unit,
-                settings.locale,
-              )}</span
-            >
+            <span class="vehicle-stat-value">{activeStats.fill_up_count}</span>
             <span class="vehicle-stat-label"
-              >{t("dashboard.summary.totalDistance")}</span
+              >{t("dashboard.summary.fillups")}</span
             >
           </div>
           <div class="vehicle-stat">
@@ -293,9 +317,15 @@
             >
           </div>
           <div class="vehicle-stat">
-            <span class="vehicle-stat-value">{activeStats.fill_up_count}</span>
+            <span class="vehicle-stat-value mono"
+              >{formatDistance(
+                activeCurrentMonthDistance,
+                settings.distance_unit,
+                settings.locale,
+              )}</span
+            >
             <span class="vehicle-stat-label"
-              >{t("dashboard.summary.fillups")}</span
+              >{t("dashboard.summary.monthlyDistance")}</span
             >
           </div>
           <div class="vehicle-stat">

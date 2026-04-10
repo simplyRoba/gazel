@@ -3,6 +3,7 @@ import {
   toEfficiencyData,
   toMonthlyCostData,
   toYearlyCostData,
+  toMonthlyDistanceData,
   toFuelPriceData,
   toSparklineData,
 } from "./charts";
@@ -175,6 +176,80 @@ describe("toYearlyCostData", () => {
     const result = toYearlyCostData(segments);
     expect(result[0].month).toBe("2024");
     expect(result[1].month).toBe("2026");
+  });
+});
+
+// ── toMonthlyDistanceData ───────────────────────────────
+
+describe("toMonthlyDistanceData", () => {
+  it("returns empty array for empty input", () => {
+    expect(toMonthlyDistanceData([])).toEqual([]);
+  });
+
+  it("aggregates distances within a single month", () => {
+    const segments = [
+      makeSegment({
+        start_date: "2025-03-01",
+        end_date: "2025-03-05",
+        distance: 300,
+      }),
+      makeSegment({
+        start_date: "2025-03-05",
+        end_date: "2025-03-20",
+        distance: 450,
+      }),
+    ];
+    const result = toMonthlyDistanceData(segments);
+    expect(result).toHaveLength(1);
+    expect(result[0].month).toBe("2025-03");
+    expect(result[0].value).toBe(750);
+  });
+
+  it("distributes distance across months a segment spans", () => {
+    // Segment from Jan 1 to Mar 1 = 59 days, 590 km
+    // Jan: 30 days, Feb: 28 days, Mar: 1 day
+    const segments = [
+      makeSegment({
+        start_date: "2025-01-01",
+        end_date: "2025-03-01",
+        distance: 590,
+      }),
+    ];
+    const result = toMonthlyDistanceData(segments);
+    expect(result).toHaveLength(3);
+    expect(result[0].month).toBe("2025-01");
+    expect(result[1].month).toBe("2025-02");
+    expect(result[2].month).toBe("2025-03");
+    // All months should have some distance (not zero)
+    expect(result[0].value).toBeGreaterThan(0);
+    expect(result[1].value).toBeGreaterThan(0);
+    // Total should roughly equal original distance
+    const total = result.reduce((sum, d) => sum + d.value, 0);
+    expect(total).toBeCloseTo(590, 0);
+  });
+
+  it("fills gap months with zero when no segment spans them", () => {
+    // Two separate segments with a gap month in between
+    const segments = [
+      makeSegment({
+        start_date: "2025-01-01",
+        end_date: "2025-01-15",
+        distance: 500,
+      }),
+      makeSegment({
+        start_date: "2025-03-01",
+        end_date: "2025-03-15",
+        distance: 600,
+      }),
+    ];
+    const result = toMonthlyDistanceData(segments);
+    expect(result).toHaveLength(3);
+    expect(result[0].month).toBe("2025-01");
+    expect(result[0].value).toBe(500);
+    expect(result[1].month).toBe("2025-02");
+    expect(result[1].value).toBe(0);
+    expect(result[2].month).toBe("2025-03");
+    expect(result[2].value).toBe(600);
   });
 });
 
