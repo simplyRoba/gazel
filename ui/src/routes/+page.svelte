@@ -663,7 +663,7 @@
 
     .dashboard-content:has(.charts-column) {
       display: grid;
-      grid-template-columns: 2fr 3fr;
+      grid-template-columns: 1fr minmax(0, 420px);
       gap: var(--space-4);
       align-items: start;
     }
@@ -672,13 +672,6 @@
       display: block;
       position: sticky;
       top: var(--space-4);
-    }
-  }
-
-  /* Widescreen: give charts more room */
-  @media (min-width: 1280px) {
-    .dashboard-content:has(.charts-column) {
-      grid-template-columns: 1fr 1fr;
     }
   }
 
