@@ -155,7 +155,10 @@
   "charts.empty": "Mehr Tankfüllungen hinzufügen, um Trends zu sehen",
   "charts.needMore": "Mehr Tankfüllungen für Diagramm nötig",
   "charts.efficiency": "Effizienz ({unit})",
-  "charts.monthlyCost": "Monatliche Kosten in {currency} (letzte 12 Mo.)",
+  "charts.monthlyCost": "Monatliche Kosten ({currency})",
+  "charts.yearlyCost": "Jährliche Kosten ({currency})",
+  "charts.monthly": "Monatlich",
+  "charts.yearly": "Jährlich",
   "charts.fuelPrice": "Kraftstoffpreis ({currency}/{unit})",
 
   "toast.dismiss": "Schließen",

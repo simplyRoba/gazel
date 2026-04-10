@@ -155,7 +155,10 @@
   "charts.empty": "Add more fill-ups to see trends",
   "charts.needMore": "More fill-ups needed for chart",
   "charts.efficiency": "Efficiency ({unit})",
-  "charts.monthlyCost": "Monthly cost in {currency} (last 12 mo)",
+  "charts.monthlyCost": "Monthly cost ({currency})",
+  "charts.yearlyCost": "Yearly cost ({currency})",
+  "charts.monthly": "Monthly",
+  "charts.yearly": "Yearly",
   "charts.fuelPrice": "Fuel price ({currency}/{unit})",
 
   "toast.dismiss": "Dismiss",

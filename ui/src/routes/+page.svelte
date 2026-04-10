@@ -7,7 +7,7 @@
   import FillupModal from "$lib/components/FillupModal.svelte";
   import ChartsPanel from "$lib/components/charts/ChartsPanel.svelte";
   import EfficiencyChart from "$lib/components/charts/EfficiencyChart.svelte";
-  import MonthlyCostChart from "$lib/components/charts/MonthlyCostChart.svelte";
+  import CostChart from "$lib/components/charts/CostChart.svelte";
   import FuelPriceChart from "$lib/components/charts/FuelPriceChart.svelte";
   import Sparkline from "$lib/components/charts/Sparkline.svelte";
   import {
@@ -346,10 +346,7 @@
             />
           </div>
           <div class="chart-carousel-item">
-            <MonthlyCostChart
-              segments={activeHistory}
-              currency={settings.currency}
-            />
+            <CostChart segments={activeHistory} currency={settings.currency} />
           </div>
           <div class="chart-carousel-item">
             <FuelPriceChart

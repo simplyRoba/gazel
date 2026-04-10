@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   toEfficiencyData,
   toMonthlyCostData,
+  toYearlyCostData,
   toFuelPriceData,
   toSparklineData,
 } from "./charts";
@@ -96,6 +97,32 @@ describe("toMonthlyCostData", () => {
     expect(result[2].month).toBe("2025-03");
   });
 
+  it("fills gaps between months with zero values", () => {
+    const segments = [
+      makeSegment({ end_date: "2025-01-10", cost: 50 }),
+      makeSegment({ end_date: "2025-04-10", cost: 60 }),
+    ];
+    const result = toMonthlyCostData(segments);
+    expect(result).toHaveLength(4);
+    expect(result[0]).toEqual({ month: "2025-01", value: 50 });
+    expect(result[1]).toEqual({ month: "2025-02", value: 0 });
+    expect(result[2]).toEqual({ month: "2025-03", value: 0 });
+    expect(result[3]).toEqual({ month: "2025-04", value: 60 });
+  });
+
+  it("fills gaps across year boundaries", () => {
+    const segments = [
+      makeSegment({ end_date: "2024-11-01", cost: 10 }),
+      makeSegment({ end_date: "2025-02-01", cost: 20 }),
+    ];
+    const result = toMonthlyCostData(segments);
+    expect(result).toHaveLength(4);
+    expect(result[0].month).toBe("2024-11");
+    expect(result[1]).toEqual({ month: "2024-12", value: 0 });
+    expect(result[2]).toEqual({ month: "2025-01", value: 0 });
+    expect(result[3].month).toBe("2025-02");
+  });
+
   it("sorts months chronologically regardless of input order", () => {
     const segments = [
       makeSegment({ end_date: "2025-12-01", cost: 10 }),
@@ -103,7 +130,51 @@ describe("toMonthlyCostData", () => {
     ];
     const result = toMonthlyCostData(segments);
     expect(result[0].month).toBe("2025-01");
-    expect(result[1].month).toBe("2025-12");
+    expect(result[result.length - 1].month).toBe("2025-12");
+    // All 12 months should be present
+    expect(result).toHaveLength(12);
+  });
+});
+
+// ── toYearlyCostData ────────────────────────────────────
+
+describe("toYearlyCostData", () => {
+  it("returns empty array for empty input", () => {
+    expect(toYearlyCostData([])).toEqual([]);
+  });
+
+  it("aggregates costs within a single year", () => {
+    const segments = [
+      makeSegment({ end_date: "2025-03-05", cost: 30 }),
+      makeSegment({ end_date: "2025-09-20", cost: 45 }),
+    ];
+    const result = toYearlyCostData(segments);
+    expect(result).toHaveLength(1);
+    expect(result[0].month).toBe("2025");
+    expect(result[0].value).toBe(75);
+  });
+
+  it("returns separate entries for different years", () => {
+    const segments = [
+      makeSegment({ end_date: "2024-06-10", cost: 50 }),
+      makeSegment({ end_date: "2025-01-10", cost: 60 }),
+      makeSegment({ end_date: "2023-11-10", cost: 40 }),
+    ];
+    const result = toYearlyCostData(segments);
+    expect(result).toHaveLength(3);
+    expect(result[0].month).toBe("2023");
+    expect(result[1].month).toBe("2024");
+    expect(result[2].month).toBe("2025");
+  });
+
+  it("sorts years chronologically regardless of input order", () => {
+    const segments = [
+      makeSegment({ end_date: "2026-01-01", cost: 10 }),
+      makeSegment({ end_date: "2024-01-01", cost: 20 }),
+    ];
+    const result = toYearlyCostData(segments);
+    expect(result[0].month).toBe("2024");
+    expect(result[1].month).toBe("2026");
   });
 });
 

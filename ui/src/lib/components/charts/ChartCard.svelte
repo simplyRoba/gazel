@@ -14,6 +14,7 @@
     yDomain = undefined,
     padding = { top: 10, right: 10, bottom: 30, left: 44 },
     height = 180,
+    actions,
     children,
   }: {
     title: string;
@@ -27,6 +28,7 @@
     yDomain?: [number | null, number | null];
     padding?: { top?: number; right?: number; bottom?: number; left?: number };
     height?: number;
+    actions?: Snippet;
     children: Snippet;
   } = $props();
   /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -35,7 +37,12 @@
 </script>
 
 <div class="card chart-card">
-  <span class="chart-title">{title}</span>
+  <div class="chart-header">
+    <span class="chart-title">{title}</span>
+    {#if actions}
+      {@render actions()}
+    {/if}
+  </div>
   {#if hasEnoughData}
     <div class="chart-container" style="height: {height}px">
       <LayerCake {data} {x} {y} {xScale} {yDomain} {padding}>
@@ -58,12 +65,18 @@
     flex-direction: column;
   }
 
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+  }
+
   .chart-title {
-    display: block;
     font-size: var(--font-xs);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-secondary);
-    margin-bottom: var(--space-2);
   }
 
   .chart-container {

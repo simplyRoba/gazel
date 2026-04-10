@@ -2,7 +2,7 @@
   import type { SegmentHistory } from "$lib/api";
   import { t } from "$lib/i18n";
   import EfficiencyChart from "./EfficiencyChart.svelte";
-  import MonthlyCostChart from "./MonthlyCostChart.svelte";
+  import CostChart from "./CostChart.svelte";
   import FuelPriceChart from "./FuelPriceChart.svelte";
 
   let {
@@ -23,7 +23,7 @@
 {#if hasData}
   <div class="charts-stack">
     <EfficiencyChart {segments} {distanceUnit} {volumeUnit} />
-    <MonthlyCostChart {segments} {currency} />
+    <CostChart {segments} {currency} />
     <FuelPriceChart {segments} {currency} {volumeUnit} />
   </div>
 {:else}

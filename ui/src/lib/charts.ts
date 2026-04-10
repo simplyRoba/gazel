@@ -55,11 +55,14 @@ export function toEfficiencyData(
 
 /**
  * Aggregates segment costs by calendar month.
- * Returns sorted (chronological) monthly totals.
+ * Returns sorted (chronological) monthly totals with zero-filled
+ * gaps so every month between the first and last entry is present.
  */
 export function toMonthlyCostData(
   segments: SegmentHistory[],
 ): MonthlyCostPoint[] {
+  if (segments.length === 0) return [];
+
   const monthMap = new Map<string, number>();
 
   for (const s of segments) {
@@ -67,7 +70,42 @@ export function toMonthlyCostData(
     monthMap.set(month, (monthMap.get(month) ?? 0) + s.cost);
   }
 
-  return Array.from(monthMap.entries())
+  const keys = Array.from(monthMap.keys()).sort();
+  const first = keys[0];
+  const last = keys[keys.length - 1];
+
+  const result: MonthlyCostPoint[] = [];
+  let [y, m] = first.split("-").map(Number);
+  const [endY, endM] = last.split("-").map(Number);
+
+  while (y < endY || (y === endY && m <= endM)) {
+    const key = `${y}-${String(m).padStart(2, "0")}`;
+    result.push({ month: key, value: monthMap.get(key) ?? 0 });
+    m++;
+    if (m > 12) {
+      m = 1;
+      y++;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Aggregates segment costs by calendar year.
+ * Returns sorted (chronological) yearly totals.
+ */
+export function toYearlyCostData(
+  segments: SegmentHistory[],
+): MonthlyCostPoint[] {
+  const yearMap = new Map<string, number>();
+
+  for (const s of segments) {
+    const year = s.end_date.slice(0, 4); // YYYY
+    yearMap.set(year, (yearMap.get(year) ?? 0) + s.cost);
+  }
+
+  return Array.from(yearMap.entries())
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, value]) => ({ month, value }));
 }
