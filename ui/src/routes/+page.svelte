@@ -684,6 +684,25 @@
     .fillups-column {
       overflow-y: auto;
       min-height: 0;
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-border) transparent;
+    }
+
+    .fillups-column::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .fillups-column::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .fillups-column::-webkit-scrollbar-thumb {
+      background: var(--color-border);
+      border-radius: 3px;
+    }
+
+    .fillups-column::-webkit-scrollbar-thumb:hover {
+      background: var(--color-accent);
     }
   }
 
