@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.7.0](https://github.com/simplyRoba/gazel/compare/v0.6.0...v0.7.0) (2026-04-10)
+
+
+### Features
+
+* add internationalization (i18n) with English and German support ([2e9804a](https://github.com/simplyRoba/gazel/commit/2e9804a5f870a5cf58b41f02fb36000e924045e1))
+
+
+### Bug Fixes
+
+* charts invisible on mobile due to missing definite height ([3a05827](https://github.com/simplyRoba/gazel/commit/3a0582779a7daf2bb71fc8f8a72125bd70e6f695))
+* disable iOS Safari auto-linking that turns card text blue ([48c566d](https://github.com/simplyRoba/gazel/commit/48c566d424163df8af7670aea3bbfa5fc5a996f7))
+* increase mobile FAB button size for better tap target ([79353d8](https://github.com/simplyRoba/gazel/commit/79353d8b275d48d04949810f31c2e9ae62d4d3c4))
+* prevent iOS date input from overflowing modal container ([35f8b6f](https://github.com/simplyRoba/gazel/commit/35f8b6f0f57f9b901ecebd4749996f36dcaca009))
+* style fillups column scrollbar in desktop two-column layout ([35e4e02](https://github.com/simplyRoba/gazel/commit/35e4e022101b5f70bfc31c39760c09772abcafa7))
+
 ## [0.6.0](https://github.com/simplyRoba/gazel/compare/v0.5.0...v0.6.0) (2026-04-10)
 
 
