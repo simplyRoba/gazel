@@ -636,7 +636,7 @@
       display: none;
     }
 
-    .dashboard-content {
+    .dashboard-content:has(.charts-column) {
       display: grid;
       grid-template-columns: 2fr 3fr;
       gap: var(--space-4);
