@@ -36,6 +36,13 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
+    flex: 1;
+    min-height: 0;
+  }
+
+  .charts-stack > :global(*) {
+    flex: 1;
+    min-height: 0;
   }
 
   .charts-empty {

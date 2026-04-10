@@ -36,7 +36,7 @@
 <div class="card chart-card">
   <span class="chart-title">{title}</span>
   {#if hasEnoughData}
-    <div class="chart-container" style="height: {height}px">
+    <div class="chart-container" style="min-height: {height}px">
       <LayerCake {data} {x} {y} {xScale} {yDomain} {padding}>
         <Svg>
           {@render children()}
@@ -44,7 +44,7 @@
       </LayerCake>
     </div>
   {:else}
-    <div class="chart-empty" style="height: {height}px">
+    <div class="chart-empty" style="min-height: {height}px">
       <span class="chart-empty-text">More fill-ups needed for chart</span>
     </div>
   {/if}
@@ -53,6 +53,8 @@
 <style>
   .chart-card {
     padding: var(--space-3);
+    display: flex;
+    flex-direction: column;
   }
 
   .chart-title {
@@ -65,6 +67,8 @@
 
   .chart-container {
     width: 100%;
+    flex: 1;
+    min-height: 0;
   }
 
   .chart-empty {
