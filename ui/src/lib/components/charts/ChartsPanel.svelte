@@ -41,8 +41,7 @@
   }
 
   .charts-stack > :global(*) {
-    flex: 1;
-    min-height: 0;
+    flex: 1 0 auto;
   }
 
   .charts-empty {
