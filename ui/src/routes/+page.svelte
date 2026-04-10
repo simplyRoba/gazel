@@ -161,7 +161,7 @@
   }
 </script>
 
-<PageContainer width="wide">
+<PageContainer width="wide" fillHeight>
   {#if getVehiclesLoading()}
     <div class="skeleton-area">
       <div class="shimmer chip-skeleton"></div>
@@ -661,17 +661,29 @@
       display: none;
     }
 
+    .dashboard-content {
+      flex: 1;
+      min-height: 0;
+    }
+
     .dashboard-content:has(.charts-column) {
       display: grid;
       grid-template-columns: 1fr minmax(0, 420px);
       gap: var(--space-4);
-      align-items: start;
+      align-items: stretch;
     }
 
     .charts-column {
-      display: block;
-      position: sticky;
-      top: var(--space-4);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-4);
+      overflow-y: auto;
+      min-height: 0;
+    }
+
+    .fillups-column {
+      overflow-y: auto;
+      min-height: 0;
     }
   }
 
