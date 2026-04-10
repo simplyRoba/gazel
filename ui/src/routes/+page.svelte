@@ -319,7 +319,17 @@
     {/if}
 
     <!-- ── Mobile chart carousel (<=768px) ────────────── -->
-    {#if activeHistory.length >= 2}
+    {#if getStatsLoading() && activeHistory.length === 0}
+      <div class="chart-carousel-wrapper">
+        <div class="card skeleton-chart">
+          <div
+            class="shimmer"
+            style="width: 60px; height: 10px; margin-bottom: var(--space-2)"
+          ></div>
+          <div class="shimmer" style="width: 100%; height: 150px"></div>
+        </div>
+      </div>
+    {:else if activeHistory.length >= 2}
       <div class="chart-carousel-wrapper">
         <div
           class="chart-carousel"
@@ -359,7 +369,19 @@
     <!-- ── Two-column layout (desktop: charts + fill-ups) ── -->
     <div class="dashboard-content">
       <!-- Charts panel (desktop/tablet only, sticky) -->
-      {#if activeHistory.length >= 2}
+      {#if getStatsLoading() && activeHistory.length === 0}
+        <div class="charts-column">
+          {#each Array(3) as _, i (i)}
+            <div class="card skeleton-chart">
+              <div
+                class="shimmer"
+                style="width: 60px; height: 10px; margin-bottom: var(--space-2)"
+              ></div>
+              <div class="shimmer" style="width: 100%; height: 150px"></div>
+            </div>
+          {/each}
+        </div>
+      {:else if activeHistory.length >= 2}
         <div class="charts-column">
           <ChartsPanel
             segments={activeHistory}
@@ -376,7 +398,23 @@
         {#if getFillupsLoading()}
           <div class="fillup-list">
             {#each Array(3) as _, i (i)}
-              <div class="card shimmer skeleton-card"></div>
+              <div class="card skeleton-fillup">
+                <div class="skeleton-fillup-header">
+                  <div class="shimmer" style="width: 90px; height: 12px"></div>
+                  <div class="shimmer" style="width: 60px; height: 10px"></div>
+                </div>
+                <div class="skeleton-fillup-details">
+                  <div class="shimmer" style="width: 50px; height: 12px"></div>
+                  <div class="shimmer" style="width: 45px; height: 12px"></div>
+                  <div class="shimmer" style="width: 70px; height: 12px"></div>
+                </div>
+                <div class="skeleton-fillup-badges">
+                  <div
+                    class="shimmer"
+                    style="width: 55px; height: 18px; border-radius: 9px"
+                  ></div>
+                </div>
+              </div>
             {/each}
           </div>
         {:else if getFillups().length === 0}
@@ -743,7 +781,32 @@
     height: 36px;
   }
 
-  .skeleton-card {
-    height: 80px;
+  .skeleton-fillup {
+    padding: var(--space-4);
+  }
+
+  .skeleton-fillup-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--space-3);
+  }
+
+  .skeleton-fillup-details {
+    display: flex;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+  }
+
+  .skeleton-fillup-badges {
+    display: flex;
+    gap: var(--space-2);
+  }
+
+  .skeleton-chart {
+    padding: var(--space-3);
+  }
+
+  .skeleton-chart + .skeleton-chart {
+    margin-top: var(--space-3);
   }
 </style>
