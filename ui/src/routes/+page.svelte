@@ -193,7 +193,10 @@
     {#if getStatsLoading() && !fleetSummary}
       <div class="summary-grid" data-testid="summary-cards-loading">
         {#each Array(4) as _, i (i)}
-          <div class="card shimmer summary-skeleton"></div>
+          <div class="card skeleton-summary">
+            <div class="shimmer" style="width: 70%; height: 16px"></div>
+            <div class="shimmer" style="width: 50%; height: 10px"></div>
+          </div>
         {/each}
       </div>
     {:else if fleetSummary}
@@ -567,8 +570,11 @@
     opacity: 0.4;
   }
 
-  .summary-skeleton {
-    height: 56px;
+  .skeleton-summary {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3);
   }
 
   /* ── Vehicle chips ──────────────────────────────────── */
