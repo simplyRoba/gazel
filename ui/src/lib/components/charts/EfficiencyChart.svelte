@@ -2,7 +2,7 @@
   import { scaleTime } from "d3-scale";
   import type { SegmentHistory } from "$lib/api";
   import { toEfficiencyData } from "$lib/charts";
-  import { formatEfficiency } from "$lib/format";
+  import { toDisplayEfficiency, efficiencyUnitLabel } from "$lib/format";
   import ChartCard from "./ChartCard.svelte";
   import Line from "./Line.svelte";
   import Area from "./Area.svelte";
@@ -20,19 +20,21 @@
     volumeUnit: string;
   } = $props();
 
-  const chartData = $derived(toEfficiencyData(segments));
-
-  const unitLabel = $derived(
-    distanceUnit === "mi" && volumeUnit === "gal"
-      ? "mpg"
-      : `${distanceUnit}/${volumeUnit === "l" ? "L" : volumeUnit}`,
+  const chartData = $derived(
+    toEfficiencyData(segments).map((p) => ({
+      ...p,
+      value: toDisplayEfficiency(p.value, distanceUnit, volumeUnit),
+    })),
   );
+
+  const unitLabel = $derived(efficiencyUnitLabel(distanceUnit, volumeUnit));
 
   const yFormat = $derived((v: number) => v.toFixed(1));
 
   const tooltipFormatY = $derived((d: Record<string, unknown>) => {
     const v = d.value as number;
-    return formatEfficiency(v, distanceUnit, volumeUnit);
+    const unit = efficiencyUnitLabel(distanceUnit, volumeUnit);
+    return `${v.toFixed(1)} ${unit}`;
   });
 </script>
 

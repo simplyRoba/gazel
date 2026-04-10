@@ -4,6 +4,9 @@ import {
   formatDistance,
   formatEfficiency,
   formatVolume,
+  toDisplayEfficiency,
+  efficiencyUnitLabel,
+  isLper100km,
 } from "./format";
 
 describe("formatDistance", () => {
@@ -34,9 +37,57 @@ describe("formatVolume", () => {
   });
 });
 
+describe("isLper100km", () => {
+  it("returns true for km + l", () => {
+    expect(isLper100km("km", "l")).toBe(true);
+  });
+
+  it("returns false for imperial", () => {
+    expect(isLper100km("mi", "gal")).toBe(false);
+  });
+
+  it("returns false for mixed units", () => {
+    expect(isLper100km("km", "gal")).toBe(false);
+  });
+});
+
+describe("toDisplayEfficiency", () => {
+  it("converts km/L to L/100km for metric", () => {
+    // 10 km/L = 10 L/100km
+    expect(toDisplayEfficiency(10, "km", "l")).toBeCloseTo(10.0);
+    // 12.5 km/L = 8 L/100km
+    expect(toDisplayEfficiency(12.5, "km", "l")).toBeCloseTo(8.0);
+    // 7.7 km/L ≈ 12.99 L/100km
+    expect(toDisplayEfficiency(7.7, "km", "l")).toBeCloseTo(12.987, 2);
+  });
+
+  it("returns value as-is for imperial", () => {
+    expect(toDisplayEfficiency(32.1, "mi", "gal")).toBe(32.1);
+  });
+
+  it("handles zero gracefully", () => {
+    expect(toDisplayEfficiency(0, "km", "l")).toBe(0);
+  });
+});
+
+describe("efficiencyUnitLabel", () => {
+  it("returns L/100 km for metric", () => {
+    expect(efficiencyUnitLabel("km", "l")).toBe("L/100 km");
+  });
+
+  it("returns mpg for imperial", () => {
+    expect(efficiencyUnitLabel("mi", "gal")).toBe("mpg");
+  });
+
+  it("returns composite label for mixed units", () => {
+    expect(efficiencyUnitLabel("km", "gal")).toBe("km/gal");
+  });
+});
+
 describe("formatEfficiency", () => {
-  it("formats metric efficiency (km/L)", () => {
-    expect(formatEfficiency(15.3, "km", "l")).toBe("15.3 km/L");
+  it("formats metric efficiency as L/100km", () => {
+    // 12.5 km/L = 8.0 L/100km
+    expect(formatEfficiency(12.5, "km", "l")).toBe("8.0 L/100 km");
   });
 
   it("formats imperial efficiency as mpg", () => {
