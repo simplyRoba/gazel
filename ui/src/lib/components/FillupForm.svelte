@@ -154,6 +154,31 @@
     showMissedPrompt = avgGap > 0 && currentGap > avgGap * 1.75;
   });
 
+  // Auto-advance: Enter/Next on mobile advances to the next field
+  const fieldOrder = [
+    "f-date",
+    "f-odometer",
+    "f-fuel",
+    "f-cost",
+    "f-station",
+    "f-notes",
+  ];
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key !== "Enter") return;
+    const target = e.target as HTMLElement;
+    if (target.tagName === "TEXTAREA") return; // allow newlines in notes
+    if (target.tagName === "BUTTON") return; // let buttons do their thing
+
+    const currentId = target.id;
+    const idx = fieldOrder.indexOf(currentId);
+    if (idx < 0 || idx >= fieldOrder.length - 1) return;
+
+    e.preventDefault();
+    const nextEl = document.getElementById(fieldOrder[idx + 1]);
+    nextEl?.focus();
+  }
+
   function handleSubmit(e: Event) {
     e.preventDefault();
     dateError = "";
@@ -220,7 +245,7 @@
   }
 </script>
 
-<form id="fillup-form" onsubmit={handleSubmit}>
+<form id="fillup-form" onsubmit={handleSubmit} onkeydown={handleKeydown}>
   <div class="form-group">
     <label class="form-label" for="f-date">{t("fillup.form.date")}</label>
     <div class="input-wrap" class:input-error={!!dateError}>
@@ -228,6 +253,7 @@
         id="f-date"
         class="input"
         type="date"
+        enterkeyhint="next"
         bind:value={date}
         disabled={saving}
       />
@@ -245,9 +271,10 @@
       <input
         id="f-odometer"
         class="input"
-        type="number"
-        step="any"
-        min={odoMode === "trip" ? 0 : lastOdometer}
+        type="text"
+        inputmode="decimal"
+        enterkeyhint="next"
+        autocomplete="off"
         bind:value={odometer}
         placeholder={odoMode === "trip"
           ? t("fillup.form.tripPlaceholder")
@@ -279,8 +306,10 @@
         <input
           id="f-fuel"
           class="input"
-          type="number"
-          step="any"
+          type="text"
+          inputmode="decimal"
+          enterkeyhint="next"
+          autocomplete="off"
           bind:value={fuelAmount}
           placeholder={t("fillup.form.fuelPlaceholder")}
           disabled={saving}
@@ -297,8 +326,10 @@
         <input
           id="f-cost"
           class="input"
-          type="number"
-          step="any"
+          type="text"
+          inputmode="decimal"
+          enterkeyhint="next"
+          autocomplete="off"
           bind:value={cost}
           placeholder={t("fillup.form.costPlaceholder")}
           disabled={saving}
@@ -315,6 +346,7 @@
         id="f-station"
         class="input"
         type="text"
+        enterkeyhint="next"
         bind:value={station}
         placeholder={t("fillup.form.stationPlaceholder")}
         disabled={saving}
