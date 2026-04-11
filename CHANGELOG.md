@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.0](https://github.com/simplyRoba/gazel/compare/v0.7.0...v0.8.0) (2026-04-11)
+
+
+### Features
+
+* add monthly/yearly toggle to cost chart and fill month gaps ([229c6bf](https://github.com/simplyRoba/gazel/commit/229c6bf8052545d102e83379d4437ade780edfdd))
+* replace total distance card with monthly distance sparkline ([0e03ceb](https://github.com/simplyRoba/gazel/commit/0e03cebaec095e77d637db821251e595347699b6))
+
+
+### Bug Fixes
+
+* iOS button text appearing blue instead of design system color ([43b1410](https://github.com/simplyRoba/gazel/commit/43b14100b0125e0b8722bc2a992bbfbf0c28fbc3))
+* show numeric keypad on iOS and auto-advance between fields ([87a7603](https://github.com/simplyRoba/gazel/commit/87a760322f622eba2c543cc14d22c5dbaa9a8a1b))
+* timezone bug in monthly distance distribution ([81facc4](https://github.com/simplyRoba/gazel/commit/81facc4e67e79bff07074ca29c59a874e5dab55b))
+
 ## [0.7.0](https://github.com/simplyRoba/gazel/compare/v0.6.0...v0.7.0) (2026-04-10)
 
 
