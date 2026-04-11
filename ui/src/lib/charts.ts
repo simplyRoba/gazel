@@ -110,6 +110,12 @@ export function toYearlyCostData(
     .map(([month, value]) => ({ month, value }));
 }
 
+/** Parse a YYYY-MM-DD string as a local-time Date (avoids UTC shifting). */
+function parseLocalDate(dateStr: string): Date {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
 /**
  * Distributes segment distances proportionally across the months they span.
  * A segment from Jan 15 to Mar 20 has its distance split across Jan, Feb,
@@ -125,23 +131,27 @@ export function toMonthlyDistanceData(
   const monthMap = new Map<string, number>();
 
   for (const s of segments) {
-    const start = new Date(s.start_date);
-    const end = new Date(s.end_date);
+    const start = parseLocalDate(s.start_date);
+    // End date is inclusive (fill-up happened that day), so use next day
+    // as the exclusive boundary for proportional splitting.
+    const endExcl = parseLocalDate(s.end_date);
+    endExcl.setDate(endExcl.getDate() + 1);
     const totalDays = Math.max(
       1,
-      (end.getTime() - start.getTime()) / MS_PER_DAY,
+      (endExcl.getTime() - start.getTime()) / MS_PER_DAY,
     );
 
-    // Walk month by month from start to end, distributing distance
+    // Walk month by month from start to endExcl, distributing distance
     let cursor = new Date(start);
-    while (cursor <= end) {
+    while (cursor < endExcl) {
       const y = cursor.getFullYear();
       const m = cursor.getMonth();
       const key = `${y}-${String(m + 1).padStart(2, "0")}`;
 
-      // Slice: from max(cursor, segStart) to min(firstOfNextMonth, segEnd)
+      // Slice: from cursor to min(firstOfNextMonth, endExcl)
       const nextMonth = new Date(y, m + 1, 1);
-      const sliceEnd = nextMonth.getTime() <= end.getTime() ? nextMonth : end;
+      const sliceEnd =
+        nextMonth.getTime() <= endExcl.getTime() ? nextMonth : endExcl;
       const daysInSlice = (sliceEnd.getTime() - cursor.getTime()) / MS_PER_DAY;
 
       if (daysInSlice > 0) {
