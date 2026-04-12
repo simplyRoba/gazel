@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.0](https://github.com/simplyRoba/gazel/compare/v0.8.0...v0.9.0) (2026-04-12)
+
+
+### Features
+
+* replace efficiency chart with distance line chart, move efficiency to summary card, add fuel price trend line ([59d70e8](https://github.com/simplyRoba/gazel/commit/59d70e833fb3582cbda21eebd2bcab2708701549))
+
 ## [0.8.0](https://github.com/simplyRoba/gazel/compare/v0.7.0...v0.8.0) (2026-04-11)
 
 
