@@ -7,6 +7,7 @@
   import { getSettings } from "$lib/stores/settings.svelte";
   import ChartCard from "./ChartCard.svelte";
   import Line from "./Line.svelte";
+  import TrendLine from "./TrendLine.svelte";
   import AxisX from "./AxisX.svelte";
   import AxisY from "./AxisY.svelte";
   import Tooltip from "./Tooltip.svelte";
@@ -57,5 +58,6 @@
   <AxisY format={yFormat} />
   <AxisX />
   <Line />
+  <TrendLine />
   <Tooltip formatY={tooltipFormatY} />
 </ChartCard>

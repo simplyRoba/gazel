@@ -19,7 +19,7 @@
   "dashboard.empty.description": "Add your first vehicle to start tracking fill-ups and fuel efficiency.",
   "dashboard.empty.action": "Add vehicle",
   "dashboard.summary.totalDistance": "Total distance",
-  "dashboard.summary.monthlyDistance": "Monthly distance",
+  "dashboard.summary.avgEfficiency": "Avg. efficiency",
   "dashboard.summary.totalSpent": "Total spent",
   "dashboard.summary.fillups": "Fill-ups",
   "dashboard.summary.costPer": "Cost per {unit}",
@@ -160,6 +160,8 @@
   "charts.yearlyCost": "Yearly cost ({currency})",
   "charts.monthly": "Monthly",
   "charts.yearly": "Yearly",
+  "charts.monthlyDistance": "Monthly distance ({unit})",
+  "charts.yearlyDistance": "Yearly distance ({unit})",
   "charts.fuelPrice": "Fuel price ({currency}/{unit})",
 
   "toast.dismiss": "Dismiss",

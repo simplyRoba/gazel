@@ -1,5 +1,5 @@
 import type { Readable } from "svelte/store";
-import type { ScaleLinear, ScaleTime, ScaleBand } from "d3-scale";
+import type { ScaleLinear, ScaleTime, ScaleBand, ScalePoint } from "d3-scale";
 
 import type { SegmentHistory } from "$lib/api";
 
@@ -11,7 +11,10 @@ export interface LayerCakeContext {
   xGet: Readable<(d: Record<string, any>) => number>;
   yGet: Readable<(d: Record<string, any>) => number>;
   xScale: Readable<
-    ScaleLinear<number, number> | ScaleTime<number, number> | ScaleBand<string>
+    | ScaleLinear<number, number>
+    | ScaleTime<number, number>
+    | ScaleBand<string>
+    | ScalePoint<string>
   >;
   yScale: Readable<ScaleLinear<number, number>>;
   width: Readable<number>;
@@ -182,6 +185,53 @@ export function toMonthlyDistanceData(
   }
 
   return result;
+}
+
+/**
+ * Aggregates segment distances by calendar year.
+ * Returns sorted (chronological) yearly totals.
+ */
+export function toYearlyDistanceData(
+  segments: SegmentHistory[],
+): MonthlyCostPoint[] {
+  if (segments.length === 0) return [];
+
+  const MS_PER_DAY = 86_400_000;
+  const yearMap = new Map<string, number>();
+
+  for (const s of segments) {
+    const start = parseLocalDate(s.start_date);
+    const endExcl = parseLocalDate(s.end_date);
+    endExcl.setDate(endExcl.getDate() + 1);
+    const totalDays = Math.max(
+      1,
+      (endExcl.getTime() - start.getTime()) / MS_PER_DAY,
+    );
+
+    // Walk year by year from start to endExcl, distributing distance
+    let cursor = new Date(start);
+    while (cursor < endExcl) {
+      const y = cursor.getFullYear();
+      const key = String(y);
+
+      // Slice: from cursor to min(firstOfNextYear, endExcl)
+      const nextYear = new Date(y + 1, 0, 1);
+      const sliceEnd =
+        nextYear.getTime() <= endExcl.getTime() ? nextYear : endExcl;
+      const daysInSlice = (sliceEnd.getTime() - cursor.getTime()) / MS_PER_DAY;
+
+      if (daysInSlice > 0) {
+        const fraction = daysInSlice / totalDays;
+        yearMap.set(key, (yearMap.get(key) ?? 0) + s.distance * fraction);
+      }
+
+      cursor = nextYear;
+    }
+  }
+
+  return Array.from(yearMap.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([month, value]) => ({ month, value: Math.round(value) }));
 }
 
 /**

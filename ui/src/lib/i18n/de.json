@@ -19,7 +19,7 @@
   "dashboard.empty.description": "Füge dein erstes Fahrzeug hinzu, um Tankfüllungen und Kraftstoffeffizienz zu verfolgen.",
   "dashboard.empty.action": "Fahrzeug hinzufügen",
   "dashboard.summary.totalDistance": "Gesamtstrecke",
-  "dashboard.summary.monthlyDistance": "Monatliche Strecke",
+  "dashboard.summary.avgEfficiency": "Durchschn. Effizienz",
   "dashboard.summary.totalSpent": "Gesamtausgaben",
   "dashboard.summary.fillups": "Tankfüllungen",
   "dashboard.summary.costPer": "Kosten pro {unit}",
@@ -160,6 +160,8 @@
   "charts.yearlyCost": "Jährliche Kosten ({currency})",
   "charts.monthly": "Monatlich",
   "charts.yearly": "Jährlich",
+  "charts.monthlyDistance": "Monatliche Strecke ({unit})",
+  "charts.yearlyDistance": "Jährliche Strecke ({unit})",
   "charts.fuelPrice": "Kraftstoffpreis ({currency}/{unit})",
 
   "toast.dismiss": "Schließen",

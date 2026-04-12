@@ -2,7 +2,7 @@
   import type { Snippet } from "svelte";
   import { t } from "$lib/i18n";
   import { LayerCake, Svg } from "layercake";
-  import type { ScaleTime, ScaleBand, ScaleLinear } from "d3-scale";
+  import type { ScaleTime, ScaleBand, ScaleLinear, ScalePoint } from "d3-scale";
 
   /* eslint-disable @typescript-eslint/no-explicit-any */
   let {
@@ -12,7 +12,7 @@
     y,
     xScale = undefined,
     yDomain = undefined,
-    padding = { top: 10, right: 10, bottom: 30, left: 44 },
+    padding = { top: 10, right: 10, bottom: 30, left: 52 },
     height = 180,
     actions,
     children,
@@ -24,6 +24,7 @@
     xScale?:
       | ScaleTime<number, number>
       | ScaleBand<string>
+      | ScalePoint<string>
       | ScaleLinear<number, number>;
     yDomain?: [number | null, number | null];
     padding?: { top?: number; right?: number; bottom?: number; left?: number };

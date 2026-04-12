@@ -6,7 +6,7 @@
   import EmptyState from "$lib/components/EmptyState.svelte";
   import FillupModal from "$lib/components/FillupModal.svelte";
   import ChartsPanel from "$lib/components/charts/ChartsPanel.svelte";
-  import EfficiencyChart from "$lib/components/charts/EfficiencyChart.svelte";
+  import DistanceChart from "$lib/components/charts/DistanceChart.svelte";
   import CostChart from "$lib/components/charts/CostChart.svelte";
   import FuelPriceChart from "$lib/components/charts/FuelPriceChart.svelte";
   import Sparkline from "$lib/components/charts/Sparkline.svelte";
@@ -37,6 +37,7 @@
     formatCurrency,
     formatVolume,
     formatEfficiency,
+    toDisplayEfficiency,
   } from "$lib/format";
   import { t } from "$lib/i18n";
   import type { Fillup, CreateFillup } from "$lib/api";
@@ -45,7 +46,7 @@
     getEfficiencyForFillup,
     computeFleetSummary,
   } from "$lib/stats";
-  import { toSparklineData, toMonthlyDistanceData } from "$lib/charts";
+  import { toSparklineData, toEfficiencyData } from "$lib/charts";
 
   // Modal state
   let showFillupModal = $state(false);
@@ -81,30 +82,35 @@
       : [],
   );
 
-  // Monthly distance sparkline — uses all vehicle histories for fleet,
+  // Efficiency sparkline — uses all vehicle histories for fleet,
   // active vehicle history for per-vehicle view
   const allHistory = $derived(vehicles.flatMap((v) => getVehicleHistory(v.id)));
 
-  const monthlyDistanceData = $derived(toMonthlyDistanceData(allHistory));
-  const monthlyDistanceSparkline = $derived(
-    monthlyDistanceData.length >= 2
-      ? monthlyDistanceData.map((d, i) => ({ x: i, y: d.value }))
+  const fleetEfficiencyData = $derived(toEfficiencyData(allHistory));
+  const fleetEfficiencySparkline = $derived(
+    fleetEfficiencyData.length >= 2
+      ? fleetEfficiencyData.map((d, i) => ({
+          x: i,
+          y: toDisplayEfficiency(
+            d.value,
+            settings.distance_unit,
+            settings.volume_unit,
+          ),
+        }))
       : [],
   );
-  const currentMonthDistance = $derived(
-    monthlyDistanceData.length > 0
-      ? monthlyDistanceData[monthlyDistanceData.length - 1].value
-      : 0,
-  );
+  const fleetAvgEfficiency = $derived.by(() => {
+    if (fleetEfficiencyData.length === 0) return null;
+    const sum = fleetEfficiencyData.reduce((a, d) => a + d.value, 0);
+    return sum / fleetEfficiencyData.length;
+  });
 
-  const activeMonthlyDistanceData = $derived(
-    toMonthlyDistanceData(activeHistory),
-  );
-  const activeCurrentMonthDistance = $derived(
-    activeMonthlyDistanceData.length > 0
-      ? activeMonthlyDistanceData[activeMonthlyDistanceData.length - 1].value
-      : 0,
-  );
+  const activeEfficiencyData = $derived(toEfficiencyData(activeHistory));
+  const activeAvgEfficiency = $derived.by(() => {
+    if (activeEfficiencyData.length === 0) return null;
+    const sum = activeEfficiencyData.reduce((a, d) => a + d.value, 0);
+    return sum / activeEfficiencyData.length;
+  });
 
   // ── Segment-to-fillup efficiency map ───────────────────
 
@@ -233,19 +239,24 @@
           <span class="summary-label">{t("dashboard.summary.totalSpent")}</span>
         </div>
         <div class="card summary-card summary-card--sparkline">
-          <span class="summary-value mono"
-            >{formatDistance(
-              currentMonthDistance,
-              settings.distance_unit,
-              settings.locale,
-            )}</span
-          >
+          <span class="summary-value mono">
+            {#if fleetAvgEfficiency !== null}
+              {formatEfficiency(
+                fleetAvgEfficiency,
+                settings.distance_unit,
+                settings.volume_unit,
+                settings.locale,
+              )}
+            {:else}
+              &mdash;
+            {/if}
+          </span>
           <span class="summary-label"
-            >{t("dashboard.summary.monthlyDistance")}</span
+            >{t("dashboard.summary.avgEfficiency")}</span
           >
-          {#if monthlyDistanceSparkline.length >= 2}
+          {#if fleetEfficiencySparkline.length >= 2}
             <div class="sparkline-bg">
-              <Sparkline data={monthlyDistanceSparkline} />
+              <Sparkline data={fleetEfficiencySparkline} />
             </div>
           {/if}
         </div>
@@ -317,15 +328,20 @@
             >
           </div>
           <div class="vehicle-stat">
-            <span class="vehicle-stat-value mono"
-              >{formatDistance(
-                activeCurrentMonthDistance,
-                settings.distance_unit,
-                settings.locale,
-              )}</span
-            >
+            <span class="vehicle-stat-value mono">
+              {#if activeAvgEfficiency !== null}
+                {formatEfficiency(
+                  activeAvgEfficiency,
+                  settings.distance_unit,
+                  settings.volume_unit,
+                  settings.locale,
+                )}
+              {:else}
+                &mdash;
+              {/if}
+            </span>
             <span class="vehicle-stat-label"
-              >{t("dashboard.summary.monthlyDistance")}</span
+              >{t("dashboard.summary.avgEfficiency")}</span
             >
           </div>
           <div class="vehicle-stat">
@@ -369,14 +385,13 @@
           onscroll={handleCarouselScroll}
         >
           <div class="chart-carousel-item">
-            <EfficiencyChart
-              segments={activeHistory}
-              distanceUnit={settings.distance_unit}
-              volumeUnit={settings.volume_unit}
-            />
+            <CostChart segments={activeHistory} currency={settings.currency} />
           </div>
           <div class="chart-carousel-item">
-            <CostChart segments={activeHistory} currency={settings.currency} />
+            <DistanceChart
+              segments={activeHistory}
+              distanceUnit={settings.distance_unit}
+            />
           </div>
           <div class="chart-carousel-item">
             <FuelPriceChart
