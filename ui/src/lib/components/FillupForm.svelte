@@ -43,13 +43,11 @@
   });
 
   // Track previous odoMode to convert values on switch
-  let prevOdoMode = $state(odoMode);
+  let prevOdoMode = $state<"total" | "trip">("total");
 
-  // Form fields — odometer defaults to last reading in create mode
-  let date = $state(initial?.date ?? new Date().toISOString().slice(0, 10));
-  let odometer = $state(
-    initial?.odometer?.toString() ?? lastOdometer?.toString() ?? "",
-  );
+  // Form fields — plain defaults; $effect below populates from props
+  let date = $state(new Date().toISOString().slice(0, 10));
+  let odometer = $state("");
 
   // Convert odometer value when odoMode prop changes
   $effect(() => {
@@ -72,12 +70,12 @@
     }
     prevOdoMode = odoMode;
   });
-  let fuelAmount = $state(initial?.fuel_amount?.toString() ?? "");
-  let cost = $state(initial?.cost?.toString() ?? "");
-  let station = $state(initial?.station ?? "");
-  let notes = $state(initial?.notes ?? "");
-  let isFullTank = $state(initial?.is_full_tank ?? true);
-  let isMissed = $state(initial?.is_missed ?? false);
+  let fuelAmount = $state("");
+  let cost = $state("");
+  let station = $state("");
+  let notes = $state("");
+  let isFullTank = $state(true);
+  let isMissed = $state(false);
 
   // Resolve the absolute odometer value from either entry mode
   function resolveOdometer(): number {
@@ -98,8 +96,9 @@
   // Smart missed fill-up prompt
   let showMissedPrompt = $state(false);
 
-  // Re-fill when initial changes
+  // Populate form from props (runs on mount and when initial/odoMode changes)
   $effect(() => {
+    prevOdoMode = odoMode;
     if (initial) {
       date = initial.date;
       odometer = initial.odometer.toString();
@@ -109,6 +108,8 @@
       notes = initial.notes ?? "";
       isFullTank = initial.is_full_tank;
       isMissed = initial.is_missed;
+    } else if (lastOdometer != null) {
+      odometer = lastOdometer.toString();
     }
   });
 
@@ -245,6 +246,7 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
 <form id="fillup-form" onsubmit={handleSubmit} onkeydown={handleKeydown}>
   <div class="form-group">
     <label class="form-label" for="f-date">{t("fillup.form.date")}</label>

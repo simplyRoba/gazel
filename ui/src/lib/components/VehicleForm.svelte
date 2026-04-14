@@ -24,12 +24,13 @@
     saving?: boolean;
   } = $props();
 
-  let name = $state(initial?.name ?? "");
-  let make = $state(initial?.make ?? "");
-  let model = $state(initial?.model ?? "");
-  let year = $state(initial?.year?.toString() ?? "");
-  let fuelType = $state(initial?.fuel_type ?? "gasoline");
-  let notes = $state(initial?.notes ?? "");
+  // Form fields — plain defaults; $effect below populates from props
+  let name = $state("");
+  let make = $state("");
+  let model = $state("");
+  let year = $state("");
+  let fuelType = $state("gasoline");
+  let notes = $state("");
   let nameError = $state("");
 
   // Re-fill when initial changes (edit page load)

@@ -61,6 +61,7 @@
 
 <!-- Invisible overlay to capture mouse events -->
 <rect
+  role="presentation"
   x={0}
   y={0}
   width={$width}
