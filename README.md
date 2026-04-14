@@ -22,11 +22,11 @@ A lightweight, self-hosted fuel expense and mileage tracker. Log fill-ups, track
 The gazel remembers every drop so you don't have to.
 
 <p align="center">
-  <img src="docs/assets/screenshot-dashboard-light.png" alt="gazel dashboard – light mode" width="720" /><br/>
-  <img src="docs/assets/screenshot-dashboard-dark.png" alt="gazel dashboard – dark mode" width="720" />
+  <img src="docs/assets/screenshot-dashboard-light.png" alt="gazel dashboard – light mode" width="400" />
+  <img src="docs/assets/screenshot-dashboard-dark.png" alt="gazel dashboard – dark mode" width="400" />
 </p>
 <p align="center">
-  <img src="docs/assets/screenshot-mobile.png" alt="gazel mobile view" width="280" />
+  <img src="docs/assets/screenshot-mobile.png" alt="gazel mobile view" width="120" />
 </p>
 
 ## Features
