@@ -24,6 +24,12 @@
       "sizes": "1024x1024",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-glass-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "monochrome"
     }
   ],
   "user_preferences": {

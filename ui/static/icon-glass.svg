@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!--
+    Liquid glass icon: transparent background, single-color gazelle glyph.
+    iOS applies the glass material and tinting automatically.
+    The glyph is centered with ~15% padding for the safe zone.
+  -->
+
+  <!-- Gazelle silhouette — same geometry as logo, merged into single group -->
+  <g fill="#1A1A1A" transform="translate(56, 28) scale(0.78)">
+    <!-- HORN 1 (back) -->
+    <polygon points="202,69 289,133 300,131"/>
+
+    <!-- HORN 2 (front) -->
+    <polygon points="208,67 294,121 302,118"/>
+
+    <!-- HEAD -->
+    <polygon points="301,135 335,182 290,160"/>
+
+    <!-- NECK -->
+    <polygon points="289,165 358,200 282,257"/>
+
+    <!-- CHEST + FRONT LEG -->
+    <polygon points="358,204 315,399 282,261"/>
+
+    <!-- BACK + BACK LEG -->
+    <polygon points="276,262 143,248 171,400"/>
+
+    <!-- TAIL -->
+    <polygon points="106,206 138,243 155,246"/>
+  </g>
+</svg>
