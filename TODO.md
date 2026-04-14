@@ -242,7 +242,7 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 > Final pass before 1.0 tag.
 
-- [ ] Audit all pages for responsiveness (phone, tablet, desktop)
+- [x] Audit all pages for responsiveness (phone, tablet, desktop)
 - [x] Keyboard navigation and basic a11y (labels, focus management, contrast)
 - [x] Loading states and error handling for all async operations
 - [x] Empty states for every list/page
