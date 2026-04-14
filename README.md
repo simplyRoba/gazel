@@ -21,9 +21,15 @@ A lightweight, self-hosted fuel expense and mileage tracker. Log fill-ups, track
 
 The gazel remembers every drop so you don't have to.
 
-## Features
+<p align="center">
+  <img src="docs/assets/screenshot-dashboard-light.png" alt="gazel dashboard – light mode" width="720" /><br/>
+  <img src="docs/assets/screenshot-dashboard-dark.png" alt="gazel dashboard – dark mode" width="720" />
+</p>
+<p align="center">
+  <img src="docs/assets/screenshot-mobile.png" alt="gazel mobile view" width="280" />
+</p>
 
-<!-- TODO: add screenshots once UI is implemented -->
+## Features
 
 - **Multi-vehicle tracking** — manage all your cars, motorcycles, and trucks in one place
 - **Fill-up logging** — record date, odometer, fuel amount, cost, and station
@@ -32,8 +38,10 @@ The gazel remembers every drop so you don't have to.
 - **Dashboard** — at-a-glance overview with summary stats and recent activity
 - **Charts** — visualize efficiency, cost, and fuel price trends over time
 - **Flexible units** — switch between imperial and metric, choose your currency
+- **Multi-language** — English and German
 - **Data portability** — export and import your data as JSON
 - **Light & dark theme** — follows your system preference, with manual override
+- **Installable PWA** — add to home screen on mobile for a native-like experience
 - **Single binary** — self-contained Rust service with embedded UI, just run it or use Docker
 
 ## Quick start
@@ -57,15 +65,19 @@ docker compose up -d
 
 ## Configuration
 
-| Variable | Default | Description |
-| --- | --- | --- |
-| `GAZEL_PORT` | `4110` | HTTP server listen port. |
-| `GAZEL_DB_PATH` | `/data/gazel.db` | Filesystem path to the SQLite database. |
-| `GAZEL_LOG_LEVEL` | `info` | `tracing` level filter for logs. |
+| Variable          | Default          | Description                             |
+| ----------------- | ---------------- | --------------------------------------- |
+| `GAZEL_PORT`      | `4110`           | HTTP server listen port.                |
+| `GAZEL_DB_PATH`   | `/data/gazel.db` | Filesystem path to the SQLite database. |
+| `GAZEL_LOG_LEVEL` | `info`           | `tracing` level filter for logs.        |
 
 ## Security
 
 gazel has no built-in authentication. It is designed to run on a trusted home network or behind a reverse proxy that handles auth (e.g., Authelia, Authentik, Caddy with basic auth). Do not expose it directly to the internet.
+
+## Development
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, testing, and design system documentation.
 
 ---
 

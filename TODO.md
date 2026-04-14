@@ -247,7 +247,7 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 - [x] Loading states and error handling for all async operations
 - [x] Empty states for every list/page
 - [x] Favicon, OpenGraph meta, app manifest
-- [ ] Update README with feature overview and screenshots
+- [x] Update README with feature overview and screenshots
 - [x] Update CONTRIBUTING.md design section with final tokens
 - [x] Review and close any remaining OpenSpec changes
 
