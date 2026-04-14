@@ -46,9 +46,11 @@
   import { t } from "$lib/i18n";
 
   let deleteTarget = $state<Vehicle | null>(null);
+  let deleting = $state(false);
 
   // ── Export state ──────────────────────────────────
   let exporting = $state(false);
+  let exportingVehicleId = $state<number | null>(null);
 
   // ── Import state ──────────────────────────────────
   let importMode = $state<ImportMode>("replace");
@@ -65,46 +67,61 @@
 
   async function handleDeleteConfirm() {
     if (!deleteTarget) return;
-    await deleteVehicle(deleteTarget.id);
-    deleteTarget = null;
+    deleting = true;
+    const ok = await deleteVehicle(deleteTarget.id);
+    deleting = false;
+    if (ok) {
+      deleteTarget = null;
+    }
   }
 
   function handleTheme(pref: ThemePreference) {
     setTheme(pref);
   }
 
+  function notifyIfFailed(ok: boolean) {
+    if (!ok) {
+      pushNotification({
+        variant: "error",
+        message: t("settings.updateFailed"),
+      });
+    }
+  }
+
   async function handleUnitSystem(system: string) {
+    let ok: boolean;
     if (system === "metric") {
-      await updateSettingsStore({
+      ok = await updateSettingsStore({
         unit_system: "metric",
         distance_unit: "km",
         volume_unit: "l",
       });
     } else if (system === "imperial") {
-      await updateSettingsStore({
+      ok = await updateSettingsStore({
         unit_system: "imperial",
         distance_unit: "mi",
         volume_unit: "gal",
       });
     } else {
-      await updateSettingsStore({ unit_system: "custom" });
+      ok = await updateSettingsStore({ unit_system: "custom" });
     }
+    notifyIfFailed(ok);
   }
 
   async function handleDistanceUnit(unit: string) {
-    await updateSettingsStore({ distance_unit: unit });
+    notifyIfFailed(await updateSettingsStore({ distance_unit: unit }));
   }
 
   async function handleVolumeUnit(unit: string) {
-    await updateSettingsStore({ volume_unit: unit });
+    notifyIfFailed(await updateSettingsStore({ volume_unit: unit }));
   }
 
   async function handleCurrency(code: string) {
-    await updateSettingsStore({ currency: code });
+    notifyIfFailed(await updateSettingsStore({ currency: code }));
   }
 
   async function handleLocale(locale: string) {
-    await updateSettingsStore({ locale });
+    notifyIfFailed(await updateSettingsStore({ locale }));
   }
 
   const currencies = [
@@ -132,12 +149,15 @@
   }
 
   async function handleExportVehicle(id: number) {
+    exportingVehicleId = id;
     try {
       await exportVehicle(id);
     } catch (e) {
       const msg =
         e instanceof ApiError ? e.message : t("settings.export.failed");
       pushNotification({ variant: "error", message: msg });
+    } finally {
+      exportingVehicleId = null;
     }
   }
 
@@ -466,6 +486,7 @@
                 <button
                   class="btn btn-icon"
                   title={t("settings.vehicles.export")}
+                  disabled={exportingVehicleId === vehicle.id}
                   onclick={() => handleExportVehicle(vehicle.id)}
                 >
                   <Download size={16} />
@@ -651,6 +672,7 @@
     : ""}
   mode="confirm"
   variant="danger"
+  loading={deleting}
   confirmLabel={t("common.delete")}
   onconfirm={handleDeleteConfirm}
   oncancel={() => (deleteTarget = null)}

@@ -94,6 +94,7 @@
   "settings.import.vehiclesUpdated": "{count} Fahrzeug(e) aktualisiert",
   "settings.import.fillupsCreated": "{count} Tankfüllung(en) erstellt",
   "settings.import.fillupsSkipped": "{count} Tankfüllung(en) übersprungen",
+  "settings.updateFailed": "Einstellung konnte nicht gespeichert werden.",
   "settings.deleteVehicle.title": "Fahrzeug löschen",
   "settings.deleteVehicle.message": "\"{name}\" löschen? Dies kann nicht rückgängig gemacht werden.",
 

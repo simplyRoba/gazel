@@ -244,12 +244,12 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 - [ ] Audit all pages for responsiveness (phone, tablet, desktop)
 - [x] Keyboard navigation and basic a11y (labels, focus management, contrast)
-- [ ] Loading states and error handling for all async operations
-- [ ] Empty states for every list/page
+- [x] Loading states and error handling for all async operations
+- [x] Empty states for every list/page
 - [x] Favicon, OpenGraph meta, app manifest
 - [ ] Update README with feature overview and screenshots
-- [ ] Update CONTRIBUTING.md design section with final tokens
-- [ ] Review and close any remaining OpenSpec changes
+- [x] Update CONTRIBUTING.md design section with final tokens
+- [x] Review and close any remaining OpenSpec changes
 
 ## 16. Pull to refresh (PWA)
 

@@ -48,6 +48,7 @@
       saving = false;
       saveError = null;
       showDeleteConfirm = false;
+      deleteLoading = false;
       odoMode = "total";
     }
   });
@@ -82,15 +83,17 @@
     showDeleteConfirm = true;
   }
 
+  let deleteLoading = $state(false);
+
   async function handleDeleteConfirm() {
     if (!initial || !ondelete) return;
-    showDeleteConfirm = false;
-    saving = true;
+    deleteLoading = true;
     try {
       await ondelete(initial.id);
+      showDeleteConfirm = false;
       onclose();
     } finally {
-      saving = false;
+      deleteLoading = false;
     }
   }
 </script>
@@ -156,6 +159,7 @@
   message={t("fillup.modal.deleteMessage")}
   mode="confirm"
   variant="danger"
+  loading={deleteLoading}
   confirmLabel={t("common.delete")}
   onconfirm={handleDeleteConfirm}
   oncancel={() => (showDeleteConfirm = false)}

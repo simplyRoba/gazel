@@ -7,6 +7,7 @@
     message = "",
     mode = "confirm",
     variant = "warning",
+    loading = false,
     confirmLabel = t("common.confirm"),
     onconfirm,
     oncancel,
@@ -17,6 +18,7 @@
     message?: string;
     mode?: "confirm" | "alert";
     variant?: "danger" | "warning";
+    loading?: boolean;
     confirmLabel?: string;
     onconfirm?: () => void;
     oncancel?: () => void;
@@ -36,6 +38,7 @@
 
   function handleCancel(e: Event) {
     e.preventDefault();
+    if (loading) return;
     if (mode === "confirm") {
       oncancel?.();
     } else {
@@ -44,7 +47,7 @@
   }
 
   function handleBackdropClick(e: MouseEvent) {
-    if (mode === "alert") return;
+    if (mode === "alert" || loading) return;
     if (e.target === dialogEl) {
       oncancel?.();
     }
@@ -67,15 +70,21 @@
     <p class="modal-message">{message}</p>
     <div class="modal-actions">
       {#if mode === "confirm"}
-        <button type="button" class="btn btn-secondary" onclick={oncancel}>
+        <button
+          type="button"
+          class="btn btn-secondary"
+          disabled={loading}
+          onclick={oncancel}
+        >
           {t("common.cancel")}
         </button>
         <button
           type="button"
           class="btn {variant === 'danger' ? 'btn-danger' : 'btn-primary'}"
+          disabled={loading}
           onclick={onconfirm}
         >
-          {confirmLabel}
+          {loading ? t("common.saving") : confirmLabel}
         </button>
       {:else}
         <button
