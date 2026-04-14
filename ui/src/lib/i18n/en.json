@@ -200,5 +200,9 @@
   "store.fillups.loadFailed": "Failed to load fill-ups",
   "store.fillups.createFailed": "Failed to create fill-up",
   "store.fillups.updateFailed": "Failed to update fill-up",
-  "store.fillups.deleteFailed": "Failed to delete fill-up"
+  "store.fillups.deleteFailed": "Failed to delete fill-up",
+
+  "pullToRefresh.pulling": "Pull to refresh",
+  "pullToRefresh.release": "Release to refresh",
+  "pullToRefresh.refreshing": "Refreshing..."
 }

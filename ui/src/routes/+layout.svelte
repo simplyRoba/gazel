@@ -13,8 +13,8 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { resolve } from "$app/paths";
-  import { onMount } from "svelte";
-  import { LayoutDashboard, Settings, Plus } from "lucide-svelte";
+  import { onMount, untrack } from "svelte";
+  import { LayoutDashboard, Settings, Plus, Check } from "lucide-svelte";
   import { initSettings } from "$lib/stores/settings.svelte";
   import { getVehicles, loadVehicles } from "$lib/stores/vehicles.svelte";
   import {
@@ -27,6 +27,19 @@
   import FillupModal from "$lib/components/FillupModal.svelte";
   import type { CreateFillup, Vehicle } from "$lib/api";
   import { t } from "$lib/i18n";
+  import {
+    PULL_TO_REFRESH_THRESHOLD,
+    isStandalonePwaSession,
+    isTouchCapableDevice,
+    canStartPullToRefresh,
+    hasBlockingPullToRefreshOverlay,
+    calculatePullOffset,
+    calculateContentOffset,
+    getPullIndicatorState,
+    shouldTriggerPullToRefresh,
+    schedulePullToRefreshReload,
+    type PullIndicatorState,
+  } from "$lib/pull-to-refresh";
 
   let { children } = $props();
 
@@ -100,9 +113,154 @@
     }
   });
 
-  onMount(async () => {
-    await initSettings();
-    await loadVehicles();
+  // ── Pull-to-refresh state ──────────────────────────────
+  let canUsePullToRefresh = $state(false);
+  let gestureActive = $state(false);
+  let touchStartY: number | null = $state(null);
+  let rawPullDistance = $state(0);
+  let pullOffset = $state(0);
+  let contentOffset = $state(0);
+  let pullIndicatorState = $state<PullIndicatorState>("idle");
+  let reloadTimeoutId: number | null = $state(null);
+
+  let pullIndicatorVisible = $derived(pullIndicatorState !== "idle");
+  let pullLabel = $derived(
+    pullIndicatorState === "refreshing"
+      ? t("pullToRefresh.refreshing")
+      : pullIndicatorState === "release"
+        ? t("pullToRefresh.release")
+        : t("pullToRefresh.pulling"),
+  );
+  let spinnerRotation = $derived(
+    Math.min(rawPullDistance / PULL_TO_REFRESH_THRESHOLD, 1) * 360,
+  );
+
+  function resetPullGesture(): void {
+    gestureActive = false;
+    touchStartY = null;
+    rawPullDistance = 0;
+    pullOffset = 0;
+    contentOffset = 0;
+    pullIndicatorState = "idle";
+  }
+
+  function handleTouchStart(e: TouchEvent): void {
+    if (e.touches.length !== 1) return;
+    if (
+      !canStartPullToRefresh({
+        standalone: canUsePullToRefresh,
+        touchCapable: true,
+        pathname: page.url.pathname,
+        scrollTop:
+          document.documentElement.scrollTop || document.body.scrollTop,
+        overlayOpen: hasBlockingPullToRefreshOverlay(document),
+      })
+    )
+      return;
+
+    if (reloadTimeoutId !== null) {
+      clearTimeout(reloadTimeoutId);
+      reloadTimeoutId = null;
+    }
+
+    touchStartY = e.touches[0].clientY;
+    gestureActive = true;
+    rawPullDistance = 0;
+    pullOffset = 0;
+    contentOffset = 0;
+    pullIndicatorState = "idle";
+  }
+
+  function handleTouchMove(e: TouchEvent): void {
+    if (!gestureActive || touchStartY === null) return;
+    if (e.touches.length !== 1 || hasBlockingPullToRefreshOverlay(document)) {
+      resetPullGesture();
+      return;
+    }
+
+    const distance = e.touches[0].clientY - touchStartY;
+
+    if (distance <= 0) {
+      rawPullDistance = 0;
+      pullOffset = 0;
+      contentOffset = 0;
+      pullIndicatorState = "idle";
+      return;
+    }
+
+    rawPullDistance = distance;
+    pullOffset = calculatePullOffset(distance);
+    contentOffset = calculateContentOffset(distance);
+    pullIndicatorState = getPullIndicatorState(distance);
+    e.preventDefault();
+  }
+
+  function handleTouchEnd(): void {
+    if (!gestureActive) return;
+
+    if (shouldTriggerPullToRefresh(rawPullDistance)) {
+      gestureActive = false;
+      touchStartY = null;
+      pullIndicatorState = "refreshing";
+      reloadTimeoutId = schedulePullToRefreshReload(window, () =>
+        window.location.reload(),
+      );
+    } else {
+      resetPullGesture();
+    }
+  }
+
+  function handleTouchCancel(): void {
+    resetPullGesture();
+  }
+
+  // Reset gesture on route change (unless refreshing)
+  $effect(() => {
+    const _pathname = page.url.pathname;
+    if (untrack(() => pullIndicatorState) !== "refreshing") {
+      resetPullGesture();
+    }
+  });
+
+  // Reset gesture if capability lost
+  $effect(() => {
+    if (
+      !canUsePullToRefresh &&
+      untrack(() => pullIndicatorState) !== "refreshing"
+    ) {
+      resetPullGesture();
+    }
+  });
+
+  onMount(() => {
+    initSettings().then(() => loadVehicles());
+
+    // Detect pull-to-refresh capability
+    const win = window as unknown as {
+      matchMedia: (q: string) => { matches: boolean };
+      navigator: { standalone?: boolean; maxTouchPoints: number };
+      ontouchstart?: unknown;
+    };
+    canUsePullToRefresh =
+      isStandalonePwaSession(win) && isTouchCapableDevice(win);
+
+    if (canUsePullToRefresh) {
+      window.addEventListener("touchstart", handleTouchStart, {
+        passive: true,
+      });
+      window.addEventListener("touchmove", handleTouchMove, {
+        passive: false,
+      });
+      window.addEventListener("touchend", handleTouchEnd);
+      window.addEventListener("touchcancel", handleTouchCancel);
+    }
+
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchCancel);
+    };
   });
 </script>
 
@@ -165,8 +323,37 @@
       </a>
     </nav>
 
+    <!-- Pull-to-refresh indicator -->
+    <div
+      class="pull-indicator"
+      class:visible={pullIndicatorVisible}
+      class:armed={pullIndicatorState === "release"}
+      class:refreshing={pullIndicatorState === "refreshing"}
+      class:settling={!gestureActive && pullIndicatorState !== "refreshing"}
+      style:transform="translateY({pullIndicatorVisible
+        ? Math.min(pullOffset, PULL_TO_REFRESH_THRESHOLD) - 68
+        : -100}px)"
+    >
+      <span class="pull-indicator-label">{pullLabel}</span>
+      {#if pullIndicatorState === "release"}
+        <span class="pull-indicator-check"><Check size={20} /></span>
+      {:else}
+        <span
+          class="pull-indicator-spinner"
+          class:spinning={pullIndicatorState === "refreshing"}
+          style:transform={pullIndicatorState === "pulling"
+            ? `rotate(${spinnerRotation}deg)`
+            : undefined}
+        ></span>
+      {/if}
+    </div>
+
     <!-- Content -->
-    <main class="content">
+    <main
+      class="content"
+      class:settling={!gestureActive && pullIndicatorState !== "refreshing"}
+      style:margin-top={contentOffset > 0 ? `${contentOffset}px` : undefined}
+    >
       {@render children()}
     </main>
 
@@ -515,6 +702,67 @@
 
     .bottom-bar .nav-item.active {
       color: var(--color-nav-text-active);
+    }
+  }
+
+  /* ── Pull-to-refresh indicator ─────────────── */
+  .pull-indicator {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 160;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: 0 auto;
+    padding: 12px;
+    color: var(--color-text-secondary);
+    font-size: 15px;
+    font-weight: var(--font-weight-medium);
+    pointer-events: none;
+  }
+
+  .pull-indicator.settling {
+    transition: transform 0.18s ease;
+  }
+
+  .pull-indicator-label {
+    user-select: none;
+  }
+
+  .pull-indicator-spinner {
+    display: block;
+    width: 22px;
+    height: 22px;
+    border: 2.5px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 999px;
+  }
+
+  .pull-indicator-spinner.spinning {
+    animation: pull-refresh-spin 0.8s linear infinite;
+  }
+
+  .pull-indicator-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-accent);
+  }
+
+  .content.settling {
+    transition: margin-top 0.18s ease;
+  }
+
+  @keyframes pull-refresh-spin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
     }
   }
 </style>

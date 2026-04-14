@@ -258,37 +258,37 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > Only activates in installed PWA mode on touch devices to avoid
 > conflicts with the browser's built-in pull-to-refresh.
 
-- [ ] Pure logic module (`ui/src/lib/pull-to-refresh.ts`) with testable functions
+- [x] Pure logic module (`ui/src/lib/pull-to-refresh.ts`) with testable functions
       -- flowl `ui/src/lib/pull-to-refresh.ts`: all threshold, offset, eligibility, and state logic as pure functions
-- [ ] Capability detection: standalone PWA check (`display-mode: standalone` media
+- [x] Capability detection: standalone PWA check (`display-mode: standalone` media
       query + `navigator.standalone` for iOS) and touch detection (`pointer: coarse`,
       `maxTouchPoints`, `ontouchstart`)
       -- flowl: `isStandalonePwaSession()`, `isTouchCapableDevice()`
-- [ ] Eligibility gate: only trigger when standalone + touch + allowed route +
+- [x] Eligibility gate: only trigger when standalone + touch + allowed route +
       scrolled to top + no open dialog/modal overlay
       -- flowl: `canStartPullToRefresh()`, `isPullToRefreshRoute()`, `hasBlockingPullToRefreshOverlay()`
-- [ ] Touch gesture handling in root layout (`touchstart`, `touchmove`,
+- [x] Touch gesture handling in root layout (`touchstart`, `touchmove`,
       `touchend`, `touchcancel` on window). Non-passive `touchmove` to
       `preventDefault` and block native scroll during pull.
       -- flowl `+layout.svelte`: single-touch only, rejects multi-touch, tracks `touchStartY`
-- [ ] Elastic pull offset with exponential decay past threshold for natural feel.
+- [x] Elastic pull offset with exponential decay past threshold for natural feel.
       Separate offset tracks for pull indicator position and main content
       displacement.
       -- flowl: `calculatePullOffset()` / `calculateContentOffset()`, threshold 128px, max 140px
-- [ ] 4-state indicator FSM: `idle` → `pulling` → `release` → `refreshing`.
+- [x] 4-state indicator FSM: `idle` → `pulling` → `release` → `refreshing`.
       Fixed-position indicator slides down from above viewport. Spinner rotates
       proportionally while pulling, check icon on release, infinite spin while
       refreshing.
       -- flowl: CSS-only spinner (border trick + `@keyframes`), Lucide `Check` icon on armed state
-- [ ] Content push: main content area shifts down via `margin-top` during gesture.
+- [x] Content push: main content area shifts down via `margin-top` during gesture.
       Smooth snap-back via `transition: 0.18s ease` only when finger is lifted
       (no transition during active drag).
       -- flowl: `.settling` class toggles transition on/off
-- [ ] Refresh action: `window.location.reload()` after short delay (120ms) to
+- [x] Refresh action: `window.location.reload()` after short delay (120ms) to
       let the refreshing spinner render before reload
       -- flowl: `schedulePullToRefreshReload()`
-- [ ] Reset gesture on route navigation (unless actively refreshing)
-- [ ] Vitest tests for all pure logic: capability detection, route allowlist,
+- [x] Reset gesture on route navigation (unless actively refreshing)
+- [x] Vitest tests for all pure logic: capability detection, route allowlist,
       threshold/offset calculations, overlay blocking, reload scheduling
       -- flowl `pull-to-refresh.test.ts`: comprehensive unit tests for every exported function
 

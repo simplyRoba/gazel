@@ -200,5 +200,9 @@
   "store.fillups.loadFailed": "Tankfüllungen konnten nicht geladen werden",
   "store.fillups.createFailed": "Tankfüllung konnte nicht erstellt werden",
   "store.fillups.updateFailed": "Tankfüllung konnte nicht aktualisiert werden",
-  "store.fillups.deleteFailed": "Tankfüllung konnte nicht gelöscht werden"
+  "store.fillups.deleteFailed": "Tankfüllung konnte nicht gelöscht werden",
+
+  "pullToRefresh.pulling": "Zum Aktualisieren ziehen",
+  "pullToRefresh.release": "Loslassen zum Aktualisieren",
+  "pullToRefresh.refreshing": "Wird aktualisiert..."
 }
