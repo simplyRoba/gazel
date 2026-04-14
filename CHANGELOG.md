@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.10.0](https://github.com/simplyRoba/gazel/compare/v0.9.0...v0.10.0) (2026-04-14)
+
+
+### Features
+
+* add pull-to-refresh gesture for standalone PWA ([d79bd7d](https://github.com/simplyRoba/gazel/commit/d79bd7dd9bf9e630219d9a630f7571457737081c))
+* add title, meta description, liquid glass icons, dark apple-touch-icon ([1022ba0](https://github.com/simplyRoba/gazel/commit/1022ba070ed6c75a8840dab843c6a6988a26ebac))
+
+
+### Bug Fixes
+
+* accessibility improvements — aria labels, contrast, screen reader heading ([a2a1c9a](https://github.com/simplyRoba/gazel/commit/a2a1c9acf06e68735ff9f146a97d0f111a10ce9e))
+* **ci:** bump softprops/action-gh-release from 2 to 3 ([b6a75e2](https://github.com/simplyRoba/gazel/commit/b6a75e2bdbb539b3c9c3266f3dd6e543b7ea3333))
+* **deps:** bump globals from 17.4.0 to 17.5.0 in /ui ([e13fa5b](https://github.com/simplyRoba/gazel/commit/e13fa5bdfc1cf5250f7f0a7c8b6c0461b489c8ab))
+* **deps:** bump svelte from 5.55.2 to 5.55.3 in /ui in the svelte group ([37b0044](https://github.com/simplyRoba/gazel/commit/37b0044d11822ce8e865f53cff50a512cb7db105))
+* **deps:** bump typescript-eslint in /ui in the eslint group ([a7c6aa6](https://github.com/simplyRoba/gazel/commit/a7c6aa6542d02a79f28f3b7066ca159cc312b47a))
+* loading states and error feedback for all async operations ([ce09372](https://github.com/simplyRoba/gazel/commit/ce093721f56c79a7c64779aec0c16b64b23be433))
+* reduce README screenshot sizes to match flowl pattern ([41456cd](https://github.com/simplyRoba/gazel/commit/41456cd13a89f7c3e4667289fa7d7d856071ae75))
+* resolve all svelte-check warnings (18 → 0) ([65ae072](https://github.com/simplyRoba/gazel/commit/65ae0728ac59ecc2c9febe3fcea1cee7d9e86b4b))
+
 ## [0.9.0](https://github.com/simplyRoba/gazel/compare/v0.8.0...v0.9.0) (2026-04-12)
 
 
