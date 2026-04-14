@@ -267,7 +267,7 @@
 <div class="app-shell">
   <div class="app">
     <!-- Sidebar (tablet+) -->
-    <nav class="sidebar">
+    <nav class="sidebar" aria-label={t("nav.sidebar")}>
       <div class="sidebar-logo">
         <Logo size={36} />
       </div>
@@ -276,6 +276,7 @@
         class="sidebar-cta corner-tri-hover corner-tri-sm"
         style="--_tri-color: var(--color-text-inverse)"
         onclick={handleCta}
+        aria-label={t("nav.fillup")}
       >
         <Plus size={20} />
         <span class="cta-label">{t("nav.fillup")}</span>
@@ -303,13 +304,17 @@
     </nav>
 
     <!-- Bottom bar (mobile) -->
-    <nav class="bottom-bar">
+    <nav class="bottom-bar" aria-label={t("nav.bottomBar")}>
       <a href={resolve("/")} class="nav-item" class:active={isActive("/")}>
         <LayoutDashboard size={20} />
         <span class="nav-label">{t("nav.dashboard")}</span>
       </a>
 
-      <button class="bottom-cta" onclick={handleCta}>
+      <button
+        class="bottom-cta"
+        onclick={handleCta}
+        aria-label={t("nav.fillup")}
+      >
         <Plus size={22} />
       </button>
 

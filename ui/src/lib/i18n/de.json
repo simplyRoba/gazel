@@ -3,6 +3,8 @@
   "nav.settings": "Einstellungen",
   "nav.fillup": "Tanken",
   "nav.selectVehicle": "Fahrzeug auswählen",
+  "nav.sidebar": "Hauptnavigation",
+  "nav.bottomBar": "Hauptnavigation",
 
   "common.cancel": "Abbrechen",
   "common.delete": "Löschen",
@@ -56,6 +58,8 @@
   "settings.vehicles.empty.description": "Füge dein erstes Fahrzeug hinzu, um Tankfüllungen zu verfolgen.",
   "settings.vehicles.add": "Fahrzeug hinzufügen",
   "settings.vehicles.export": "Fahrzeug exportieren",
+  "settings.vehicles.edit": "Fahrzeug bearbeiten",
+  "settings.vehicles.delete": "Fahrzeug löschen",
   "settings.data": "Daten",
   "settings.export": "Exportieren",
   "settings.export.description": "Alle Fahrzeuge und Tankfüllungen als JSON herunterladen.",

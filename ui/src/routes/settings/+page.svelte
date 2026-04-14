@@ -475,11 +475,15 @@
                     id: String(vehicle.id),
                   })}
                   class="btn btn-icon"
+                  title={t("settings.vehicles.edit")}
+                  aria-label={t("settings.vehicles.edit")}
                 >
                   <Pencil size={16} />
                 </a>
                 <button
                   class="btn btn-icon"
+                  title={t("settings.vehicles.delete")}
+                  aria-label={t("settings.vehicles.delete")}
                   onclick={() => (deleteTarget = vehicle)}
                 >
                   <Trash2 size={16} />

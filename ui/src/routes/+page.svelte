@@ -194,6 +194,7 @@
 </script>
 
 <PageContainer width="wide" fillHeight>
+  <h1 class="visually-hidden">{t("nav.dashboard")}</h1>
   {#if getVehiclesLoading()}
     <div class="skeleton-area">
       <div class="shimmer chip-skeleton"></div>

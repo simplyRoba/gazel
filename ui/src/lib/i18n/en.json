@@ -3,6 +3,8 @@
   "nav.settings": "Settings",
   "nav.fillup": "Fill-up",
   "nav.selectVehicle": "Select vehicle",
+  "nav.sidebar": "Main navigation",
+  "nav.bottomBar": "Main navigation",
 
   "common.cancel": "Cancel",
   "common.delete": "Delete",
@@ -56,6 +58,8 @@
   "settings.vehicles.empty.description": "Add your first vehicle to start tracking fill-ups.",
   "settings.vehicles.add": "Add vehicle",
   "settings.vehicles.export": "Export vehicle",
+  "settings.vehicles.edit": "Edit vehicle",
+  "settings.vehicles.delete": "Delete vehicle",
   "settings.data": "Data",
   "settings.export": "Export",
   "settings.export.description": "Download all vehicles and fill-ups as JSON.",

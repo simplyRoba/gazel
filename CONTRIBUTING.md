@@ -120,7 +120,7 @@ Default follows system preference via `prefers-color-scheme`.
 |---|---|---|---|
 | `--color-text` | `#2C2418` | `#E8E0D4` | Primary text |
 | `--color-text-secondary` | `#6B6054` | `#9A9184` | Secondary / muted text |
-| `--color-text-tertiary` | `#736860` | `#8A8078` | Placeholders, hints |
+| `--color-text-tertiary` | `#736860` | `#928880` | Placeholders, hints |
 | `--color-text-inverse` | `#FFFFFF` | `#1A2030` | Text on accent backgrounds |
 
 #### Accent (gazelle amber/gold)

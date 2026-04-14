@@ -243,14 +243,13 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 > Final pass before 1.0 tag.
 
 - [ ] Audit all pages for responsiveness (phone, tablet, desktop)
-- [ ] Keyboard navigation and basic a11y (labels, focus management, contrast)
+- [x] Keyboard navigation and basic a11y (labels, focus management, contrast)
 - [ ] Loading states and error handling for all async operations
 - [ ] Empty states for every list/page
 - [ ] Favicon, OpenGraph meta, app manifest
 - [ ] Update README with feature overview and screenshots
 - [ ] Update CONTRIBUTING.md design section with final tokens
 - [ ] Review and close any remaining OpenSpec changes
-- [ ] Version bump to 1.0.0
 
 ## 16. Pull to refresh (PWA)
 
@@ -296,13 +295,13 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 
 ## Design principles (for reference when creating changes)
 
-| Principle | Meaning |
-|---|---|
-| **Sleek** | Like a gazelle -- graceful, not heavy. Minimal chrome, generous whitespace. |
-| **Warm minimal** | Clean but not cold. Warm neutrals over blue-grays. |
-| **Data-clear** | Numbers and stats are the hero. Typography does the heavy lifting. |
-| **Responsive-equal** | Mobile and desktop are first-class citizens, designed together. |
-| **Progressive** | Works with one vehicle and one fill-up. Scales gracefully to many. |
+| Principle            | Meaning                                                                     |
+| -------------------- | --------------------------------------------------------------------------- |
+| **Sleek**            | Like a gazelle -- graceful, not heavy. Minimal chrome, generous whitespace. |
+| **Warm minimal**     | Clean but not cold. Warm neutrals over blue-grays.                          |
+| **Data-clear**       | Numbers and stats are the hero. Typography does the heavy lifting.          |
+| **Responsive-equal** | Mobile and desktop are first-class citizens, designed together.             |
+| **Progressive**      | Works with one vehicle and one fill-up. Scales gracefully to many.          |
 
 ## Style direction (for the design system change)
 
@@ -322,27 +321,27 @@ same author, same stack (Axum + SvelteKit + SQLite). Reuse patterns where noted.
 Patterns from [simplyRoba/flowl](https://github.com/simplyRoba/flowl) to
 reuse or adapt. Listed by flowl file path.
 
-| flowl file | Pattern | Used in chunk |
-|---|---|---|
-| `Cargo.toml` | Clippy pedantic config, release profile (LTO, strip) | 1 |
-| `build.rs` | `SKIP_UI_BUILD`, auto `npm install`, stub index.html | 1 |
-| `src/config.rs` | `ConfigSource` trait, `parse_or` typed defaults, testable config | 1 |
-| `src/db.rs` | SQLite pool (WAL, busy timeout, create-if-missing), migration runner | 1 |
-| `src/embedded.rs` | rust-embed SPA handler (exact path -> index.html fallback) | 1 |
-| `src/server.rs` | Router setup, `access_log` middleware, health check, graceful shutdown | 1 |
-| `src/state.rs` | `AppState` + `FromRef<AppState> for SqlitePool` | 1 |
-| `src/api/error.rs` | `ApiError` enum, `JsonBody<T>` extractor, `db_error()` helper | 1, 14 |
-| `src/api/mod.rs` | RESTful route registration, per-route body limits | 4, 6 |
-| `src/api/plants.rs` | `Row` vs response type, `From` impl, shared SQL `const`, `Option<Option<T>>` PATCH, boundary validation, `deserialize_nullable` | 4, 6 |
-| `tests/common/mod.rs` | `test_app()`, `test_pool()`, `json_request()`, `body_json()` | 1 |
-| `tests/ui.rs` | UI test bridge (runs npm test from cargo test) | 1 |
-| `tests/plants.rs` | Integration test style (oneshot, status-first assertions) | 4, 6 |
-| `ui/src/lib/api.ts` | `request()` helper, `ApiError` class (status + code), typed API functions | 5, 7 |
-| `ui/src/lib/stores/plants.ts` | Writable stores, async actions, error clearing, immutable updates | 5, 7 |
-| `ui/src/lib/stores/errors.ts` | `resolveError()` maps error codes to i18n messages | 14 |
-| `ui/src/lib/stores/plants.test.ts` | Mock API module, assert store values with `get()` | 5, 7 |
-| `ui/src/lib/i18n/` | Translation structure, loading, locale switching | 14 |
-| `migrations/` | Timestamp-prefixed, append-only migration files | 4, 6, 8 |
-| `Dockerfile` | Slim Debian, non-root, healthcheck, `TARGETARCH` multi-platform | 15 |
-| `svelte.config.js` | Static adapter, fallback index.html | 1 |
-| `vite.config.ts` | Dev proxy to Rust backend, jsdom test env | 1 |
+| flowl file                         | Pattern                                                                                                                         | Used in chunk |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| `Cargo.toml`                       | Clippy pedantic config, release profile (LTO, strip)                                                                            | 1             |
+| `build.rs`                         | `SKIP_UI_BUILD`, auto `npm install`, stub index.html                                                                            | 1             |
+| `src/config.rs`                    | `ConfigSource` trait, `parse_or` typed defaults, testable config                                                                | 1             |
+| `src/db.rs`                        | SQLite pool (WAL, busy timeout, create-if-missing), migration runner                                                            | 1             |
+| `src/embedded.rs`                  | rust-embed SPA handler (exact path -> index.html fallback)                                                                      | 1             |
+| `src/server.rs`                    | Router setup, `access_log` middleware, health check, graceful shutdown                                                          | 1             |
+| `src/state.rs`                     | `AppState` + `FromRef<AppState> for SqlitePool`                                                                                 | 1             |
+| `src/api/error.rs`                 | `ApiError` enum, `JsonBody<T>` extractor, `db_error()` helper                                                                   | 1, 14         |
+| `src/api/mod.rs`                   | RESTful route registration, per-route body limits                                                                               | 4, 6          |
+| `src/api/plants.rs`                | `Row` vs response type, `From` impl, shared SQL `const`, `Option<Option<T>>` PATCH, boundary validation, `deserialize_nullable` | 4, 6          |
+| `tests/common/mod.rs`              | `test_app()`, `test_pool()`, `json_request()`, `body_json()`                                                                    | 1             |
+| `tests/ui.rs`                      | UI test bridge (runs npm test from cargo test)                                                                                  | 1             |
+| `tests/plants.rs`                  | Integration test style (oneshot, status-first assertions)                                                                       | 4, 6          |
+| `ui/src/lib/api.ts`                | `request()` helper, `ApiError` class (status + code), typed API functions                                                       | 5, 7          |
+| `ui/src/lib/stores/plants.ts`      | Writable stores, async actions, error clearing, immutable updates                                                               | 5, 7          |
+| `ui/src/lib/stores/errors.ts`      | `resolveError()` maps error codes to i18n messages                                                                              | 14            |
+| `ui/src/lib/stores/plants.test.ts` | Mock API module, assert store values with `get()`                                                                               | 5, 7          |
+| `ui/src/lib/i18n/`                 | Translation structure, loading, locale switching                                                                                | 14            |
+| `migrations/`                      | Timestamp-prefixed, append-only migration files                                                                                 | 4, 6, 8       |
+| `Dockerfile`                       | Slim Debian, non-root, healthcheck, `TARGETARCH` multi-platform                                                                 | 15            |
+| `svelte.config.js`                 | Static adapter, fallback index.html                                                                                             | 1             |
+| `vite.config.ts`                   | Dev proxy to Rust backend, jsdom test env                                                                                       | 1             |
