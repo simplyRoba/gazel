@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/simplyRoba/gazel/compare/v0.10.1...v0.11.0) (2026-04-16)
+
+
+### Features
+
+* add About section to settings page ([2717549](https://github.com/simplyRoba/gazel/commit/271754934e81d005d14b77ae1c0488aad850975b))
+
+
+### Bug Fixes
+
+* regenerate PWA icons with transparent backgrounds for iOS 26 liquid glass ([8ff1b15](https://github.com/simplyRoba/gazel/commit/8ff1b1547c2ec08f30579f98987a3a27205e1d34))
+
 ## [0.10.1](https://github.com/simplyRoba/gazel/compare/v0.10.0...v0.10.1) (2026-04-16)
 
 
