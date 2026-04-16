@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.10.1](https://github.com/simplyRoba/gazel/compare/v0.10.0...v0.10.1) (2026-04-16)
+
+
+### Bug Fixes
+
+* align PWA icon and theme-color setup with working flowl reference ([b6c24fb](https://github.com/simplyRoba/gazel/commit/b6c24fbd001d609ceac4ed644f6b9f0c02e894f9))
+* **deps:** bump axum from 0.8.8 to 0.8.9 ([407363b](https://github.com/simplyRoba/gazel/commit/407363b4d0d5c01b0fd1dd26989258cb8f2d286f))
+* **deps:** bump prettier in /ui in the prettier group ([012a9ab](https://github.com/simplyRoba/gazel/commit/012a9abe8263dcdf7a4772cb50fb2679cf7be3ac))
+* **deps:** bump svelte from 5.55.3 to 5.55.4 in /ui in the svelte group ([0c55fcb](https://github.com/simplyRoba/gazel/commit/0c55fcbef303a3da5a663ddcf9b2179095d8e7e3))
+* **deps:** bump tokio from 1.51.1 to 1.52.0 in the tokio group ([e0144f0](https://github.com/simplyRoba/gazel/commit/e0144f0e65ec1e9f1d390372c4c706e0ee1a077c))
+
 ## [0.10.0](https://github.com/simplyRoba/gazel/compare/v0.9.0...v0.10.0) (2026-04-14)
 
 
