@@ -24,6 +24,7 @@ pub fn router(state: AppState) -> Router {
 
     Router::new()
         .route("/health", get(move || health(pool)))
+        .route("/api/info", get(info))
         .nest("/api", crate::api::router(state.clone()))
         .fallback(static_handler)
         .layer(middleware::from_fn(access_log))
@@ -44,6 +45,16 @@ async fn access_log(req: Request<Body>, next: Next) -> Response {
     debug!("{method} {path} → {status} ({duration:.1?})");
 
     response
+}
+
+/// Application info handler. Returns version, repository, and license
+/// embedded at compile time from `Cargo.toml`.
+async fn info() -> Json<serde_json::Value> {
+    Json(json!({
+        "version": env!("CARGO_PKG_VERSION"),
+        "repository": env!("CARGO_PKG_REPOSITORY"),
+        "license": env!("CARGO_PKG_LICENSE"),
+    }))
 }
 
 /// Health check handler. Verifies database connectivity by executing

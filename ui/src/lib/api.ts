@@ -42,6 +42,20 @@ async function request<T>(
   return resp.json();
 }
 
+// ── App info types ───────────────────────────────────────
+
+export interface AppInfo {
+  version: string;
+  repository: string;
+  license: string;
+}
+
+// ── App info API functions ──────────────────────────────
+
+export function fetchAppInfo(): Promise<AppInfo> {
+  return request("GET", "/api/info");
+}
+
 // ── Vehicle types ────────────────────────────────────────
 
 export interface Vehicle {

@@ -13,16 +13,23 @@
     Download,
     Upload,
     Database,
+    Info,
   } from "lucide-svelte";
   import PageContainer from "$lib/components/PageContainer.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ModalDialog from "$lib/components/ModalDialog.svelte";
-  import type { Vehicle, ImportMode, ImportPreviewResult } from "$lib/api";
+  import type {
+    Vehicle,
+    ImportMode,
+    ImportPreviewResult,
+    AppInfo,
+  } from "$lib/api";
   import {
     exportAll,
     exportVehicle,
     previewImport,
     importData,
+    fetchAppInfo,
     ApiError,
   } from "$lib/api";
   import {
@@ -45,6 +52,8 @@
   import { clearCache as clearStatsCache } from "$lib/stores/stats.svelte";
   import { t } from "$lib/i18n";
 
+  let appInfo = $state<AppInfo | null>(null);
+
   let deleteTarget = $state<Vehicle | null>(null);
   let deleting = $state(false);
 
@@ -63,6 +72,13 @@
 
   onMount(() => {
     loadVehicles();
+    fetchAppInfo()
+      .then((info) => {
+        appInfo = info;
+      })
+      .catch(() => {
+        /* hide About section on failure */
+      });
   });
 
   async function handleDeleteConfirm() {
@@ -661,6 +677,34 @@
         </div>
       {/if}
     </section>
+
+    <!-- About -->
+    {#if appInfo}
+      <section class="section corner-tri corner-tri-sm">
+        <h2 class="section-title">
+          <Info size={14} />
+          {t("settings.about")}
+        </h2>
+        <div class="about-row">
+          <span class="setting-label">{t("settings.about.version")}</span>
+          <span>{appInfo.version}</span>
+        </div>
+        <div class="about-row">
+          <span class="setting-label">{t("settings.about.source")}</span>
+          <a
+            href={appInfo.repository}
+            target="_blank"
+            rel="external noopener noreferrer"
+          >
+            {appInfo.repository.replace("https://", "")}
+          </a>
+        </div>
+        <div class="about-row">
+          <span class="setting-label">{t("settings.about.license")}</span>
+          <span>{appInfo.license}</span>
+        </div>
+      </section>
+    {/if}
   </div>
 </PageContainer>
 
@@ -844,6 +888,29 @@
     display: flex;
     justify-content: flex-end;
     gap: var(--space-2);
+  }
+
+  /* ── About section ─────────────────────────────── */
+
+  .about-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--space-3) 0;
+    font-size: var(--font-sm);
+  }
+
+  .about-row + .about-row {
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  .about-row a {
+    color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .about-row a:hover {
+    text-decoration: underline;
   }
 
   /* ── Responsive ────────────────────────────────── */
