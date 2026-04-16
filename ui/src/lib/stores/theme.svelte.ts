@@ -26,6 +26,10 @@ function resolve(pref: ThemePreference): EffectiveTheme {
 
 function applyTheme(theme: EffectiveTheme): void {
   document.documentElement.setAttribute("data-theme", theme);
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) {
+    meta.setAttribute("content", theme === "dark" ? "#1A2030" : "#FAF7F2");
+  }
 }
 
 export function setTheme(pref: ThemePreference): void {

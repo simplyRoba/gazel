@@ -9,16 +9,6 @@
       content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"
     />
     <meta name="format-detection" content="telephone=no, date=no, address=no" />
-    <meta
-      name="theme-color"
-      content="#FAF7F2"
-      media="(prefers-color-scheme: light)"
-    />
-    <meta
-      name="theme-color"
-      content="#1A2030"
-      media="(prefers-color-scheme: dark)"
-    />
     <link
       rel="icon"
       href="%sveltekit.assets%/favicon.svg"
@@ -30,24 +20,34 @@
       sizes="180x180"
       href="%sveltekit.assets%/icon-180.png"
     />
-    <link
-      rel="apple-touch-icon"
-      sizes="180x180"
-      href="%sveltekit.assets%/icon-180-dark.png"
-      media="(prefers-color-scheme: dark)"
-    />
     <script>
-      (function () {
-        var stored = localStorage.getItem("gazel.theme");
-        // Explicit light/dark overrides system. "system" or absent/unknown
-        // falls through to OS preference detection via matchMedia.
-        var theme =
-          stored === "light" || stored === "dark"
-            ? stored
-            : window.matchMedia("(prefers-color-scheme: dark)").matches
+      (() => {
+        const storageKey = "gazel.theme";
+        const valid = new Set(["light", "dark", "system"]);
+        let preference = "system";
+        try {
+          const stored = localStorage.getItem(storageKey);
+          if (valid.has(stored)) preference = stored;
+        } catch {
+          // Ignore storage failures.
+        }
+        const supportsMatchMedia =
+          typeof window !== "undefined" &&
+          typeof window.matchMedia === "function";
+        const prefersDark =
+          supportsMatchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches;
+        const resolved =
+          preference === "system"
+            ? prefersDark
               ? "dark"
-              : "light";
-        document.documentElement.setAttribute("data-theme", theme);
+              : "light"
+            : preference;
+        document.documentElement.dataset.theme = resolved;
+        const m = document.createElement("meta");
+        m.name = "theme-color";
+        m.content = resolved === "dark" ? "#1A2030" : "#FAF7F2";
+        document.head.appendChild(m);
       })();
     </script>
     %sveltekit.head%
