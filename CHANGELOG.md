@@ -1,5 +1,30 @@
 # Changelog
 
+## [1.0.0](https://github.com/simplyRoba/gazel/compare/v0.11.0...v1.0.0) (2026-04-23)
+
+
+### ⚠ BREAKING CHANGES
+
+* release 1.0
+
+### Features
+
+* release 1.0 ([bd5e99a](https://github.com/simplyRoba/gazel/commit/bd5e99a98cfaa2a6e471ffa26f72f3e3d5f2cfb4))
+
+
+### Bug Fixes
+
+* **ci:** bump googleapis/release-please-action from 4 to 5 ([0c6d5b6](https://github.com/simplyRoba/gazel/commit/0c6d5b6ef10a468cf01311af401c427aab491a40))
+* **deps:** bump eslint from 10.2.0 to 10.2.1 in /ui in the eslint group ([1913231](https://github.com/simplyRoba/gazel/commit/1913231fc59e4325f1008a9cc5f06755d299b6be))
+* **deps:** bump rand from 0.8.5 to 0.8.6 ([6c34fbe](https://github.com/simplyRoba/gazel/commit/6c34fbec0894a39ddec427d77723693dc1087606))
+* **deps:** bump the eslint group across 1 directory with 2 updates ([3e43293](https://github.com/simplyRoba/gazel/commit/3e43293976d7b2520b929ef8f5f811e40ad079c0))
+* **deps:** bump tokio from 1.52.0 to 1.52.1 in the tokio group ([99e572a](https://github.com/simplyRoba/gazel/commit/99e572a4887517c219300425ea5f1a09ba54fcaf))
+* **deps:** bump typescript from 6.0.2 to 6.0.3 in /ui ([3dd69c6](https://github.com/simplyRoba/gazel/commit/3dd69c6a66e90f5237bb46c9b3b4ee0d0ecff8f9))
+* **deps:** bump uuid from 1.23.0 to 1.23.1 ([453936d](https://github.com/simplyRoba/gazel/commit/453936def6a3c893d3ff24ddae4971fe39a49d60))
+* **deps:** bump vite from 8.0.8 to 8.0.9 in /ui ([b6d523e](https://github.com/simplyRoba/gazel/commit/b6d523ea35b42e21b697497dca4ceb43ca048a2e))
+* **deps:** bump vite from 8.0.9 to 8.0.10 in /ui ([d8e862d](https://github.com/simplyRoba/gazel/commit/d8e862d9de7715ced0852a11816ac416a7a2c4ed))
+* **deps:** bump vitest from 4.1.4 to 4.1.5 in /ui ([b627b7f](https://github.com/simplyRoba/gazel/commit/b627b7f755378e7ecf411feda85b2bf28897880f))
+
 ## [0.11.0](https://github.com/simplyRoba/gazel/compare/v0.10.1...v0.11.0) (2026-04-16)
 
 
