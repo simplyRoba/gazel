@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.0.1](https://github.com/simplyRoba/gazel/compare/v1.0.0...v1.0.1) (2026-05-07)
+
+
+### Bug Fixes
+
+* **deps:** bump @sveltejs/vite-plugin-svelte in /ui in the svelte group ([e3192ea](https://github.com/simplyRoba/gazel/commit/e3192ea3184e042c70f5d3c48acdead8af8358c6))
+* **deps:** bump globals from 17.5.0 to 17.6.0 in /ui ([78ce8fb](https://github.com/simplyRoba/gazel/commit/78ce8fb95a3554beda78e4c645737710f4e6b5e8))
+* **deps:** bump jsdom from 29.0.2 to 29.1.0 in /ui ([0d8e86b](https://github.com/simplyRoba/gazel/commit/0d8e86be3d8d2d578c727f073cdc3be188dea430))
+* **deps:** bump jsdom from 29.1.0 to 29.1.1 in /ui ([b102f8a](https://github.com/simplyRoba/gazel/commit/b102f8ab6ee3b3ec1ef33150bdafe6e837e8a30e))
+* **deps:** bump svelte-check ([688d87b](https://github.com/simplyRoba/gazel/commit/688d87b98de7f608c21eb6d1bfc06ecfa0d93ee9))
+* **deps:** bump the eslint group across 1 directory with 2 updates ([7c5c9ee](https://github.com/simplyRoba/gazel/commit/7c5c9ee133c78058d7b3bc114a591015c92edcb9))
+* **deps:** bump the svelte group across 1 directory with 3 updates ([7ba3e15](https://github.com/simplyRoba/gazel/commit/7ba3e15cb69f12d08a8cfa4d12055cc1418ca554))
+* **deps:** bump the svelte group in /ui with 2 updates ([850be94](https://github.com/simplyRoba/gazel/commit/850be94d2d614ee7d30ba6b86636b15ecf88c979))
+* **deps:** bump tokio from 1.52.1 to 1.52.2 in the tokio group ([724d622](https://github.com/simplyRoba/gazel/commit/724d622dc4311263229b17a4933359bd36d78895))
+* **deps:** bump tower-http from 0.6.8 to 0.6.9 ([838e266](https://github.com/simplyRoba/gazel/commit/838e266589633c7dcf8263a24c0be3367a427b26))
+* **deps:** bump tower-http from 0.6.9 to 0.6.10 ([02336e7](https://github.com/simplyRoba/gazel/commit/02336e7f387b300266e6207b8bccdca3e641ab69))
+* **deps:** bump typescript-eslint in /ui in the eslint group ([0cdca18](https://github.com/simplyRoba/gazel/commit/0cdca185f9e1e041d78e4b4f0160f388671996d4))
+* **deps:** bump vite from 8.0.10 to 8.0.11 in /ui ([233b49e](https://github.com/simplyRoba/gazel/commit/233b49e3df942c930e440d6272baf2cc9455a50f))
+
 ## [1.0.0](https://github.com/simplyRoba/gazel/compare/v0.11.0...v1.0.0) (2026-04-23)
 
 
