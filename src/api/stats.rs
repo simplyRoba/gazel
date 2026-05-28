@@ -172,7 +172,7 @@ async fn fetch_fillups_for_stats(
 
     sql.push_str(" ORDER BY date ASC, id ASC");
 
-    let mut q = sqlx::query_as::<_, StatsRow>(&sql).bind(vehicle_id);
+    let mut q = sqlx::query_as::<_, StatsRow>(sqlx::AssertSqlSafe(sql.as_str())).bind(vehicle_id);
 
     if let Some(ref from) = query.from {
         q = q.bind(from);

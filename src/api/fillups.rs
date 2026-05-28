@@ -277,7 +277,7 @@ pub async fn list(
     ensure_vehicle_exists(&pool, vehicle_id).await?;
 
     let query = format!("{FILLUP_SELECT} WHERE vehicle_id = ? ORDER BY date DESC, id DESC");
-    let rows = sqlx::query_as::<_, FillupRow>(&query)
+    let rows = sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(query.as_str()))
         .bind(vehicle_id)
         .fetch_all(&pool)
         .await
@@ -298,7 +298,7 @@ pub async fn get(
     ensure_vehicle_exists(&pool, vehicle_id).await?;
 
     let query = format!("{FILLUP_SELECT} WHERE id = ? AND vehicle_id = ?");
-    let row = sqlx::query_as::<_, FillupRow>(&query)
+    let row = sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(query.as_str()))
         .bind(id)
         .bind(vehicle_id)
         .fetch_optional(&pool)
@@ -372,7 +372,7 @@ pub async fn create(
     .map_err(db_error)?;
 
     let query = format!("{FILLUP_SELECT} WHERE id = ?");
-    let row = sqlx::query_as::<_, FillupRow>(&query)
+    let row = sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(query.as_str()))
         .bind(id)
         .fetch_one(&pool)
         .await
@@ -399,7 +399,7 @@ pub async fn update(
 
     // Check fillup exists and belongs to vehicle
     let exists_query = format!("{FILLUP_SELECT} WHERE id = ? AND vehicle_id = ?");
-    sqlx::query_as::<_, FillupRow>(&exists_query)
+    sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(exists_query.as_str()))
         .bind(id)
         .bind(vehicle_id)
         .fetch_optional(&pool)
@@ -442,7 +442,7 @@ pub async fn update(
     .map_err(db_error)?;
 
     let query = format!("{FILLUP_SELECT} WHERE id = ?");
-    let row = sqlx::query_as::<_, FillupRow>(&query)
+    let row = sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(query.as_str()))
         .bind(id)
         .fetch_one(&pool)
         .await

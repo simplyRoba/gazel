@@ -147,7 +147,7 @@ pub struct PatchVehicle {
 /// Returns `ApiError::InternalError` on database failure.
 pub async fn list(State(pool): State<SqlitePool>) -> Result<Json<Vec<Vehicle>>, ApiError> {
     let query = format!("{VEHICLE_SELECT} ORDER BY name");
-    let rows = sqlx::query_as::<_, VehicleRow>(&query)
+    let rows = sqlx::query_as::<_, VehicleRow>(sqlx::AssertSqlSafe(query.as_str()))
         .fetch_all(&pool)
         .await
         .map_err(db_error)?;
@@ -164,7 +164,7 @@ pub async fn get(
     Path(id): Path<i64>,
 ) -> Result<Json<Vehicle>, ApiError> {
     let query = format!("{VEHICLE_SELECT} WHERE id = ?");
-    let row = sqlx::query_as::<_, VehicleRow>(&query)
+    let row = sqlx::query_as::<_, VehicleRow>(sqlx::AssertSqlSafe(query.as_str()))
         .bind(id)
         .fetch_optional(&pool)
         .await
@@ -215,7 +215,7 @@ pub async fn create(
     .map_err(db_error)?;
 
     let query = format!("{VEHICLE_SELECT} WHERE id = ?");
-    let row = sqlx::query_as::<_, VehicleRow>(&query)
+    let row = sqlx::query_as::<_, VehicleRow>(sqlx::AssertSqlSafe(query.as_str()))
         .bind(id)
         .fetch_one(&pool)
         .await
@@ -240,7 +240,7 @@ pub async fn update(
 ) -> Result<Json<Vehicle>, ApiError> {
     // Check exists
     let query = format!("{VEHICLE_SELECT} WHERE id = ?");
-    sqlx::query_as::<_, VehicleRow>(&query)
+    sqlx::query_as::<_, VehicleRow>(sqlx::AssertSqlSafe(query.as_str()))
         .bind(id)
         .fetch_optional(&pool)
         .await
@@ -270,11 +270,13 @@ pub async fn update(
     .await
     .map_err(db_error)?;
 
-    let row = sqlx::query_as::<_, VehicleRow>(&format!("{VEHICLE_SELECT} WHERE id = ?"))
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(db_error)?;
+    let row = sqlx::query_as::<_, VehicleRow>(sqlx::AssertSqlSafe(format!(
+        "{VEHICLE_SELECT} WHERE id = ?"
+    )))
+    .bind(id)
+    .fetch_one(&pool)
+    .await
+    .map_err(db_error)?;
 
     debug!(vehicle_id = id, "Vehicle updated");
     Ok(Json(Vehicle::from(row)))
@@ -291,12 +293,14 @@ pub async fn patch(
     Path(id): Path<i64>,
     JsonBody(body): JsonBody<PatchVehicle>,
 ) -> Result<Json<Vehicle>, ApiError> {
-    let current = sqlx::query_as::<_, VehicleRow>(&format!("{VEHICLE_SELECT} WHERE id = ?"))
-        .bind(id)
-        .fetch_optional(&pool)
-        .await
-        .map_err(db_error)?
-        .ok_or(ApiError::NotFound("VEHICLE_NOT_FOUND"))?;
+    let current = sqlx::query_as::<_, VehicleRow>(sqlx::AssertSqlSafe(format!(
+        "{VEHICLE_SELECT} WHERE id = ?"
+    )))
+    .bind(id)
+    .fetch_optional(&pool)
+    .await
+    .map_err(db_error)?
+    .ok_or(ApiError::NotFound("VEHICLE_NOT_FOUND"))?;
 
     // Merge: outer None = keep current, Some(None) = clear, Some(Some(v)) = new
     let name = body.name.unwrap_or(current.name);
@@ -328,11 +332,13 @@ pub async fn patch(
     .await
     .map_err(db_error)?;
 
-    let row = sqlx::query_as::<_, VehicleRow>(&format!("{VEHICLE_SELECT} WHERE id = ?"))
-        .bind(id)
-        .fetch_one(&pool)
-        .await
-        .map_err(db_error)?;
+    let row = sqlx::query_as::<_, VehicleRow>(sqlx::AssertSqlSafe(format!(
+        "{VEHICLE_SELECT} WHERE id = ?"
+    )))
+    .bind(id)
+    .fetch_one(&pool)
+    .await
+    .map_err(db_error)?;
 
     debug!(vehicle_id = id, "Vehicle patched");
     Ok(Json(Vehicle::from(row)))
