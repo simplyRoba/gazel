@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.0.2](https://github.com/simplyRoba/gazel/compare/v1.0.1...v1.0.2) (2026-05-28)
+
+
+### Bug Fixes
+
+* **deps:** bump prettier-plugin-svelte ([d75390f](https://github.com/simplyRoba/gazel/commit/d75390f4b6705f021c7e8040ae93aefac146b706))
+* **deps:** bump serde_json from 1.0.149 to 1.0.150 in the serde group ([75f03a8](https://github.com/simplyRoba/gazel/commit/75f03a8efe4bb78deb61867d022756cac9fc8dc0))
+* **deps:** bump sqlx from 0.8.6 to 0.9.0 ([90b409f](https://github.com/simplyRoba/gazel/commit/90b409f42d3dd074e0f2b0570f3c997c774850f1))
+* **deps:** bump the eslint group across 1 directory with 2 updates ([5a14b4c](https://github.com/simplyRoba/gazel/commit/5a14b4cfbb2c463089fb41f567e4b47b69cc185f))
+* **deps:** bump the svelte group across 1 directory with 2 updates ([6da075b](https://github.com/simplyRoba/gazel/commit/6da075b52a4271392c6b804c54feb5e9babc8451))
+* **deps:** bump vite from 8.0.13 to 8.0.14 in /ui ([44ef50d](https://github.com/simplyRoba/gazel/commit/44ef50d11229bede5b599314c32b5a2fcbe60ca6))
+* **deps:** bump vitest from 4.1.6 to 4.1.7 in /ui ([d0b5bcb](https://github.com/simplyRoba/gazel/commit/d0b5bcbae657b5260923099dbf527a648e732098))
+
 ## [1.0.1](https://github.com/simplyRoba/gazel/compare/v1.0.0...v1.0.1) (2026-05-19)
 
 
