@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  deriveFuelPriceTotal,
   formatCurrency,
+  formatDecimalInput,
   formatDistance,
   formatEfficiency,
   formatVolume,
@@ -9,6 +11,79 @@ import {
   efficiencyUnitLabel,
   isLper100km,
 } from "./format";
+
+describe("formatDecimalInput", () => {
+  it("normalizes a comma decimal to English display", () => {
+    expect(formatDecimalInput("477,2", "en")).toBe("477.2");
+  });
+
+  it("normalizes a dot decimal to German display", () => {
+    expect(formatDecimalInput("477.2", "de")).toBe("477,2");
+  });
+
+  it("strips grouping separators", () => {
+    expect(formatDecimalInput("1.234,56", "de")).toBe("1234,56");
+  });
+
+  it("does not force trailing zeros", () => {
+    expect(formatDecimalInput("45", "en")).toBe("45");
+    expect(formatDecimalInput("45.50", "en")).toBe("45.5");
+  });
+
+  it("caps fraction digits at maxDecimals", () => {
+    expect(formatDecimalInput("1.23456", "en", 3)).toBe("1.235");
+  });
+
+  it("returns empty string for blank/nullish input", () => {
+    expect(formatDecimalInput("", "en")).toBe("");
+    expect(formatDecimalInput("   ", "en")).toBe("");
+    expect(formatDecimalInput(null, "en")).toBe("");
+    expect(formatDecimalInput(undefined, "en")).toBe("");
+  });
+
+  it("returns the original string when unparseable", () => {
+    expect(formatDecimalInput("abc", "en")).toBe("abc");
+  });
+});
+
+describe("deriveFuelPriceTotal", () => {
+  it("computes total from fuel and price", () => {
+    expect(
+      deriveFuelPriceTotal({ fuel: 40, price: 1.5 }, ["fuel", "price"]),
+    ).toEqual({ field: "total", value: 60 });
+  });
+
+  it("computes price from fuel and total", () => {
+    expect(
+      deriveFuelPriceTotal({ fuel: 40, total: 60 }, ["fuel", "total"]),
+    ).toEqual({ field: "price", value: 1.5 });
+  });
+
+  it("computes fuel from price and total", () => {
+    expect(
+      deriveFuelPriceTotal({ price: 1.5, total: 60 }, ["price", "total"]),
+    ).toEqual({ field: "fuel", value: 40 });
+  });
+
+  it("guards against dividing by zero fuel", () => {
+    expect(
+      deriveFuelPriceTotal({ fuel: 0, total: 60 }, ["fuel", "total"]),
+    ).toBeNull();
+  });
+
+  it("guards against dividing by zero price", () => {
+    expect(
+      deriveFuelPriceTotal({ price: 0, total: 60 }, ["price", "total"]),
+    ).toBeNull();
+  });
+
+  it("returns null when an authoritative value is missing or invalid", () => {
+    expect(deriveFuelPriceTotal({ fuel: 40 }, ["fuel", "price"])).toBeNull();
+    expect(
+      deriveFuelPriceTotal({ fuel: 40, price: NaN }, ["fuel", "price"]),
+    ).toBeNull();
+  });
+});
 
 describe("parseDecimal", () => {
   it("parses a plain integer", () => {
@@ -35,12 +110,12 @@ describe("parseDecimal", () => {
     expect(parseDecimal("1,234.56", "en")).toBe(1234.56);
   });
 
-  it("treats single dot with three trailing digits as grouping for German", () => {
-    expect(parseDecimal("234.567", "de")).toBe(234567);
-  });
-
-  it("treats single dot with three trailing digits as decimal for English", () => {
-    expect(parseDecimal("234.567", "en")).toBe(234.567);
+  it("treats a single separator with three trailing digits as a decimal (fuel price)", () => {
+    // The key fuel-price case: "1,919" is €1.919/L, never 1919.
+    expect(parseDecimal("1,919")).toBe(1.919);
+    expect(parseDecimal("1.919")).toBe(1.919);
+    expect(parseDecimal("234.567")).toBe(234.567);
+    expect(parseDecimal("234,567")).toBe(234.567);
   });
 
   it("treats repeated grouping separators as grouping", () => {

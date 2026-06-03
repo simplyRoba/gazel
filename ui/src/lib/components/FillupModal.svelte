@@ -3,6 +3,7 @@
   import { t } from "$lib/i18n";
   import { getFillupsByVehicle } from "$lib/stores/fillups.svelte";
   import FillupForm from "./FillupForm.svelte";
+  import QuickFillForm from "./QuickFillForm.svelte";
   import ModalDialog from "./ModalDialog.svelte";
 
   let {
@@ -140,15 +141,25 @@
       <div class="save-error">{saveError}</div>
     {/if}
     {#key open && initial?.id}
-      <FillupForm
-        {initial}
-        {vehicleId}
-        {odoMode}
-        onsave={handleSave}
-        oncancel={onclose}
-        ondelete={initial ? handleDeleteRequest : undefined}
-        {saving}
-      />
+      {#if initial}
+        <FillupForm
+          {initial}
+          {vehicleId}
+          {odoMode}
+          onsave={handleSave}
+          oncancel={onclose}
+          ondelete={handleDeleteRequest}
+          {saving}
+        />
+      {:else}
+        <QuickFillForm
+          {vehicleId}
+          {odoMode}
+          onsave={handleSave}
+          oncancel={onclose}
+          {saving}
+        />
+      {/if}
     {/key}
   </div>
 </dialog>
