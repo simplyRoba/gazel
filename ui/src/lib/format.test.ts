@@ -4,10 +4,67 @@ import {
   formatDistance,
   formatEfficiency,
   formatVolume,
+  parseDecimal,
   toDisplayEfficiency,
   efficiencyUnitLabel,
   isLper100km,
 } from "./format";
+
+describe("parseDecimal", () => {
+  it("parses a plain integer", () => {
+    expect(parseDecimal("477")).toBe(477);
+  });
+
+  it("parses a dot decimal", () => {
+    expect(parseDecimal("477.2")).toBe(477.2);
+  });
+
+  it("parses a comma decimal (the reported bug)", () => {
+    expect(parseDecimal("477,2")).toBe(477.2);
+  });
+
+  it("parses comma decimal with multiple fraction digits", () => {
+    expect(parseDecimal("1234,56")).toBe(1234.56);
+  });
+
+  it("handles German grouping + comma decimal", () => {
+    expect(parseDecimal("1.234,56", "de")).toBe(1234.56);
+  });
+
+  it("handles English grouping + dot decimal", () => {
+    expect(parseDecimal("1,234.56", "en")).toBe(1234.56);
+  });
+
+  it("treats single dot with three trailing digits as grouping for German", () => {
+    expect(parseDecimal("234.567", "de")).toBe(234567);
+  });
+
+  it("treats single dot with three trailing digits as decimal for English", () => {
+    expect(parseDecimal("234.567", "en")).toBe(234.567);
+  });
+
+  it("treats repeated grouping separators as grouping", () => {
+    expect(parseDecimal("1,234,567", "en")).toBe(1234567);
+    expect(parseDecimal("1.234.567", "de")).toBe(1234567);
+  });
+
+  it("passes numbers through unchanged", () => {
+    expect(parseDecimal(42.5)).toBe(42.5);
+  });
+
+  it("strips stray symbols and whitespace", () => {
+    expect(parseDecimal(" 63,00 € ")).toBe(63);
+    expect(parseDecimal("45,2 L")).toBe(45.2);
+  });
+
+  it("returns NaN for empty or junk input", () => {
+    expect(parseDecimal("")).toBeNaN();
+    expect(parseDecimal("   ")).toBeNaN();
+    expect(parseDecimal(null)).toBeNaN();
+    expect(parseDecimal(undefined)).toBeNaN();
+    expect(parseDecimal("abc")).toBeNaN();
+  });
+});
 
 describe("formatDistance", () => {
   it("formats kilometers", () => {
