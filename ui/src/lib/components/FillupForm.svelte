@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Fillup, CreateFillup } from "$lib/api";
   import { t } from "$lib/i18n";
+  import { parseDecimal } from "$lib/format";
   import { getSettings } from "$lib/stores/settings.svelte";
   import { getFillupsByVehicle } from "$lib/stores/fillups.svelte";
 
@@ -26,6 +27,7 @@
   } = $props();
 
   const settings = $derived(getSettings());
+  const locale = $derived(settings.locale);
   const distanceUnit = $derived(settings.distance_unit);
   const volumeUnit = $derived(
     VOLUME_LABELS[settings.volume_unit] ?? settings.volume_unit,
@@ -52,7 +54,7 @@
   // Convert odometer value when odoMode prop changes
   $effect(() => {
     if (odoMode === prevOdoMode) return;
-    const currentVal = parseFloat(String(odometer));
+    const currentVal = parseDecimal(odometer, locale);
     if (odoMode === "trip" && prevOdoMode === "total") {
       if (
         !isNaN(currentVal) &&
@@ -79,7 +81,7 @@
 
   // Resolve the absolute odometer value from either entry mode
   function resolveOdometer(): number {
-    const raw = parseFloat(String(odometer));
+    const raw = parseDecimal(odometer, locale);
     if (isNaN(raw)) return NaN;
     if (odoMode === "trip" && lastOdometer != null) {
       return lastOdometer + raw;
@@ -194,7 +196,7 @@
       valid = false;
     }
 
-    const odoRaw = parseFloat(String(odometer));
+    const odoRaw = parseDecimal(odometer, locale);
     const odoVal = resolveOdometer();
     if (String(odometer).trim() === "" || isNaN(odoRaw)) {
       odometerError = t("fillup.form.odometerRequired");
@@ -210,7 +212,7 @@
       valid = false;
     }
 
-    const fuelVal = parseFloat(String(fuelAmount));
+    const fuelVal = parseDecimal(fuelAmount, locale);
     if (String(fuelAmount).trim() === "" || isNaN(fuelVal)) {
       fuelAmountError = t("fillup.form.fuelRequired");
       valid = false;
@@ -219,7 +221,7 @@
       valid = false;
     }
 
-    const costVal = parseFloat(String(cost));
+    const costVal = parseDecimal(cost, locale);
     if (String(cost).trim() === "" || isNaN(costVal)) {
       costError = t("fillup.form.costRequired");
       valid = false;
