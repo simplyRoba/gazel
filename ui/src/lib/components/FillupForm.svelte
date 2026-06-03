@@ -56,18 +56,27 @@
     if (odoMode === prevOdoMode) return;
     const currentVal = parseDecimal(odometer, locale);
     if (odoMode === "trip" && prevOdoMode === "total") {
+      // Convert an entered total into a trip distance. When the field still
+      // holds the unchanged prefill (== last reading) the difference is 0, so
+      // clear it instead of showing a meaningless value.
       if (
         !isNaN(currentVal) &&
         lastOdometer != null &&
-        currentVal >= lastOdometer
+        currentVal > lastOdometer
       ) {
         odometer = (currentVal - lastOdometer).toString();
       } else {
         odometer = "";
       }
     } else if (odoMode === "total" && prevOdoMode === "trip") {
-      if (!isNaN(currentVal) && lastOdometer != null) {
-        odometer = (lastOdometer + currentVal).toString();
+      // Convert an entered trip back into an absolute total. With an empty
+      // trip field, restore the prefilled last reading (mirrors create mode).
+      if (lastOdometer != null) {
+        odometer = (
+          lastOdometer + (isNaN(currentVal) ? 0 : currentVal)
+        ).toString();
+      } else if (isNaN(currentVal)) {
+        odometer = "";
       }
     }
     prevOdoMode = odoMode;
@@ -98,9 +107,10 @@
   // Smart missed fill-up prompt
   let showMissedPrompt = $state(false);
 
-  // Populate form from props (runs on mount and when initial/odoMode changes)
+  // Populate form from props. Depends only on `initial`/`lastOdometer` — it
+  // must NOT react to `odoMode`, otherwise toggling the entry mode would
+  // re-prefill the absolute odometer and clobber the trip conversion above.
   $effect(() => {
-    prevOdoMode = odoMode;
     if (initial) {
       date = initial.date;
       odometer = initial.odometer.toString();
