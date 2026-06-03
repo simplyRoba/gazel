@@ -91,7 +91,7 @@
 
   // Shared numeric input guarding (allow sign only for trip odometer)
   const guardNumeric = guardNumericBeforeInput(false);
-  const guardOdometer = $derived(guardNumericBeforeInput(odoMode === "trip"));
+  const guardOdometer = guardNumeric;
 
   function blurField(
     setter: (v: string) => void,

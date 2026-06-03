@@ -197,7 +197,7 @@
 
   // ── Input handlers ──────────────────────────────────────
   const guardNumeric = guardNumericBeforeInput(false);
-  const guardOdometer = $derived(guardNumericBeforeInput(odoMode === "trip"));
+  const guardOdometer = guardNumeric;
 
   function blurField(
     setter: (v: string) => void,
