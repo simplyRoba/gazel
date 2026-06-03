@@ -162,6 +162,14 @@
   "fillup.missed.prompt": "Das ist ein größerer Abstand als üblich. Hast du eine Tankfüllung verpasst?",
   "fillup.missed.confirm": "Ja, als verpasst markieren",
 
+  "fillup.quick.pricePerUnit": "Preis / {unit}",
+  "fillup.quick.pricePlaceholder": "z. B. 1,85",
+  "fillup.quick.total": "Gesamt",
+  "fillup.quick.autoCalcHint": "Zwei eingeben — der dritte Wert wird berechnet.",
+  "fillup.quick.efficiencyPreview": "ca. {value}",
+  "fillup.quick.moreDetails": "Mehr Details",
+  "fillup.quick.lessDetails": "Details ausblenden",
+
   "charts.empty": "Mehr Tankfüllungen hinzufügen, um Trends zu sehen",
   "charts.needMore": "Mehr Tankfüllungen für Diagramm nötig",
   "charts.efficiency": "Effizienz ({unit})",

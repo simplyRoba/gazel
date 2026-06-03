@@ -162,6 +162,14 @@
   "fillup.missed.prompt": "That's a larger gap than usual. Did you miss a fill-up?",
   "fillup.missed.confirm": "Yes, mark as missed",
 
+  "fillup.quick.pricePerUnit": "Price / {unit}",
+  "fillup.quick.pricePlaceholder": "e.g. 1.85",
+  "fillup.quick.total": "Total",
+  "fillup.quick.autoCalcHint": "Enter any two — the third is calculated.",
+  "fillup.quick.efficiencyPreview": "Est. {value}",
+  "fillup.quick.moreDetails": "More details",
+  "fillup.quick.lessDetails": "Hide details",
+
   "charts.empty": "Add more fill-ups to see trends",
   "charts.needMore": "More fill-ups needed for chart",
   "charts.efficiency": "Efficiency ({unit})",

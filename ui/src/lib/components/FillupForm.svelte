@@ -2,6 +2,7 @@
   import type { Fillup, CreateFillup } from "$lib/api";
   import { t } from "$lib/i18n";
   import { parseDecimal } from "$lib/format";
+  import { guardNumericBeforeInput, normalizeOnBlur } from "$lib/numeric-input";
   import { getSettings } from "$lib/stores/settings.svelte";
   import { getFillupsByVehicle } from "$lib/stores/fillups.svelte";
 
@@ -87,6 +88,18 @@
   let notes = $state("");
   let isFullTank = $state(true);
   let isMissed = $state(false);
+
+  // Shared numeric input guarding (allow sign only for trip odometer)
+  const guardNumeric = guardNumericBeforeInput(false);
+  const guardOdometer = $derived(guardNumericBeforeInput(odoMode === "trip"));
+
+  function blurField(
+    setter: (v: string) => void,
+    value: string,
+    decimals: number,
+  ) {
+    setter(normalizeOnBlur(value, locale, decimals));
+  }
 
   // Resolve the absolute odometer value from either entry mode
   function resolveOdometer(): number {
@@ -290,6 +303,8 @@
         enterkeyhint="next"
         autocomplete="off"
         bind:value={odometer}
+        onbeforeinput={guardOdometer}
+        onblur={() => blurField((v) => (odometer = v), odometer, 1)}
         placeholder={odoMode === "trip"
           ? t("fillup.form.tripPlaceholder")
           : t("fillup.form.odometerPlaceholder")}
@@ -325,6 +340,8 @@
           enterkeyhint="next"
           autocomplete="off"
           bind:value={fuelAmount}
+          onbeforeinput={guardNumeric}
+          onblur={() => blurField((v) => (fuelAmount = v), fuelAmount, 2)}
           placeholder={t("fillup.form.fuelPlaceholder")}
           disabled={saving}
         />
@@ -345,6 +362,8 @@
           enterkeyhint="next"
           autocomplete="off"
           bind:value={cost}
+          onbeforeinput={guardNumeric}
+          onblur={() => blurField((v) => (cost = v), cost, 2)}
           placeholder={t("fillup.form.costPlaceholder")}
           disabled={saving}
         />
