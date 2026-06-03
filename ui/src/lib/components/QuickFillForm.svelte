@@ -282,7 +282,7 @@
     <div class="input-wrap" class:input-error={!!odometerError}>
       <input
         id="q-odometer"
-        class="input input-lg num"
+        class="input num"
         type="text"
         inputmode="decimal"
         autocomplete="off"
@@ -319,7 +319,7 @@
       <div class="input-wrap" class:input-error={!!fuelAmountError}>
         <input
           id="q-fuel"
-          class="input input-lg num"
+          class="input num"
           type="text"
           inputmode="decimal"
           autocomplete="off"
@@ -342,7 +342,7 @@
       <div class="input-wrap">
         <input
           id="q-price"
-          class="input input-lg num"
+          class="input num"
           type="text"
           inputmode="decimal"
           autocomplete="off"
@@ -363,7 +363,7 @@
       <div class="input-wrap" class:input-error={!!totalError}>
         <input
           id="q-total"
-          class="input input-lg num"
+          class="input num"
           type="text"
           inputmode="decimal"
           autocomplete="off"
@@ -481,9 +481,6 @@
     margin-bottom: var(--space-1);
   }
 
-  /* Inputs are normal size on desktop; enlarged only on touch/mobile for
-     thumb-friendly targets (see the media query below). */
-
   .num {
     font-family: var(--font-family-mono);
   }
@@ -590,11 +587,6 @@
   @media (max-width: 768px) {
     .money-row {
       grid-template-columns: 1fr;
-    }
-
-    .input-lg {
-      font-size: var(--font-xl);
-      padding: var(--space-3) var(--space-4);
     }
   }
 </style>
