@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.1.0](https://github.com/simplyRoba/gazel/compare/v1.0.2...v1.1.0) (2026-06-03)
+
+
+### Features
+
+* **ui:** quick-fill fast lane for fill-up entry ([ab2eff8](https://github.com/simplyRoba/gazel/commit/ab2eff8893f5b67f3d5c09adbc414e03c60aee41))
+
+
+### Bug Fixes
+
+* **deps:** bump prettier-plugin-svelte in /ui in the prettier group ([39dd056](https://github.com/simplyRoba/gazel/commit/39dd05631bb229b77ffdc6d6f546d36d4e079fa7))
+* **deps:** bump the eslint group in /ui with 3 updates ([8ad8176](https://github.com/simplyRoba/gazel/commit/8ad81768d181990697c5fcf01649d439c191124b))
+* **deps:** bump the svelte group across 1 directory with 2 updates ([67c6b45](https://github.com/simplyRoba/gazel/commit/67c6b451d426c647410eaf2092f6b6387c9c5438))
+* **deps:** bump uuid from 1.23.1 to 1.23.2 ([f22aea3](https://github.com/simplyRoba/gazel/commit/f22aea3c157d43fc6ab925bf579f261200149142))
+* **deps:** bump vite from 8.0.14 to 8.0.16 in /ui ([8b027c1](https://github.com/simplyRoba/gazel/commit/8b027c1f8c1871b8ad7a08c30a3db9971de42ec2))
+* **deps:** bump vitest from 4.1.7 to 4.1.8 in /ui ([564daf8](https://github.com/simplyRoba/gazel/commit/564daf81c6aaada8e775d4d5c20cbe4db8d976b0))
+* **ui:** accept comma decimal separator in fill-up number inputs ([5645c0b](https://github.com/simplyRoba/gazel/commit/5645c0b1cde51cd267a3a1a9f17ff3fdc28d65ce))
+* **ui:** correct odometer value when toggling total/trip entry mode ([d8fa4e0](https://github.com/simplyRoba/gazel/commit/d8fa4e0a138daf874e0ec615950d5ef0fc365422))
+* **ui:** disallow negative trip distance input ([0086b69](https://github.com/simplyRoba/gazel/commit/0086b69773403741cf7988a1f916c0b01e4cac7a))
+* **ui:** prevent date field autofocus opening iOS date picker on modal open ([9512286](https://github.com/simplyRoba/gazel/commit/9512286ea43ef8651727e18437e6f25a49e983d7))
+* **ui:** refresh stats after adding fill-up via global CTA ([cea9698](https://github.com/simplyRoba/gazel/commit/cea96986ea98e773085bb34308f92fe560ec8f6f))
+* **ui:** use normal-size inputs in quick-fill form on mobile ([f891338](https://github.com/simplyRoba/gazel/commit/f891338d34699e5e3bf5d269425302e62cafb4b5))
+
 ## [1.0.2](https://github.com/simplyRoba/gazel/compare/v1.0.1...v1.0.2) (2026-05-28)
 
 
