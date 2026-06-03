@@ -55,8 +55,15 @@ export function guardNumericBeforeInput(allowNegative: boolean = false) {
   return (event: InputEvent): void => {
     const target = event.target as HTMLInputElement | null;
     if (!target) return;
-    // Allow deletions, pastes are validated via their resulting data, and
-    // composition/other input types pass through.
+    // Let pastes/drops through — they may carry grouping/currency formatting
+    // (e.g. "1,234.56" or "€ 50.00") that on-blur normalization cleans up.
+    if (
+      event.inputType === "insertFromPaste" ||
+      event.inputType === "insertFromDrop"
+    ) {
+      return;
+    }
+    // Allow deletions and composition/other input types.
     if (event.data == null) return;
     const next = applyInput(
       target.value,

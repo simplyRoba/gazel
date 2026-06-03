@@ -72,11 +72,16 @@
   let totalError = $state("");
   let dateError = $state("");
 
+  // Tracks whether the user has edited the odometer field, so a late/background
+  // store refresh of `lastOdometer` cannot clobber what they typed.
+  let odometerTouched = $state(false);
+
   // Prefill odometer from last reading. Depends only on `lastOdometer` — it
   // must NOT react to `odoMode`, otherwise toggling total/trip would re-prefill
-  // the absolute odometer and clobber the conversion effect below.
+  // the absolute odometer and clobber the conversion effect below. Once the
+  // user has edited the field, stop prefilling.
   $effect(() => {
-    if (lastOdometer != null) {
+    if (!odometerTouched && lastOdometer != null) {
       odometer = lastOdometer.toString();
     }
   });
@@ -282,6 +287,7 @@
         inputmode="decimal"
         autocomplete="off"
         bind:value={odometer}
+        oninput={() => (odometerTouched = true)}
         onbeforeinput={guardOdometer}
         onblur={() => blurField((v) => (odometer = v), odometer, 1)}
         placeholder={odoMode === "trip"
@@ -475,10 +481,8 @@
     margin-bottom: var(--space-1);
   }
 
-  .input-lg {
-    font-size: var(--font-xl);
-    padding: var(--space-3) var(--space-4);
-  }
+  /* Inputs are normal size on desktop; enlarged only on touch/mobile for
+     thumb-friendly targets (see the media query below). */
 
   .num {
     font-family: var(--font-family-mono);
@@ -586,6 +590,11 @@
   @media (max-width: 768px) {
     .money-row {
       grid-template-columns: 1fr;
+    }
+
+    .input-lg {
+      font-size: var(--font-xl);
+      padding: var(--space-3) var(--space-4);
     }
   }
 </style>
