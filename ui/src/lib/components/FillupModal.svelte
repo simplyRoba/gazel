@@ -33,11 +33,16 @@
   );
 
   let dialogEl: HTMLDialogElement | undefined = $state();
+  let titleEl: HTMLHeadingElement | undefined = $state();
 
   $effect(() => {
     if (!dialogEl) return;
     if (open && !dialogEl.open) {
       dialogEl.showModal();
+      // Move initial focus to the title rather than the first input.
+      // Otherwise the native date field autofocuses and iOS pops its
+      // fullscreen date picker immediately on open.
+      titleEl?.focus();
     } else if (!open && dialogEl.open) {
       dialogEl.close();
     }
@@ -107,7 +112,7 @@
 >
   <div class="modal-body corner-tri">
     <div class="modal-header">
-      <h3 class="modal-title">
+      <h3 class="modal-title" bind:this={titleEl} tabindex="-1">
         {initial ? t("fillup.edit.title") : t("fillup.add.title")}
       </h3>
       {#if showOdoSwitch}
@@ -211,6 +216,11 @@
   .modal-title {
     font-size: var(--font-lg);
     font-weight: var(--font-weight-semibold);
+  }
+
+  /* Programmatic focus target on open; no visible focus ring. */
+  .modal-title:focus {
+    outline: none;
   }
 
   .save-error {
