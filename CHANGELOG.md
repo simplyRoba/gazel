@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.1.1](https://github.com/simplyRoba/gazel/compare/v1.1.0...v1.1.1) (2026-06-18)
+
+
+### Bug Fixes
+
+* **deps:** bump chrono from 0.4.44 to 0.4.45 ([14872c6](https://github.com/simplyRoba/gazel/commit/14872c671ef0229e7c81d0a4b9784faa65b773b7))
+* **deps:** bump the eslint group across 1 directory with 2 updates ([77f7b62](https://github.com/simplyRoba/gazel/commit/77f7b6258cbdc720c6cbdff96c0b93e9caa1d3c2))
+* **deps:** bump the prettier group across 1 directory with 2 updates ([f5be9e0](https://github.com/simplyRoba/gazel/commit/f5be9e002d102a01b287e0a51c57b4753e31d8cc))
+* **deps:** bump the svelte group across 1 directory with 3 updates ([33f51b2](https://github.com/simplyRoba/gazel/commit/33f51b2dad146b6e9ec657cbd4d7b37b6a59cc1a))
+* **deps:** bump tower-http from 0.6.11 to 0.7.0 ([73c035f](https://github.com/simplyRoba/gazel/commit/73c035fb9f1089e670c9d6aeae0ea3f78354e202))
+* **deps:** bump undici from 7.25.0 to 7.28.0 in /ui ([96903e3](https://github.com/simplyRoba/gazel/commit/96903e3121577c16094cf125677e8f5460055280))
+* **deps:** bump uuid from 1.23.2 to 1.23.3 ([77c6129](https://github.com/simplyRoba/gazel/commit/77c6129c0ad77cf19d87c70085ee45ef7a4d9897))
+* **deps:** bump vitest from 4.1.8 to 4.1.9 in /ui ([b72c444](https://github.com/simplyRoba/gazel/commit/b72c4447de5cc40e6205f9a3a0308fd6660ad843))
+
 ## [1.1.0](https://github.com/simplyRoba/gazel/compare/v1.0.2...v1.1.0) (2026-06-03)
 
 
