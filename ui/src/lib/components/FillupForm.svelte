@@ -396,8 +396,7 @@
         bind:value={notes}
         placeholder={t("common.optional")}
         rows="2"
-        disabled={saving}
-      ></textarea>
+        disabled={saving}></textarea>
     </div>
   </div>
 
