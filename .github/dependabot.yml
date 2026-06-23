@@ -3,7 +3,8 @@ updates:
   - package-ecosystem: "cargo"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "wednesday"
       time: "09:00"
       timezone: "Europe/Berlin"
     commit-message:
@@ -24,7 +25,8 @@ updates:
   - package-ecosystem: "npm"
     directory: "/ui"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "wednesday"
       time: "09:00"
       timezone: "Europe/Berlin"
     commit-message:
@@ -48,7 +50,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "daily"
+      interval: "weekly"
+      day: "wednesday"
       time: "09:00"
       timezone: "Europe/Berlin"
     commit-message:
