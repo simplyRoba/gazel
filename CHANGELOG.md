@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.1.2](https://github.com/simplyRoba/gazel/compare/v1.1.1...v1.1.2) (2026-06-24)
+
+
+### Bug Fixes
+
+* **ci:** bump actions/cache from 5 to 6 ([099e942](https://github.com/simplyRoba/gazel/commit/099e94222dcc90965859b5b8a7386501fd1b035b))
+* **ci:** bump actions/checkout from 6 to 7 ([d86bf99](https://github.com/simplyRoba/gazel/commit/d86bf997045980a5fd5537e29b2109614b652c7c))
+* **deps:** bump @testing-library/svelte from 5.3.1 to 5.4.2 in /ui ([b8107d0](https://github.com/simplyRoba/gazel/commit/b8107d0207abb1ec4cb5d3d890a55f09dd30c99c))
+* **deps:** bump globals from 17.6.0 to 17.7.0 in /ui ([60c482a](https://github.com/simplyRoba/gazel/commit/60c482a7b30bc0aac072d0105cfd300557a8068d))
+* **deps:** bump the svelte group across 1 directory with 3 updates ([4de87f9](https://github.com/simplyRoba/gazel/commit/4de87f99fa02e37b5c50f06c284f61cfa9fb3fba))
+* **deps:** bump typescript-eslint ([a6579f3](https://github.com/simplyRoba/gazel/commit/a6579f38b7b055a0528c5af02e7396ed371817e6))
+* **deps:** bump vite from 8.0.16 to 8.1.0 in /ui ([f5f6a49](https://github.com/simplyRoba/gazel/commit/f5f6a49dfd48b2cd147a8f578ec3a93a9986a965))
+
 ## [1.1.1](https://github.com/simplyRoba/gazel/compare/v1.1.0...v1.1.1) (2026-06-18)
 
 
