@@ -29,9 +29,6 @@ target
 
 .DS_Store
 
-# Claude Code
-.claude/
-
 # Playwright MCP
 .playwright-mcp/
 
