@@ -7,10 +7,10 @@
       "changelog-sections": [
         { "type": "feat", "section": "Features" },
         { "type": "fix", "section": "Bug Fixes" },
-        { "type": "deps", "section": "Dependencies" },
-        { "type": "refactor", "section": "Code Refactoring" },
         { "type": "perf", "section": "Performance Improvements" },
+        { "type": "refactor", "section": "Code Refactoring" },
         { "type": "docs", "section": "Documentation" },
+        { "type": "deps", "section": "Dependencies" },
         { "type": "chore", "section": "Chore", "hidden": true },
         { "type": "test", "section": "Tests", "hidden": true },
         { "type": "ci", "section": "CI", "hidden": true },
