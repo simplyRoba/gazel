@@ -15,13 +15,13 @@ gazel currently has no way for users to configure units, currency, or color mode
 
 ### New Capabilities
 
-- `api/settings` (`openspec/specs/api/settings/`): Backend settings CRUD -- migration, singleton row, GET/PUT endpoints, validation. Covers unit system, currency, distance/volume units, color mode, and locale.
-- `ui/settings` (`openspec/specs/ui/settings/`): Frontend settings page, global settings store, app-init hydration, and the UI controls for all preference fields.
-- `ui/unit-formatting` (`openspec/specs/ui/unit-formatting/`): Pure formatting utilities for distance, volume, efficiency, and currency that read from the settings store and are usable across all future UI surfaces.
+- `api/settings` (`openspec/specs/api-settings/`): Backend settings CRUD -- migration, singleton row, GET/PUT endpoints, validation. Covers unit system, currency, distance/volume units, color mode, and locale.
+- `ui/settings` (`openspec/specs/ui-settings/`): Frontend settings page, global settings store, app-init hydration, and the UI controls for all preference fields.
+- `ui/unit-formatting` (`openspec/specs/ui-unit-formatting/`): Pure formatting utilities for distance, volume, efficiency, and currency that read from the settings store and are usable across all future UI surfaces.
 
 ### Modified Capabilities
 
-- `ui/theme-switching` (`openspec/specs/ui/theme-switching/`): Theme preference gains server-side persistence via the settings API. `setTheme()` will write to both `localStorage` and `PUT /api/settings`. On init, the app reconciles the server-stored theme with the `localStorage` value to keep them in sync without introducing a flash.
+- `ui/theme-switching` (`openspec/specs/ui-theme-switching/`): Theme preference gains server-side persistence via the settings API. `setTheme()` will write to both `localStorage` and `PUT /api/settings`. On init, the app reconciles the server-stored theme with the `localStorage` value to keep them in sync without introducing a flash.
 
 ## Impact
 
