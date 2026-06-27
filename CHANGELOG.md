@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.3](https://github.com/simplyRoba/gazel/compare/v1.1.2...v1.1.3) (2026-06-27)
+
+
+### Code Refactoring
+
+* **openspec:** flatten specs to domain-prefixed layout + fix validation ([3d39f3a](https://github.com/simplyRoba/gazel/commit/3d39f3a22721c1149b8e109a05d8ce14e816590a))
+
+
+### Dependencies
+
+* bump uuid from 1.23.3 to 1.23.4 ([9d5a5dd](https://github.com/simplyRoba/gazel/commit/9d5a5ddb87b494936fbb6808053ff3c41663e419))
+
 ## [1.1.2](https://github.com/simplyRoba/gazel/compare/v1.1.1...v1.1.2) (2026-06-24)
 
 
