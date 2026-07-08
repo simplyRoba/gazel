@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.3](https://github.com/simplyRoba/gazel/compare/v1.1.2...v1.1.3) (2026-07-08)
+
+
+### Code Refactoring
+
+* **openspec:** flatten specs to domain-prefixed layout + fix validation ([3d39f3a](https://github.com/simplyRoba/gazel/commit/3d39f3a22721c1149b8e109a05d8ce14e816590a))
+
+
+### Dependencies
+
+* bump cmov from 0.5.3 to 0.5.4 ([59d6aab](https://github.com/simplyRoba/gazel/commit/59d6aabe378bfd8a20df9c1196c6f51eb7d5d4cb))
+* bump prettier from 3.8.4 to 3.9.4 in /ui in the prettier group ([2592224](https://github.com/simplyRoba/gazel/commit/2592224ed173a68b507c1ddd594a07e913d3e6ab))
+* bump rust-embed from 8.11.0 to 8.12.0 ([ccf9ccf](https://github.com/simplyRoba/gazel/commit/ccf9ccf8ea62982c0af1858016565f450f21bb13))
+* bump the eslint group in /ui with 3 updates ([ea63874](https://github.com/simplyRoba/gazel/commit/ea638747d5d2c35a049f024afc781b940109b670))
+* bump the svelte group across 1 directory with 3 updates ([617aa97](https://github.com/simplyRoba/gazel/commit/617aa9732239dbd207f314141835aa9530aa188d))
+* bump uuid from 1.23.3 to 1.23.4 ([9d5a5dd](https://github.com/simplyRoba/gazel/commit/9d5a5ddb87b494936fbb6808053ff3c41663e419))
+* bump vite from 8.1.0 to 8.1.3 in /ui ([f829814](https://github.com/simplyRoba/gazel/commit/f829814e027f58c272935b070177e34dfbbc0111))
+* bump vitest from 4.1.9 to 4.1.10 in /ui ([51b7b91](https://github.com/simplyRoba/gazel/commit/51b7b91473500df771f8da3214567b62ce1e18bd))
+
 ## [1.1.2](https://github.com/simplyRoba/gazel/compare/v1.1.1...v1.1.2) (2026-06-24)
 
 
