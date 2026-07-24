@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.4](https://github.com/simplyRoba/gazel/compare/v1.1.3...v1.1.4) (2026-07-24)
+
+
+### Dependencies
+
+* bump actions/setup-node from 6 to 7 ([5aed803](https://github.com/simplyRoba/gazel/commit/5aed8038d9a49eedd693f9c8edc9ad5f1a4192f3))
+* bump brace-expansion from 5.0.5 to 5.0.8 in /ui ([2884443](https://github.com/simplyRoba/gazel/commit/288444301c7051534aaeeabbf23b45e5f0eb266a))
+* bump http-body-util from 0.1.3 to 0.1.4 ([e68b744](https://github.com/simplyRoba/gazel/commit/e68b7442f0cc6300aac950488d5ccdfbf84bfe8d))
+* bump prettier in /ui in the prettier group across 1 directory ([069a61c](https://github.com/simplyRoba/gazel/commit/069a61c00fe129b07fb204c8cfd810d31ee4fe22))
+* bump the eslint group across 1 directory with 3 updates ([b7ae88c](https://github.com/simplyRoba/gazel/commit/b7ae88c9a38cad29d928d3af23bbdddb91974108))
+* bump the serde group across 1 directory with 2 updates ([a11f376](https://github.com/simplyRoba/gazel/commit/a11f37673b9f6bc844c70eba135428bb92f231cb))
+* bump the svelte group across 1 directory with 3 updates ([232fca7](https://github.com/simplyRoba/gazel/commit/232fca7dfebeeb2a766f0d79c393ec22b1aa6b72))
+* bump tokio in the tokio group across 1 directory ([c333b70](https://github.com/simplyRoba/gazel/commit/c333b701109d07cbda146c5e092516e96ddcf589))
+* bump uuid from 1.23.4 to 1.24.0 ([da62313](https://github.com/simplyRoba/gazel/commit/da623134a40abed0e43036288f0432db0fb37e73))
+* bump vite from 8.1.3 to 8.1.5 in /ui ([81d40c8](https://github.com/simplyRoba/gazel/commit/81d40c8e0806716cb36d485d597272d12e94021a))
+
 ## [1.1.3](https://github.com/simplyRoba/gazel/compare/v1.1.2...v1.1.3) (2026-07-08)
 
 
