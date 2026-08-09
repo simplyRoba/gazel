@@ -703,6 +703,10 @@
           <span class="setting-label">{t("settings.about.license")}</span>
           <span>{appInfo.license}</span>
         </div>
+        <div class="about-row">
+          <span class="setting-label">{t("settings.about.copyright")}</span>
+          <span>Copyright (C) 2026 simplyRoba.</span>
+        </div>
       </section>
     {/if}
   </div>

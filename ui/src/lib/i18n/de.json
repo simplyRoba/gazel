@@ -98,6 +98,7 @@
   "settings.about.version": "Version",
   "settings.about.source": "Quellcode",
   "settings.about.license": "Lizenz",
+  "settings.about.copyright": "Urheberrecht",
   "settings.updateFailed": "Einstellung konnte nicht gespeichert werden.",
   "settings.deleteVehicle.title": "Fahrzeug löschen",
   "settings.deleteVehicle.message": "\"{name}\" löschen? Dies kann nicht rückgängig gemacht werden.",
