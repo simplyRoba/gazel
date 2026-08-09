@@ -76,6 +76,6 @@ gazel has no built-in authentication. It is designed to run on a trusted home ne
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for dev setup, testing, and design system documentation.
 
----
+Copyright (C) 2026 simplyRoba.
 
 **This project is developed spec-driven with AI assistance, reviewed by a critical human.**
