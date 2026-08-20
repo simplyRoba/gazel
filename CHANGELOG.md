@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.1.5](https://github.com/simplyRoba/gazel/compare/v1.1.4...v1.1.5) (2026-08-20)
+
+
+### Documentation
+
+* add copyright notice ([0aec085](https://github.com/simplyRoba/gazel/commit/0aec0854853fa037774949b6b0d81c2fd9555875))
+
+
+### Dependencies
+
+* bump http-body-util from 0.1.4 to 0.1.5 ([398a39f](https://github.com/simplyRoba/gazel/commit/398a39f63c14cf6c793088247f9717745eca1f8f))
+* bump jsdom from 29.1.1 to 30.0.1 in /ui ([6a9c32f](https://github.com/simplyRoba/gazel/commit/6a9c32fe4f2426040d620dc4e67f02cfdcb36cba))
+* bump layercake from 10.0.2 to 10.0.3 in /ui ([ceeb04f](https://github.com/simplyRoba/gazel/commit/ceeb04fd10ae9e733d6b66c7dde8e9c5967367cf))
+* bump postcss from 8.5.22 to 8.5.26 in /ui ([3b8bdc2](https://github.com/simplyRoba/gazel/commit/3b8bdc265060cd252251e7af62ef797860628af9))
+* bump the eslint group across 1 directory with 3 updates ([f4862e6](https://github.com/simplyRoba/gazel/commit/f4862e6259080b7badfa49f2561832c552bbef29))
+* bump the svelte group across 1 directory with 4 updates ([c33f5e9](https://github.com/simplyRoba/gazel/commit/c33f5e9cc0240a1a0f387423e4947c833ce9ee4f))
+* bump uuid from 1.24.0 to 1.24.1 ([c4b3287](https://github.com/simplyRoba/gazel/commit/c4b328720bc5e66267c8cfaaae4f28cab442eaf5))
+
 ## [1.1.4](https://github.com/simplyRoba/gazel/compare/v1.1.3...v1.1.4) (2026-07-24)
 
 
