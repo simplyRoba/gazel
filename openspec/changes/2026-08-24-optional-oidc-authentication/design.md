@@ -59,25 +59,27 @@ Wrap `reqwest::Client` using `redirect::Policy::none()` in an `AsyncHttpClient` 
 
 The selected method is retained and reapplied whenever cached verification state is rebuilt.
 
-Startup endpoints and JWKS are cached; callbacks do not rediscover. Cache state includes a monotonically increasing JWKS generation. On an eligible no-matching-key/signature failure, callback records the generation it used and acquires a refresh mutex. Under the lock it first checks the current generation: if another callback already advanced it, retry with those keys and perform no fetch; otherwise fetch only JWKS once, replace keys, increment the generation, and retry once. Claim failures other than key/signature never refresh. Token exchange and full discovery are never retried.
+Startup endpoints and JWKS are cached; callbacks do not rediscover. Cache state includes a monotonically increasing JWKS generation and an optional process-monotonic failed-refresh retry deadline scoped to the current generation. On an eligible no-matching-key/signature failure, the callback records the generation it used and acquires a refresh mutex. Under the lock it first checks the current generation: if another callback already advanced it, retry with those keys and perform no fetch; if the same generation is inside its failure cooldown, return `provider_unavailable` without fetching; otherwise fetch only the configured JWKS.
+
+A successful targeted fetch replaces the cached verification keys, increments the generation, clears the failure deadline, and permits one ID-token verification retry. A failed or unusable JWKS response retains the last usable client and generation, records a 30-second cooldown, and returns `provider_unavailable`; concurrent waiters and later attempts during that window perform no additional JWKS request. Once the cooldown expires, a later login may make one new targeted fetch, allowing provider recovery without a Gazel restart. Claim failures other than key/signature never refresh. Token exchange and full discovery are never retried.
 
 Normal verification checks signature, issuer, audience, expiry, nonce, and default additional-audience policy. Gazel also verifies `at_hash` when present. No unsafe verifier relaxation is allowed.
 
-**Rationale:** The crate owns protocol and cryptography, while Gazel fills one documented interoperability gap. Generation-aware refresh prevents a stale-key thundering herd and supports normal rotation without per-login discovery races.
+**Rationale:** The crate owns protocol and cryptography, while Gazel fills one documented interoperability gap. Generation-aware single-flight refresh prevents a stale-key thundering herd; the failure cooldown bounds provider load without turning one transient failure into a process-lifetime tombstone.
 
-**Alternatives:** Raw OAuth lacks OIDC claims verification. Full callback discovery is excessive. A mutex without generation comparison serializes but does not deduplicate waiting refreshes.
+**Alternatives:** Raw OAuth lacks OIDC claims verification. Full callback discovery is excessive. A mutex without generation comparison serializes but does not deduplicate waiting refreshes. Permanently suppressing refresh for a failed generation prevents automatic recovery and is rejected.
 
-### 3. Parse enabled auth into a typed six-variable boundary
+### 3. Parse enabled auth into five functional settings plus optional display metadata
 
 **Decision:** `Config::load`/`load_from` becomes fallible while legacy port/database/log defaults remain. Absent enable means disabled; malformed enable fails rather than silently exposing the app; explicit false ignores auth-only values.
 
-Required enabled values are external URL, issuer, client ID, and client secret. `GAZEL_OIDC_PROVIDER_NAME` is optional, trimmed, limited to 80 non-control Unicode scalar values, and defaults to `OpenID Connect`. It is display-only and never affects issuer/client decisions.
+Enabled operation uses five functional settings: `GAZEL_AUTH_ENABLED=true`, external URL, issuer, client ID, and client secret. `GAZEL_OIDC_PROVIDER_NAME` is optional, trimmed, limited to 80 non-control Unicode scalar values, and defaults to `OpenID Connect`. It is display-only and never affects issuer/client decisions.
 
 URLs must be absolute, credential/query/fragment-free, and HTTPS except loopback HTTP. Gazel rejects an external non-root path, normalizes the origin, and joins `/auth/callback`. Request headers never participate.
 
 No operator-managed cookie secret setting is introduced. Enabled startup securely generates one private-cookie key with a fallible OS-random API. Generation failure aborts startup. A persistent operator key could not preserve sessions after `MemoryStore` restart and would add needless setup.
 
-**Rationale:** The operator supplies five functional values plus one optional label; no extra cryptographic secret lifecycle is needed. Typed optional config prevents partial enabled operation.
+**Rationale:** The enable flag and four required OIDC values form the five-setting functional boundary; the optional label adds display metadata only. No extra cryptographic secret lifecycle is needed, and typed optional config prevents partial enabled operation.
 
 ### 4. Use encrypted opaque sessions plus an atomic login registry
 
@@ -140,7 +142,7 @@ Enabled authenticated `/api/info` adds `auth_enabled: true`; disabled mode omits
 
 **Decision:** Add an ephemeral Axum provider with discovery, authorization, token, and JWKS endpoints. Sign fixtures with `openidconnect` provider-side RSA types. Modes cover Basic/Post/omitted/unsupported auth metadata, including wire assertions that Basic uses only the Authorization header and Post uses only request-body client credentials, plus PKCE, invalid claims/signatures, malformed responses, endpoint redirects/transport, provider errors, availability failures, and key rotation.
 
-Counters prove normal callbacks do not rediscover/refetch. Concurrent stale-generation callbacks must cause one JWKS request and each retry at most once. Cookie tests cover atomic callbacks, expiry, tampering, restart, and logout.
+Counters prove normal callbacks do not rediscover/refetch. Concurrent stale-generation callbacks must cause one JWKS request and each retry at most once. A failed-refresh recovery test rotates the signing key, fails the first targeted JWKS request, proves no additional fetch occurs during the 30-second cooldown, restores the provider, and proves a later login refreshes and succeeds without restarting Gazel. Cookie tests cover atomic callbacks, expiry, tampering, restart, and logout.
 
 Backend router coverage proves server navigation preserves path/query only, oversized targets default to `/`, and authenticated `/login` returns `303 /`. Vitest/component coverage includes standalone unauthenticated `/login` shell, no protected hydration, branding/text/one button, provider default/custom labels, SPA-encoded `location.hash`, safe error states, exact 401 handling and exports, navigation guard, optional app info, and logout form.
 
@@ -149,7 +151,7 @@ Backend router coverage proves server navigation preserves path/query only, over
 - **[Public static bundles reveal client code]** → Expected for a browser app; bundles contain no application records, secrets, or tokens, while every data/API route remains protected.
 - **[In-memory sessions end on restart and do not support non-sticky replicas]** → Document; old cookies fail closed. Revisit SQLite only if deployment needs change.
 - **[Provider downtime prevents enabled startup]** → Deliberate fail-closed behavior; deployment restart policy supplies retry.
-- **[One signature failure can initiate key refresh]** → Requires a valid one-time transaction/token exchange; generation locking deduplicates concurrent failures and permits one retry.
+- **[One signature failure can initiate key refresh]** → Requires a valid one-time transaction/token exchange; generation locking deduplicates concurrent failures, and a 30-second failure cooldown bounds repeated provider load while preserving later recovery.
 - **[A stolen cookie works until expiry/logout]** → TLS, Secure/HttpOnly/private cookie, login rotation, absolute twelve-hour expiry, and server deletion reduce exposure.
 - **[SameSite=Lax permits top-level callback]** → Necessary; state, nonce, and PKCE bind it.
 - **[Provider SSO remains after local logout]** → Login page shows signed-out state and waits for explicit action; Gazel does not claim provider logout.

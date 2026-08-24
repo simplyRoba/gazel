@@ -89,7 +89,7 @@ impl Authentication {
     ) -> Result<Self, AuthenticationStartupError> {
         let sessions = SessionBackend::new(config.secure_cookie())
             .map_err(AuthenticationStartupError::CookieKey)?;
-        let runtime = OidcRuntime::discover(&config)
+        let runtime = OidcRuntime::discover(&config, Arc::clone(&clock))
             .await
             .map_err(AuthenticationStartupError::Oidc)?;
         Ok(Self {

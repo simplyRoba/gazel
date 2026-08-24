@@ -16,9 +16,14 @@ use std::fmt;
 use std::future::Future;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::pin::Pin;
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock};
 
+use super::flow::Clock;
 use crate::config::OidcConfig;
+
+const JWKS_REFRESH_COOLDOWN: Duration = Duration::from_secs(30);
 
 type CachedClient = CoreClient<
     EndpointSet,
@@ -193,7 +198,7 @@ impl<'client> AsyncHttpClient<'client> for GuardedHttpClient {
 struct CacheState {
     client: CachedClient,
     generation: u64,
-    refresh_failed_for: Option<u64>,
+    refresh_retry_at: Option<Instant>,
 }
 
 pub(crate) struct OidcRuntime {
@@ -203,6 +208,7 @@ pub(crate) struct OidcRuntime {
     callback_url: RedirectUrl,
     auth_method: ClientAuthMethod,
     http: GuardedHttpClient,
+    clock: Arc<dyn Clock>,
     cache: RwLock<CacheState>,
     refresh: Mutex<()>,
 }
@@ -227,7 +233,10 @@ impl fmt::Debug for OidcRuntime {
 }
 
 impl OidcRuntime {
-    pub(crate) async fn discover(config: &OidcConfig) -> Result<Self, OidcStartupError> {
+    pub(crate) async fn discover(
+        config: &OidcConfig,
+        clock: Arc<dyn Clock>,
+    ) -> Result<Self, OidcStartupError> {
         let http = GuardedHttpClient::new().map_err(OidcStartupError::HttpClient)?;
         let issuer = IssuerUrl::new(config.issuer.to_string())
             .map_err(|_| OidcStartupError::InvalidIssuer)?;
@@ -256,10 +265,11 @@ impl OidcRuntime {
             callback_url,
             auth_method,
             http,
+            clock,
             cache: RwLock::new(CacheState {
                 client,
                 generation: 0,
-                refresh_failed_for: None,
+                refresh_retry_at: None,
             }),
             refresh: Mutex::new(()),
         })
@@ -323,7 +333,10 @@ impl OidcRuntime {
         if current.generation != stale_generation {
             return Ok(current.client.clone());
         }
-        if current.refresh_failed_for == Some(stale_generation) {
+        if current
+            .refresh_retry_at
+            .is_some_and(|retry_at| self.clock.monotonic_now() < retry_at)
+        {
             return Err(ProtocolError::ProviderUnavailable);
         }
         drop(current);
@@ -349,7 +362,7 @@ impl OidcRuntime {
         );
         let mut cache = self.cache.write().await;
         cache.generation = cache.generation.saturating_add(1);
-        cache.refresh_failed_for = None;
+        cache.refresh_retry_at = None;
         cache.client = client.clone();
         Ok(client)
     }
@@ -357,7 +370,7 @@ impl OidcRuntime {
     async fn record_refresh_failure(&self, stale_generation: u64) {
         let mut cache = self.cache.write().await;
         if cache.generation == stale_generation {
-            cache.refresh_failed_for = Some(stale_generation);
+            cache.refresh_retry_at = Some(self.clock.monotonic_now() + JWKS_REFRESH_COOLDOWN);
         }
     }
 }

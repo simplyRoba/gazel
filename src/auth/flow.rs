@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
+use std::time::Instant;
 
 use axum::Router;
 use axum::extract::{RawQuery, State};
@@ -26,6 +27,12 @@ const AUTHENTICATED_SESSION_KEY: &str = "authenticated";
 pub trait Clock: Send + Sync {
     /// Return the current UTC time.
     fn now(&self) -> OffsetDateTime;
+
+    /// Return the current process-local monotonic time.
+    #[doc(hidden)]
+    fn monotonic_now(&self) -> Instant {
+        Instant::now()
+    }
 }
 
 #[derive(Debug)]

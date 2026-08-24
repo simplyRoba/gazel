@@ -1,8 +1,8 @@
 ## 1. Dependencies and configuration
 
 - [x] 1.1 Add maintained `openidconnect` and `tower-sessions` private-cookie support plus only directly used URL/time utilities; verify dependency resolution and backend-only `cargo check` succeed without an auth framework or Base64 secret dependency
-- [x] 1.2 Add configuration tests first for disabled defaults, explicit false, malformed enable flags, every missing/empty enabled value, HTTPS/loopback URL policy, forbidden URL components/paths, exact callback construction, default/custom provider name, and empty/control/overlength provider names
-- [x] 1.3 Implement fallible typed auth configuration with optional `GAZEL_OIDC_PROVIDER_NAME=OpenID Connect` default while preserving legacy port/database/log fallbacks and disabled application/API behavior; verify all config tests pass
+- [x] 1.2 Add configuration tests first for the five-setting enabled boundary (`GAZEL_AUTH_ENABLED` plus four required OIDC values), disabled defaults, explicit false, malformed enable flags, every missing/empty enabled value, HTTPS/loopback URL policy, forbidden URL components/paths, exact callback construction, and optional default/custom provider name validation
+- [x] 1.3 Implement fallible typed authentication configuration with five functional settings plus optional display-only `GAZEL_OIDC_PROVIDER_NAME=OpenID Connect`, while preserving legacy port/database/log fallbacks and disabled application/API behavior; verify all config tests pass
 - [x] 1.4 Add tests for secure per-process private-cookie key generation and failure, then implement enabled-startup generation without an operator-managed cookie secret setting; verify key/store replacement invalidates prior cookies
 
 ## 2. OIDC runtime and protocol validation
@@ -13,8 +13,8 @@
 - [x] 2.4 Add login tests first for state, nonce, S256 PKCE, external callback despite forwarded headers, fresh/replaced transactions, already-authenticated behavior, safe path/query `return_to`, and a SPA hash supplied only as `%23` query-parameter data; never model a browser fragment as part of the backend request target
 - [x] 2.5 Add validator tests for absolute/protocol-relative/reserved targets, percent-decoded backslash/control characters, the exact 2,048-byte boundary, and oversized values before redirect serialization; implement the shared limit, login initiation, and bounded backend-only return-target storage
 - [x] 2.6 Add callback tests first for valid `client_secret_basic` and `client_secret_post` exchanges: assert Basic sends an `Authorization: Basic` header without form client credentials, and Post sends `client_id`/`client_secret` in the form without an Authorization header; then cover PKCE, missing/mismatched/replayed/expired/concurrent state, provider errors, malformed token responses, wrong nonce/issuer/audience/signature, expiration, and invalid `at_hash`, asserting every failure establishes no session and returns to `/login` with a stable error plus preserved encoded target or `return_to=%2F`
-- [x] 2.7 Add cache/rotation tests proving normal callbacks do not rediscover/refetch, non-signature failures do not refresh, and concurrent failures against stale JWKS generation N cause one fetch while waiters retry cached N+1 without another request
-- [x] 2.8 Implement atomic callback consumption, selected-method exchange, complete token verification, generation-aware one-time JWKS refresh, session rotation/token discard, and safe success/error redirects back through `/login`; verify all protocol tests pass
+- [x] 2.7 Add cache/rotation tests proving normal callbacks do not rediscover/refetch, non-signature failures do not refresh, concurrent failures against stale JWKS generation N are deduplicated, and a failed refresh enters a bounded cooldown before a later login retries and succeeds after provider recovery without restart
+- [x] 2.8 Implement atomic callback consumption, selected-method exchange, complete token verification, generation-aware targeted JWKS refresh with retained known-good keys and a 30-second process-monotonic failed-refresh cooldown, session rotation/token discard, and safe success/error redirects back through `/login`; verify all protocol tests pass
 
 ## 3. Sessions, public/protected routing, and logout
 
@@ -48,7 +48,7 @@
 
 ## 7. Validation and review readiness
 
-- [x] 7.1 Run focused Rust auth/config/router tests and direct frontend tests; fix only change-related failures and record results
+- [x] 7.1 Run the focused JWKS failed-refresh recovery test, full Rust auth/config/router tests, and direct frontend tests; fix only change-related failures and record results
 - [x] 7.2 Run `cargo fmt -- --check`, `cargo clippy -- -D warnings`, `npm run format:check --prefix ui`, `npm run lint --prefix ui`, `npm run check --prefix ui`, and `cargo test`; verify the full pre-review gate passes
 - [x] 7.3 Run strict validation for this OpenSpec change, repository-wide validation, and implementation verification against every proposal/design/spec requirement; report unrelated pre-existing failures without editing them
-- [x] 7.4 Review the final diff for token/secret logging, browser storage, open redirects, forwarded-header trust, client-auth mismatch, JWKS refresh races, login hydration loops, accidental public application routes, local-user concepts, provider-specific behavior, and unrelated refactors
+- [x] 7.4 Review the final diff for token/secret logging, browser storage, open redirects, forwarded-header trust, client-auth mismatch, JWKS refresh races including failed-refresh recovery/cooldown, login hydration loops, accidental public application routes, local-user concepts, provider-specific behavior, and unrelated refactors

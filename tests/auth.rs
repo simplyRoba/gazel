@@ -69,6 +69,7 @@ enum JwksMode {
     Key(String),
     Empty,
     Unusable,
+    ServerUnavailable,
     Redirect,
 }
 
@@ -260,24 +261,48 @@ impl Drop for MockProvider {
 #[derive(Debug)]
 struct TestClock {
     now: StdMutex<OffsetDateTime>,
+    monotonic_now: StdMutex<std::time::Instant>,
 }
 
 impl TestClock {
     fn new(now: OffsetDateTime) -> Self {
         Self {
             now: StdMutex::new(now),
+            monotonic_now: StdMutex::new(std::time::Instant::now()),
         }
     }
 
     fn advance(&self, duration: Duration) {
+        self.advance_utc(duration);
+        self.advance_monotonic(duration);
+    }
+
+    fn advance_utc(&self, duration: Duration) {
         let mut now = self.now.lock().expect("test clock should not be poisoned");
         *now += duration;
+    }
+
+    fn advance_monotonic(&self, duration: Duration) {
+        let elapsed = std::time::Duration::try_from(duration)
+            .expect("test clock should only advance forward");
+        let mut monotonic_now = self
+            .monotonic_now
+            .lock()
+            .expect("test clock should not be poisoned");
+        *monotonic_now += elapsed;
     }
 }
 
 impl Clock for TestClock {
     fn now(&self) -> OffsetDateTime {
         *self.now.lock().expect("test clock should not be poisoned")
+    }
+
+    fn monotonic_now(&self) -> std::time::Instant {
+        *self
+            .monotonic_now
+            .lock()
+            .expect("test clock should not be poisoned")
     }
 }
 
@@ -373,6 +398,11 @@ async fn jwks(State(state): State<Arc<ProviderState>>) -> Response {
             "keys": [{ "kty": "unsupported", "kid": "bad", "use": "enc" }]
         }))
         .into_response(),
+        JwksMode::ServerUnavailable => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            "provider temporarily unavailable",
+        )
+            .into_response(),
         JwksMode::Redirect => (
             StatusCode::FOUND,
             [(header::LOCATION, format!("{}redirect-target", state.issuer))],
@@ -1917,6 +1947,74 @@ async fn concurrent_unusable_jwks_refresh_is_attempted_once_for_stale_generation
         );
     }
     assert_eq!(provider.jwks_count(), 2, "startup plus one failed refresh");
+}
+
+#[tokio::test]
+async fn failed_jwks_refresh_retries_after_cooldown_and_recovers() {
+    let clock = Arc::new(TestClock::new(OffsetDateTime::now_utc()));
+    let (provider, app) =
+        initialized_with_clock(ProviderOptions::default(), Arc::clone(&clock)).await;
+    provider
+        .set_options(|options| {
+            options.signing_key_id = String::from("key-2");
+            options.jwks_mode = JwksMode::ServerUnavailable;
+        })
+        .await;
+
+    let failed_attempt = login_attempt(&app, &provider, "%2Ffirst").await;
+    let failed_response = callback_request(&app, &failed_attempt, "").await;
+    assert_eq!(
+        response_location(&failed_response),
+        "/login?error=provider_unavailable&return_to=%2Ffirst"
+    );
+    assert_eq!(provider.jwks_count(), 2, "startup plus failed refresh");
+
+    provider
+        .set_options(|options| {
+            options.jwks_mode = JwksMode::Key(String::from("key-2"));
+        })
+        .await;
+    let cooldown_attempt = login_attempt(&app, &provider, "%2Fcooldown").await;
+    let cooldown_response = callback_request(&app, &cooldown_attempt, "").await;
+    assert_eq!(
+        response_location(&cooldown_response),
+        "/login?error=provider_unavailable&return_to=%2Fcooldown"
+    );
+    assert_eq!(
+        provider.jwks_count(),
+        2,
+        "the failed generation should not refetch during cooldown"
+    );
+
+    clock.advance_utc(Duration::seconds(30));
+    let wall_clock_attempt = login_attempt(&app, &provider, "%2Fwall-clock").await;
+    let wall_clock_response = callback_request(&app, &wall_clock_attempt, "").await;
+    assert_eq!(
+        response_location(&wall_clock_response),
+        "/login?error=provider_unavailable&return_to=%2Fwall-clock"
+    );
+    assert_eq!(
+        provider.jwks_count(),
+        2,
+        "wall-clock changes must not release the cooldown"
+    );
+
+    clock.advance_monotonic(Duration::seconds(30));
+    let first_recovered = Arc::new(login_attempt(&app, &provider, "%2Frecovered-first").await);
+    let second_recovered = Arc::new(login_attempt(&app, &provider, "%2Frecovered-second").await);
+    provider.set_barrier(2).await;
+    let (first_response, second_response) = tokio::join!(
+        callback_request(&app, &first_recovered, ""),
+        callback_request(&app, &second_recovered, "")
+    );
+    assert_eq!(response_location(&first_response), "/recovered-first");
+    assert_eq!(response_location(&second_response), "/recovered-second");
+    assert_eq!(provider.discovery_count(), 1);
+    assert_eq!(
+        provider.jwks_count(),
+        3,
+        "concurrent later logins should share one JWKS retry"
+    );
 }
 
 #[tokio::test]

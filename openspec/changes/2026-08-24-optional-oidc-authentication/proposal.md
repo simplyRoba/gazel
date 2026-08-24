@@ -16,7 +16,7 @@ Gazel currently relies entirely on network placement or an authenticating revers
 - Redirect an already-authenticated `GET /login` to `/` instead of rendering an authentication-required page.
 - Add local logout that always destroys the Gazel session without depending on provider logout support, plus a settings-page action returning to the public login page’s signed-out state.
 - Add fail-closed startup validation and OIDC discovery using an explicit external URL rather than trusting proxy headers.
-- Cache startup discovery metadata and keys, refreshing only one JWKS generation when ID-token signature/key verification requires it.
+- Cache startup discovery metadata and keys; on an eligible ID-token key/signature failure, perform a generation-deduplicated targeted JWKS refresh, retain the last usable keys after refresh failure, and permit a later retry after a bounded cooldown so provider recovery does not require a Gazel restart.
 - Add local mock-provider and frontend coverage for protocol, session, expiration, login-page, and reauthentication behavior.
 - Update deployment examples and user-facing security/configuration documentation.
 - Do not add local users, registration, usernames, passwords, roles, permissions, groups, claim authorization, per-user data separation, account tables, Redis, or a frontend authentication framework.
@@ -44,7 +44,7 @@ Gazel currently relies entirely on network placement or an authenticating revers
 - **Rust**: focused authentication module plus changes to configuration, startup, shared state, API errors, app-info output, public auth config, static routing, and router assembly.
 - **UI**: new `ui/src/routes/login/+page.svelte`, login-aware root layout, centralized session-expiry handling, and conditional settings logout; no frontend auth library or browser token storage.
 - **HTTP surface**: public `GET /login`, `GET /auth/config`, `GET /auth/login`, `GET /auth/callback`, `POST /auth/logout`, and exact login-page assets when enabled; inert `GET /auth/config` is also public when disabled; existing domain endpoint payloads remain unchanged.
-- **Configuration**: `GAZEL_AUTH_ENABLED`, `GAZEL_EXTERNAL_URL`, `GAZEL_OIDC_ISSUER`, `GAZEL_OIDC_CLIENT_ID`, `GAZEL_OIDC_CLIENT_SECRET`, and optional `GAZEL_OIDC_PROVIDER_NAME`.
+- **Configuration**: five functional settings—`GAZEL_AUTH_ENABLED=true`, `GAZEL_EXTERNAL_URL`, `GAZEL_OIDC_ISSUER`, `GAZEL_OIDC_CLIENT_ID`, and `GAZEL_OIDC_CLIENT_SECRET`—plus optional display-only `GAZEL_OIDC_PROVIDER_NAME`; no operator-managed cookie-key setting.
 - **Dependencies**: maintained `openidconnect` for protocol validation and `tower-sessions` for private-cookie-referenced server-side sessions; no generalized authentication framework.
 - **Tests/docs/deployment**: mock OIDC integration tests, configuration/session/router tests, login/API-client/settings component tests, README updates, and Docker Compose examples.
 - **Data model**: no users/accounts/session table and no per-user ownership changes; all successfully authenticated identities share the same Gazel application data.

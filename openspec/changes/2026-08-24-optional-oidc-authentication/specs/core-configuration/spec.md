@@ -19,11 +19,11 @@ Built-in authentication SHALL be controlled by `GAZEL_AUTH_ENABLED`, which SHALL
 - **THEN** configuration loading SHALL fail
 - **AND** the application SHALL NOT start in an accidentally unauthenticated mode
 
-### Requirement: Enabled authentication requires complete OIDC configuration
-When `GAZEL_AUTH_ENABLED=true`, Gazel MUST require non-empty values for `GAZEL_EXTERNAL_URL`, `GAZEL_OIDC_ISSUER`, `GAZEL_OIDC_CLIENT_ID`, and `GAZEL_OIDC_CLIENT_SECRET`.
+### Requirement: Enabled authentication uses five functional settings
+The enabled authentication boundary SHALL consist of five functional settings: `GAZEL_AUTH_ENABLED=true` plus non-empty `GAZEL_EXTERNAL_URL`, `GAZEL_OIDC_ISSUER`, `GAZEL_OIDC_CLIENT_ID`, and `GAZEL_OIDC_CLIENT_SECRET`. The separately defined `GAZEL_OIDC_PROVIDER_NAME` SHALL remain optional display-only metadata.
 
-#### Scenario: Complete enabled configuration
-- **WHEN** authentication is enabled and every required authentication variable is valid and non-empty
+#### Scenario: Complete five-setting configuration
+- **WHEN** the enable flag and every required OIDC value are valid and non-empty
 - **THEN** configuration loading SHALL produce an enabled OIDC configuration
 
 #### Scenario: Missing enabled configuration value

@@ -171,8 +171,8 @@ Gazel MUST accept only a serialized local protected UI target of at most 2,048 U
 - **THEN** Gazel SHALL NOT establish a session
 - **AND** SHALL redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>`
 
-### Requirement: Provider metadata is cached and each stale JWKS generation refreshes once
-Gazel SHALL use startup-discovered authorization/token metadata for login and token exchange and MUST NOT repeat full discovery per callback. On an eligible key/signature failure, Gazel MUST coordinate refresh by cached JWKS generation so concurrent callbacks cause at most one JWKS request for that stale generation.
+### Requirement: Provider metadata is cached and JWKS refresh is targeted, deduplicated, and recoverable
+Gazel SHALL use startup-discovered authorization/token metadata for login and token exchange and MUST NOT repeat full discovery per callback. On an eligible key/signature failure, Gazel MUST coordinate targeted refresh by cached JWKS generation so concurrent callbacks cause at most one in-flight JWKS request. A failed refresh MUST retain the last usable keys, suppress another request for that generation during a 30-second process-monotonic cooldown, and permit a later eligible login to retry after the cooldown rather than requiring a Gazel restart.
 
 #### Scenario: Normal callback uses startup metadata
 - **WHEN** a callback receives an ID token verifiable with the cached JWKS
@@ -180,7 +180,7 @@ Gazel SHALL use startup-discovered authorization/token metadata for login and to
 
 #### Scenario: First callback observes stale signing keys
 - **WHEN** otherwise-valid verification reports no matching key or signature-verification failure for cached generation N
-- **AND** no newer generation exists after acquiring the refresh lock
+- **AND** no newer generation or active failed-refresh cooldown exists after acquiring the refresh lock
 - **THEN** Gazel SHALL fetch only the configured JWKS once through the guarded backend client
 - **AND** replace the cache as generation N+1 on successful retrieval
 - **AND** retry ID-token verification exactly once
@@ -188,7 +188,7 @@ Gazel SHALL use startup-discovered authorization/token metadata for login and to
 #### Scenario: Concurrent callback waits for refresh
 - **WHEN** another callback fails against generation N and finds generation N+1 after acquiring the refresh lock
 - **THEN** it SHALL retry once with generation N+1 without issuing another JWKS request
-- **AND** at most one JWKS request SHALL occur for stale generation N
+- **AND** at most one JWKS request SHALL occur for that in-flight refresh attempt against generation N
 
 #### Scenario: Non-signature claim validation fails
 - **WHEN** ID-token verification fails for issuer, audience, expiration, nonce, or another non-signature claim
@@ -200,10 +200,27 @@ Gazel SHALL use startup-discovered authorization/token metadata for login and to
 - **THEN** Gazel SHALL redirect to `/login?error=authentication_failed&return_to=<encoded-safe-local-target>`
 - **AND** SHALL NOT retry token exchange or perform full discovery
 
-#### Scenario: Refreshed keys are unavailable
-- **WHEN** the one allowed JWKS refresh cannot retrieve usable keys
-- **THEN** Gazel SHALL redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>`
+#### Scenario: Targeted JWKS refresh is unavailable
+- **WHEN** an allowed targeted JWKS refresh cannot retrieve usable keys
+- **THEN** Gazel SHALL retain the last usable client and cached generation
+- **AND** record a 30-second retry cooldown for that generation
+- **AND** redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>`
 - **AND** SHALL NOT retry token exchange or perform full discovery
+
+#### Scenario: Failed refresh cooldown deduplicates subsequent callbacks
+- **WHEN** a JWKS refresh has failed for generation N
+- **AND** another callback reaches the refresh lock before that generation's cooldown expires
+- **THEN** Gazel SHALL NOT issue another JWKS request
+- **AND** SHALL redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>`
+
+#### Scenario: Provider recovery after cooldown
+- **WHEN** a targeted JWKS refresh for generation N failed
+- **AND** the 30-second cooldown has expired
+- **AND** the provider now returns usable keys for a later login's eligible key/signature failure
+- **THEN** Gazel SHALL make one new targeted JWKS request without repeating discovery
+- **AND** replace the cached keys as generation N+1
+- **AND** retry that login's ID-token verification once
+- **AND** allow the login to succeed without restarting Gazel
 
 ### Requirement: Sessions are backend-managed and confidential
 Gazel MUST store login-transaction and authenticated-session data only on the backend. The browser MUST receive only an opaque session identifier protected by authenticated encryption in an HTTP-only cookie, and OIDC tokens MUST NOT be stored in browser storage or returned to frontend code.
