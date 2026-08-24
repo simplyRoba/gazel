@@ -30,13 +30,13 @@ The security contract is defined by the ten delta specs in this change. The desi
 
 **Decision:** Disabled mode retains current application/API/static/fallback behavior and adds only public `GET /auth/config` returning `{ enabled: false }`, allowing the compiled login route to self-disable. Enabled mode composes:
 
-1. public `GET /login`, returning embedded `index.html` so SvelteKit renders the dedicated route;
+1. public `GET /login`, returning `303 /` when a valid Gazel session is present and otherwise returning embedded `index.html` so SvelteKit renders the dedicated route;
 2. public exact non-HTML static assets needed by both login and application bundles (`/_app/*`, logo/manifest/favicon resources), explicitly excluding `index.html`;
 3. public `/health`, `GET /auth/config`, `GET /auth/login`, `GET /auth/callback`, and `POST /auth/logout`;
 4. one protected router containing exact `/api`, all `/api/*` routes (including `/api/info`), and every application SPA document/fallback other than `/login`;
 5. one outer session layer and the existing access log.
 
-The embedded handler will be split conceptually into non-HTML exact-asset serving and index fallback so public assets do not make every unknown SPA route public. `index.html` is served publicly only for exact `/login`; direct `/index.html`, nonexistent asset paths, and all other document fallbacks pass through the protected boundary. Public assets contain code and branding only, never application records or OIDC tokens.
+The embedded handler will be split conceptually into non-HTML exact-asset serving and index fallback so public assets do not make every unknown SPA route public. `index.html` is served publicly only for exact `/login` without a valid session; a valid session receives `303 /`. Direct `/index.html`, nonexistent asset paths, and all other document fallbacks pass through the protected boundary. Public assets contain code and branding only, never application records or OIDC tokens.
 
 The middleware classifies only `path == "/api"` or `path.starts_with("/api/")` as API requests. Missing/invalid API sessions return JSON `ApiError::Unauthorized("AUTHENTICATION_REQUIRED")`. Unauthenticated document navigation receives `303` to `/login?return_to=<encoded request path and query>`. The backend uses only `Request::uri().path_and_query()`; browser fragments never reach it. Asset/subresource requests remain limited to exact public assets and are never treated as a return destination.
 
@@ -96,7 +96,7 @@ After verification, write only subject/login time/absolute twelve-hour expiry an
 - middleware sees only the HTTP request path and query. A request target `/settings?tab=data` becomes `/login?return_to=%2Fsettings%3Ftab%3Ddata`; the backend cannot receive, infer, or preserve a browser fragment from that navigation;
 - the already-running SPA can read `location.pathname + location.search + location.hash`. For `/settings?tab=data#export`, it produces `/login?return_to=%2Fsettings%3Ftab%3Ddata%23export`, carrying `%23export` as query-parameter data rather than as `/login`'s own fragment.
 
-The login Svelte page reads the decoded query value and uses `URLSearchParams` to build `/auth/login?return_to=...`. Backend `/auth/login` is authoritative: after percent-decoding the query parameter, it requires a single-leading-slash same-origin protected UI target and rejects authority/scheme, backslash, control characters, and `/api`, `/auth`, `/health`, or `/login` targets. Invalid/absent becomes `/`. Validation occurs before any `Location` serialization.
+The login Svelte page reads the decoded query value and uses `URLSearchParams` to build `/auth/login?return_to=...`. Backend `/auth/login` is authoritative: after percent-decoding the query parameter, it requires a single-leading-slash same-origin protected UI target, limits the serialized target to 2,048 UTF-8 bytes, and rejects authority/scheme, backslash, control characters, and `/api`, `/auth`, `/health`, or `/login` targets. Middleware applies the same limit before constructing its login redirect. Invalid, absent, or oversized input becomes `/` before any `Location` serialization or transaction storage.
 
 The backend transaction stores the validated serialized target. Successful callback redirects to that stored `return_to`. It can contain a hash suffix only when the SPA previously supplied that suffix as percent-encoded query-parameter data; no HTTP request fragment was received by the backend. A valid authenticated session visiting `/auth/login` returns directly to the safe target without starting OIDC or destroying its session.
 
@@ -106,7 +106,8 @@ The backend transaction stores the validated serialized target. Successful callb
 
 **Decision:** Add `ui/src/routes/login/+page.svelte`. The root layout branches on pathname before protected initialization:
 
-- `/login`: render only the child login page, no app navigation/fill-up controls/pull-to-refresh, and do not initialize settings, vehicles, fill-ups, stats, or other protected stores;
+- `/login` without a valid backend session: render only the child login page, no app navigation/fill-up controls/pull-to-refresh, and do not initialize settings, vehicles, fill-ups, stats, or other protected stores;
+- `/login` with a valid backend session: the server returns `303 /`, so the authentication-required page never renders;
 - all application routes: retain the current app shell/hydration.
 
 The page uses the existing Logo/design tokens and translations. It displays Gazel branding, short authentication-required text, and exactly one `Continue with {provider}` link/button. There are no local credential controls.
@@ -141,7 +142,7 @@ Enabled authenticated `/api/info` adds `auth_enabled: true`; disabled mode omits
 
 Counters prove normal callbacks do not rediscover/refetch. Concurrent stale-generation callbacks must cause one JWKS request and each retry at most once. Cookie tests cover atomic callbacks, expiry, tampering, restart, and logout.
 
-Backend router coverage proves server navigation preserves path/query only. Vitest/component coverage includes standalone `/login` shell, no protected hydration, branding/text/one button, provider default/custom labels, SPA-encoded `location.hash`, safe error states, exact 401 handling and exports, navigation guard, optional app info, and logout form.
+Backend router coverage proves server navigation preserves path/query only, oversized targets default to `/`, and authenticated `/login` returns `303 /`. Vitest/component coverage includes standalone unauthenticated `/login` shell, no protected hydration, branding/text/one button, provider default/custom labels, SPA-encoded `location.hash`, safe error states, exact 401 handling and exports, navigation guard, optional app info, and logout form.
 
 ## Risks / Trade-offs
 

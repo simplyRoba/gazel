@@ -38,6 +38,11 @@ When built-in authentication is enabled, Gazel MUST require a valid Gazel sessio
 - **THEN** the resource SHALL be processed without requiring an authenticated Gazel session
 - **AND** `index.html` SHALL remain public only through the `/login` route
 
+#### Scenario: Authenticated login-page navigation
+- **WHEN** authentication is enabled and `GET /login` carries a valid Gazel session
+- **THEN** Gazel SHALL redirect with `303 See Other` to `/`
+- **AND** SHALL NOT serve the login-page document or authentication-required state
+
 ### Requirement: OIDC provider discovery is fail-closed
 When authentication is enabled, Gazel MUST perform OpenID Connect Discovery from the configured issuer during startup and MUST validate the discovered issuer, Authorization Code support, required endpoints, signing metadata, and associated JSON Web Key Set before serving traffic.
 
@@ -93,7 +98,7 @@ Gazel MUST explicitly select a supported confidential-client authentication meth
 - **AND** SHALL NOT initiate a provider authorization request
 
 ### Requirement: Return navigation cannot become an open redirect
-Gazel MUST accept only a serialized local protected UI target as `return_to`; it MUST reject absolute URLs, protocol-relative values, backslashes, control characters, and API, health, or authentication endpoint targets. Authentication middleware can derive only the protected HTTP request path and optional query because browser URL fragments are not sent to the backend. The SPA MAY additionally place `location.hash` inside the percent-encoded `return_to` query value.
+Gazel MUST accept only a serialized local protected UI target of at most 2,048 UTF-8 bytes after percent-decoding as `return_to`; it MUST reject absolute URLs, protocol-relative values, backslashes, control characters, oversized values, and API, health, or authentication endpoint targets. Authentication middleware can derive only the protected HTTP request path and optional query because browser URL fragments are not sent to the backend. The SPA MAY additionally place `location.hash` inside the percent-encoded `return_to` query value. Every invalid or oversized target SHALL default to `/` before redirect serialization or transaction storage.
 
 #### Scenario: Backend navigation preserves only path and query
 - **WHEN** authentication middleware handles an unauthenticated request target `/settings?tab=data`
@@ -115,6 +120,12 @@ Gazel MUST accept only a serialized local protected UI target as `return_to`; it
 #### Scenario: Return target absent
 - **WHEN** login receives no `return_to`
 - **THEN** the backend login transaction SHALL use `/`
+
+#### Scenario: Return target exceeds the length limit
+- **WHEN** the percent-decoded serialized return target exceeds 2,048 UTF-8 bytes
+- **THEN** Gazel SHALL replace it with `/`
+- **AND** authentication middleware SHALL use `/login?return_to=%2F` instead of reflecting the oversized target
+- **AND** `/auth/login` SHALL store only `/` in the backend login transaction
 
 ### Requirement: Callback validation is one-time and complete
 `GET /auth/callback` MUST validate and atomically consume the backend login transaction before establishing a Gazel session, so at most one concurrent callback can obtain it. A successful callback SHALL redirect to the safe `return_to` stored in that transaction. Every failed callback SHALL instead respond with `303 See Other` and redirect to `/login?error=<stable-error-code>&return_to=<encoded-safe-local-target>`. The `return_to` parameter MUST always be present; when no validated transaction target remains, Gazel SHALL use `/`, encoded as `%2F`.

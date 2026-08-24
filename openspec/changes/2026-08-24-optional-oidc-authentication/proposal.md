@@ -11,8 +11,9 @@ Gazel currently relies entirely on network placement or an authenticating revers
 - Add secure backend-managed login transactions and authenticated sessions referenced by an authenticated-encrypted, HTTP-only cookie; generate the cookie key per process and keep OIDC tokens entirely backend-side.
 - Protect every application UI route plus `/api` and `/api/*` when authentication is enabled; keep `/login`, the static assets required to render it, `/health`, and login/callback/logout/config endpoints public.
 - Return JSON `401 Unauthorized` to unauthenticated API clients while redirecting browser navigation and an already-open SPA to `/login`.
-- Preserve a validated local UI `return_to` through the login page and OIDC flow: backend navigation captures only request path/query, while SPA expiry recovery may additionally encode `location.hash` as query-parameter data.
+- Preserve a validated local UI `return_to` through the login page and OIDC flow: backend navigation captures only request path/query, while SPA expiry recovery may additionally encode `location.hash` as query-parameter data; default targets over 2,048 decoded UTF-8 bytes to `/`.
 - Return every failed callback to `/login` with a stable error state and an always-present safe `return_to`, defaulting to encoded `/`.
+- Redirect an already-authenticated `GET /login` to `/` instead of rendering an authentication-required page.
 - Add local logout that always destroys the Gazel session without depending on provider logout support, plus a settings-page action returning to the public login page’s signed-out state.
 - Add fail-closed startup validation and OIDC discovery using an explicit external URL rather than trusting proxy headers.
 - Cache startup discovery metadata and keys, refreshing only one JWKS generation when ID-token signature/key verification requires it.

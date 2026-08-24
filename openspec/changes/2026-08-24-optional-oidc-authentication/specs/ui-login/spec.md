@@ -14,6 +14,11 @@ When built-in authentication is enabled, Gazel SHALL serve a public Svelte page 
 - **AND** exactly one OIDC login button
 - **AND** no username, email, password, registration, or other local-user control
 
+#### Scenario: Valid session bypasses login page
+- **WHEN** a browser with a valid Gazel session requests `/login`
+- **THEN** the backend SHALL redirect to `/` before serving the Svelte login page
+- **AND** the browser SHALL NOT display the authentication-required state
+
 #### Scenario: Provider-labelled button
 - **WHEN** the public auth config reports provider name `Authentik`
 - **THEN** the button SHALL render the translated label `Continue with Authentik`
@@ -37,7 +42,7 @@ The login button SHALL navigate to `/auth/login` and propagate only the current 
 - **THEN** the OIDC button SHALL start `/auth/login` with `/` as the effective return target
 
 #### Scenario: Unsafe return target
-- **WHEN** `/login` receives an absolute, protocol-relative, malformed, or reserved `return_to`
+- **WHEN** `/login` receives an absolute, protocol-relative, malformed, reserved, or over-2,048-byte decoded `return_to`
 - **THEN** frontend handling SHALL NOT convert it into an external navigation
 - **AND** `/auth/login` SHALL remain authoritative and default it to `/`
 

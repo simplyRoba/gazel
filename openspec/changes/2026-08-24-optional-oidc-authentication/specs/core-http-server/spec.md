@@ -16,9 +16,14 @@ The server SHALL serve the embedded SvelteKit build with exact shared static ass
 - **THEN** the server SHALL respond with `200 OK` and the contents of `index.html`
 
 #### Scenario: Public login document
-- **WHEN** authentication is enabled and a browser requests `GET /login`
+- **WHEN** authentication is enabled and a browser without a valid Gazel session requests `GET /login`
 - **THEN** the server SHALL respond with `index.html` without requiring a Gazel session
 - **AND** SvelteKit SHALL render the dedicated login route
+
+#### Scenario: Authenticated login navigation
+- **WHEN** authentication is enabled and a browser with a valid Gazel session requests `GET /login`
+- **THEN** the server SHALL redirect with `303 See Other` to `/`
+- **AND** SHALL NOT serve `index.html` for the login route
 
 #### Scenario: Index and nonexistent paths are protected
 - **WHEN** authentication is enabled and an unauthenticated client requests `/index.html` or a nonexistent asset path
