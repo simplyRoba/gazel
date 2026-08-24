@@ -22,6 +22,29 @@ describe("translation completeness", () => {
     expect(missingInDe).toEqual([]);
   });
 
+  it("includes matching authentication keys and provider placeholders", () => {
+    const authenticationKeys: (keyof typeof en)[] = [
+      "login.title",
+      "login.authenticationRequired",
+      "login.continueWith",
+      "login.error.authenticationFailed",
+      "login.error.providerUnavailable",
+      "login.error.configUnavailable",
+      "login.loggedOut",
+      "error.AUTHENTICATION_REQUIRED",
+      "settings.authentication",
+      "settings.authentication.description",
+      "settings.authentication.signOut",
+    ];
+
+    for (const key of authenticationKeys) {
+      expect(en[key]).toBeTruthy();
+      expect(de[key]).toBeTruthy();
+    }
+    expect(en["login.continueWith"]).toContain("{provider}");
+    expect(de["login.continueWith"]).toContain("{provider}");
+  });
+
   it("all values are non-empty strings", () => {
     for (const [key, value] of Object.entries(en)) {
       expect(value, `en.json key "${key}" is empty`).toBeTruthy();

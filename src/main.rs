@@ -1,13 +1,14 @@
 use tracing::info;
 use tracing_subscriber::EnvFilter;
 
+use gazel::auth::Authentication;
 use gazel::config::Config;
 use gazel::state::AppState;
 use gazel::{db, server};
 
 #[tokio::main]
 async fn main() {
-    let config = Config::load();
+    let config = Config::load().expect("Invalid configuration");
 
     tracing_subscriber::fmt()
         .with_env_filter(
@@ -18,6 +19,15 @@ async fn main() {
     info!("Starting gazel v{}", env!("CARGO_PKG_VERSION"));
     info!(port = config.port, db_path = %config.db_path, log_level = %config.log_level, "Configuration loaded");
 
+    let auth = match config.auth.clone() {
+        Some(auth_config) => Some(
+            Authentication::bootstrap(auth_config)
+                .await
+                .expect("Failed to initialize OIDC authentication"),
+        ),
+        None => None,
+    };
+
     let pool = db::create_pool(&config.db_path)
         .await
         .expect("Failed to create database pool");
@@ -26,7 +36,7 @@ async fn main() {
         .await
         .expect("Failed to run database migrations");
 
-    let state = AppState { pool };
+    let state = AppState::new(pool, auth);
     let router = server::router(state);
 
     server::serve(router, config.port)

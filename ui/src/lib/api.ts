@@ -13,6 +13,42 @@ export class ApiError extends Error {
 
 // ── Core request helper ──────────────────────────────────
 
+const authenticationNavigationTargets = new WeakSet<object>();
+
+export function authenticationLoginUrl(
+  location: Pick<Location, "pathname" | "search" | "hash">,
+): string {
+  const returnTo = `${location.pathname}${location.search}${location.hash}`;
+  return `/login?${new URLSearchParams({ return_to: returnTo })}`;
+}
+
+function navigateToLogin(): void {
+  if (typeof window === "undefined") return;
+
+  const targetWindow = window.top ?? window;
+  if (authenticationNavigationTargets.has(targetWindow)) return;
+
+  authenticationNavigationTargets.add(targetWindow);
+  targetWindow.location.assign(authenticationLoginUrl(window.location));
+}
+
+async function apiErrorFromResponse(resp: Response): Promise<ApiError> {
+  const parsed: unknown = await resp.json().catch(() => ({}));
+  const data =
+    parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
+  const code = typeof data.code === "string" ? data.code : "UNKNOWN_ERROR";
+  const message =
+    typeof data.message === "string" ? data.message : resp.statusText;
+
+  if (resp.status === 401 && code === "AUTHENTICATION_REQUIRED") {
+    navigateToLogin();
+  }
+
+  return new ApiError(resp.status, code, message);
+}
+
 async function request<T>(
   method: string,
   url: string,
@@ -27,12 +63,7 @@ async function request<T>(
   const resp = await fetch(url, init);
 
   if (!resp.ok) {
-    const data = await resp.json().catch(() => ({ message: resp.statusText }));
-    throw new ApiError(
-      resp.status,
-      data.code || "UNKNOWN_ERROR",
-      data.message || resp.statusText,
-    );
+    throw await apiErrorFromResponse(resp);
   }
 
   if (resp.status === 204) {
@@ -44,10 +75,57 @@ async function request<T>(
 
 // ── App info types ───────────────────────────────────────
 
+export type AuthConfig =
+  { enabled: false } | { enabled: true; provider_name: string };
+
 export interface AppInfo {
   version: string;
   repository: string;
   license: string;
+  auth_enabled?: true;
+}
+
+// ── Public auth config API ───────────────────────────────
+
+export async function fetchAuthConfig(
+  signal?: AbortSignal,
+): Promise<AuthConfig> {
+  const response = await fetch("/auth/config", { signal });
+  if (!response.ok) throw new Error("Auth configuration unavailable");
+
+  const value: unknown = await response.json();
+  if (!isAuthConfig(value)) throw new Error("Invalid auth configuration");
+  return value;
+}
+
+function isAuthConfig(value: unknown): value is AuthConfig {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+
+  const record = value as Record<string, unknown>;
+  const keys = Object.keys(record).sort();
+  if (record.enabled === false) {
+    return keys.length === 1 && keys[0] === "enabled";
+  }
+  if (
+    record.enabled !== true ||
+    keys.length !== 2 ||
+    keys[0] !== "enabled" ||
+    keys[1] !== "provider_name" ||
+    typeof record.provider_name !== "string"
+  ) {
+    return false;
+  }
+
+  const providerName = record.provider_name;
+  return (
+    providerName === providerName.trim() &&
+    providerName.length > 0 &&
+    [...providerName].length <= 80 &&
+    ![...providerName].some((character) => {
+      const codePoint = character.codePointAt(0) ?? 0;
+      return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
+    })
+  );
 }
 
 // ── App info API functions ──────────────────────────────
@@ -290,12 +368,7 @@ export type ImportResult = ImportReplaceResult | ImportMergeResult;
 export async function exportAll(): Promise<void> {
   const resp = await fetch("/api/export");
   if (!resp.ok) {
-    const data = await resp.json().catch(() => ({ message: resp.statusText }));
-    throw new ApiError(
-      resp.status,
-      data.code || "UNKNOWN_ERROR",
-      data.message || resp.statusText,
-    );
+    throw await apiErrorFromResponse(resp);
   }
   const blob = await resp.blob();
   const disposition = resp.headers.get("content-disposition");
@@ -307,12 +380,7 @@ export async function exportAll(): Promise<void> {
 export async function exportVehicle(id: number): Promise<void> {
   const resp = await fetch(`/api/vehicles/${id}/export`);
   if (!resp.ok) {
-    const data = await resp.json().catch(() => ({ message: resp.statusText }));
-    throw new ApiError(
-      resp.status,
-      data.code || "UNKNOWN_ERROR",
-      data.message || resp.statusText,
-    );
+    throw await apiErrorFromResponse(resp);
   }
   const blob = await resp.blob();
   const disposition = resp.headers.get("content-disposition");

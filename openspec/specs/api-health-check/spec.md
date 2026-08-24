@@ -28,3 +28,12 @@ The health endpoint SHALL be mounted at `/health` (root level), not under `/api/
 - **WHEN** a `GET /health` request is received
 - **THEN** the health handler SHALL process the request
 - **AND** `GET /api/health` SHALL NOT route to the health handler
+
+### Requirement: Health endpoint remains public
+`GET /health` SHALL remain accessible without a Gazel session regardless of whether built-in authentication is enabled.
+
+#### Scenario: Unauthenticated health check with authentication enabled
+- **WHEN** built-in authentication is enabled
+- **AND** an unauthenticated client sends `GET /health`
+- **THEN** the health handler SHALL process the request normally
+- **AND** the response SHALL NOT redirect to login or return `401 Unauthorized`

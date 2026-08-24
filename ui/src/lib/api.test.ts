@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock fetch globally
 const mockFetch = vi.fn();
@@ -16,7 +16,21 @@ import {
   exportVehicle,
   previewImport,
   importData,
+  fetchAppInfo,
+  authenticationLoginUrl,
 } from "./api";
+
+function stubBrowserLocation(
+  pathname = "/",
+  search = "",
+  hash = "",
+): ReturnType<typeof vi.fn> {
+  const assign = vi.fn();
+  vi.stubGlobal("window", {
+    location: { pathname, search, hash, assign },
+  });
+  return assign;
+}
 
 describe("Export/Import API", () => {
   beforeEach(() => {
@@ -36,6 +50,15 @@ describe("Export/Import API", () => {
     vi.spyOn(document.body, "removeChild").mockReturnValue(
       null as unknown as HTMLElement,
     );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.stubGlobal("fetch", mockFetch);
+    vi.stubGlobal("URL", {
+      createObjectURL: vi.fn(() => "blob:test-url"),
+      revokeObjectURL: vi.fn(),
+    });
   });
 
   describe("exportAll", () => {
@@ -95,6 +118,130 @@ describe("Export/Import API", () => {
       });
 
       await expect(exportVehicle(999)).rejects.toThrow(ApiError);
+    });
+  });
+
+  describe("authentication expiry", () => {
+    it("encodes the current path, query, and fragment as return_to", () => {
+      expect(
+        authenticationLoginUrl({
+          pathname: "/settings",
+          search: "?tab=data",
+          hash: "#export",
+        }),
+      ).toBe("/login?return_to=%2Fsettings%3Ftab%3Ddata%23export");
+    });
+
+    it("preserves normal typed errors when authentication is not required", async () => {
+      const assign = stubBrowserLocation();
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        json: () =>
+          Promise.resolve({ code: "OTHER_UNAUTHORIZED", message: "Denied" }),
+      });
+
+      const error = await fetchAppInfo().catch((reason: unknown) => reason);
+      expect(error).toBeInstanceOf(ApiError);
+      expect((error as ApiError).code).toBe("OTHER_UNAUTHORIZED");
+      expect(assign).not.toHaveBeenCalled();
+    });
+
+    it.each([null, "failure", 42, []])(
+      "falls back to a typed error for unusable JSON body %#",
+      async (body) => {
+        const assign = stubBrowserLocation();
+        mockFetch.mockResolvedValue({
+          ok: false,
+          status: 500,
+          statusText: "Internal Server Error",
+          json: () => Promise.resolve(body),
+        });
+
+        await expect(fetchAppInfo()).rejects.toMatchObject({
+          status: 500,
+          code: "UNKNOWN_ERROR",
+          message: "Internal Server Error",
+        });
+        expect(assign).not.toHaveBeenCalled();
+      },
+    );
+
+    it("requires both status 401 and the exact authentication code", async () => {
+      const assign = stubBrowserLocation();
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: "Forbidden",
+        json: () =>
+          Promise.resolve({
+            code: "AUTHENTICATION_REQUIRED",
+            message: "Authentication is required.",
+          }),
+      });
+
+      await expect(fetchAppInfo()).rejects.toMatchObject({
+        status: 403,
+        code: "AUTHENTICATION_REQUIRED",
+      });
+      expect(assign).not.toHaveBeenCalled();
+    });
+
+    it("carries the browser fragment inside encoded return_to data", async () => {
+      const assign = stubBrowserLocation("/settings", "?tab=data", "#export");
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        json: () =>
+          Promise.resolve({
+            code: "AUTHENTICATION_REQUIRED",
+            message: "Authentication is required.",
+          }),
+      });
+
+      await expect(fetchAppInfo()).rejects.toMatchObject({
+        status: 401,
+        code: "AUTHENTICATION_REQUIRED",
+      });
+      expect(assign).toHaveBeenCalledWith(
+        "/login?return_to=%2Fsettings%3Ftab%3Ddata%23export",
+      );
+    });
+
+    it("navigates once for concurrent authentication-required JSON and export paths", async () => {
+      const assign = stubBrowserLocation();
+      const blob = vi.fn();
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        statusText: "Unauthorized",
+        json: () =>
+          Promise.resolve({
+            code: "AUTHENTICATION_REQUIRED",
+            message: "Authentication is required.",
+          }),
+        blob,
+      });
+
+      const results = await Promise.allSettled([
+        fetchAppInfo(),
+        exportAll(),
+        exportVehicle(42),
+      ]);
+      for (const result of results) {
+        expect(result).toMatchObject({
+          status: "rejected",
+          reason: { status: 401, code: "AUTHENTICATION_REQUIRED" },
+        });
+      }
+      expect(mockFetch).toHaveBeenCalledWith("/api/info", expect.anything());
+      expect(mockFetch).toHaveBeenCalledWith("/api/export");
+      expect(mockFetch).toHaveBeenCalledWith("/api/vehicles/42/export");
+      expect(blob).not.toHaveBeenCalled();
+      expect(assign).toHaveBeenCalledTimes(1);
+      expect(assign).toHaveBeenCalledWith("/login?return_to=%2F");
     });
   });
 

@@ -18,6 +18,7 @@
   import PageContainer from "$lib/components/PageContainer.svelte";
   import EmptyState from "$lib/components/EmptyState.svelte";
   import ModalDialog from "$lib/components/ModalDialog.svelte";
+  import AuthenticationSettings from "$lib/components/AuthenticationSettings.svelte";
   import type {
     Vehicle,
     ImportMode,
@@ -677,6 +678,8 @@
         </div>
       {/if}
     </section>
+
+    <AuthenticationSettings authEnabled={appInfo?.auth_enabled === true} />
 
     <!-- About -->
     {#if appInfo}
