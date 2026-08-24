@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.0](https://github.com/simplyRoba/gazel/compare/v1.1.5...v1.2.0) (2026-08-24)
+
+
+### Features
+
+* add OIDC authentication option ([#149](https://github.com/simplyRoba/gazel/issues/149)) ([9eb1019](https://github.com/simplyRoba/gazel/commit/9eb101920aa13cc262152d7b8f6843008c71a213))
+
+
+### Dependencies
+
+* bump @testing-library/user-event from 14.6.1 to 14.6.5 in /ui ([45d21ca](https://github.com/simplyRoba/gazel/commit/45d21ca8a36fe172a4142750fbef0721ccad3da7))
+* bump eslint in /ui in the eslint group across 1 directory ([f116654](https://github.com/simplyRoba/gazel/commit/f116654f65610ce1efa79b5665b119e70662b43a))
+* bump globals from 17.7.0 to 17.11.0 in /ui ([b2e4f4c](https://github.com/simplyRoba/gazel/commit/b2e4f4c835b987c95b2a4c5361a448de64490dc8))
+* bump the svelte group in /ui with 3 updates ([caca439](https://github.com/simplyRoba/gazel/commit/caca439a548507c100ea325383696b503554a1f7))
+* bump vite from 8.1.5 to 8.2.2 in /ui ([49e4a52](https://github.com/simplyRoba/gazel/commit/49e4a52963d948d71bb04625dbc7e9cbb6ac8840))
+
 ## [1.1.5](https://github.com/simplyRoba/gazel/compare/v1.1.4...v1.1.5) (2026-08-20)
 
 
