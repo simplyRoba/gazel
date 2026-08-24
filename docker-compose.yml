@@ -5,6 +5,15 @@ services:
       - "4110:4110"
     volumes:
       - gazel-data:/data
+    # Optional built-in OIDC authentication (disabled when omitted).
+    # Register https://gazel.example.com/auth/callback with your provider.
+    # environment:
+    #   GAZEL_AUTH_ENABLED: "true"
+    #   GAZEL_EXTERNAL_URL: "https://gazel.example.com"
+    #   GAZEL_OIDC_ISSUER: "https://id.example.com/application/o/gazel/"
+    #   GAZEL_OIDC_CLIENT_ID: "gazel"
+    #   GAZEL_OIDC_CLIENT_SECRET: "replace-with-your-client-secret"
+    #   GAZEL_OIDC_PROVIDER_NAME: "Authentik"
 
 volumes:
   gazel-data:

@@ -39,6 +39,7 @@ The gazel remembers every drop so you don't have to.
 - **Data portability** — export and import your data as JSON
 - **Light & dark theme** — follows your system preference, with manual override
 - **Installable PWA** — add to home screen on mobile for a native-like experience
+- **Optional OIDC login** — protect the UI and API with a standards-based identity provider
 - **Single binary** — self-contained Rust service with embedded UI, just run it or use Docker
 
 ## Quick start
@@ -62,15 +63,36 @@ docker compose up -d
 
 ## Configuration
 
-| Variable          | Default          | Description                             |
-| ----------------- | ---------------- | --------------------------------------- |
-| `GAZEL_PORT`      | `4110`           | HTTP server listen port.                |
-| `GAZEL_DB_PATH`   | `/data/gazel.db` | Filesystem path to the SQLite database. |
-| `GAZEL_LOG_LEVEL` | `info`           | `tracing` level filter for logs.        |
+| Variable                   | Default          | Description                                                          |
+| -------------------------- | ---------------- | -------------------------------------------------------------------- |
+| `GAZEL_PORT`               | `4110`           | HTTP server listen port.                                             |
+| `GAZEL_DB_PATH`            | `/data/gazel.db` | Filesystem path to the SQLite database.                              |
+| `GAZEL_LOG_LEVEL`          | `info`           | `tracing` level filter for logs.                                     |
+| `GAZEL_AUTH_ENABLED`       | `false`          | Enable built-in OIDC authentication; accepts only `true` or `false`. |
+| `GAZEL_EXTERNAL_URL`       | —                | Required public root origin when auth is enabled.                    |
+| `GAZEL_OIDC_ISSUER`        | —                | Required OIDC issuer/discovery URL.                                  |
+| `GAZEL_OIDC_CLIENT_ID`     | —                | Required confidential-client ID.                                     |
+| `GAZEL_OIDC_CLIENT_SECRET` | —                | Required confidential-client secret.                                 |
+| `GAZEL_OIDC_PROVIDER_NAME` | `OpenID Connect` | Optional display name used by the login button.                      |
 
 ## Security
 
-gazel has no built-in authentication. It is designed to run on a trusted home network or behind a reverse proxy that handles auth (e.g., Authelia, Authentik, Caddy with basic auth). Do not expose it directly to the internet.
+Built-in authentication is disabled by default. Keep Gazel on a trusted network, place it behind an authenticating proxy, or enable OIDC.
+
+To enable OIDC:
+
+1. Create a confidential Authorization Code client with your provider.
+2. Register `<GAZEL_EXTERNAL_URL>/auth/callback`.
+3. Set `GAZEL_AUTH_ENABLED=true` and the required OIDC variables above.
+4. Restart Gazel.
+
+Gazel supports `client_secret_basic` and `client_secret_post`. Use HTTPS outside local loopback development. Invalid provider configuration prevents startup.
+
+Important limitations:
+
+- Every authenticated identity accesses the same shared Gazel data.
+- Sessions expire after 12 hours and are lost when Gazel restarts.
+- Signing out ends only the Gazel session, not the provider session.
 
 ## Development
 

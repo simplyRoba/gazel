@@ -13,7 +13,7 @@
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { resolve } from "$app/paths";
-  import { onMount, untrack } from "svelte";
+  import { untrack } from "svelte";
   import { LayoutDashboard, Settings, Plus, Check } from "lucide-svelte";
   import { initSettings } from "$lib/stores/settings.svelte";
   import { getVehicles, loadVehicles } from "$lib/stores/vehicles.svelte";
@@ -43,6 +43,8 @@
   } from "$lib/pull-to-refresh";
 
   let { children } = $props();
+  let isLoginRoute = $derived(page.url.pathname === "/login");
+  let protectedStoresInitialized = false;
 
   // CTA modal state
   let showCtaModal = $state(false);
@@ -234,8 +236,15 @@
     }
   });
 
-  onMount(() => {
-    initSettings().then(() => loadVehicles());
+  $effect(() => {
+    if (isLoginRoute) return;
+
+    if (!protectedStoresInitialized) {
+      protectedStoresInitialized = true;
+      untrack(() => {
+        void initSettings().then(() => loadVehicles());
+      });
+    }
 
     // Detect pull-to-refresh capability
     const win = window as unknown as {
@@ -258,6 +267,12 @@
     }
 
     return () => {
+      if (reloadTimeoutId !== null) {
+        clearTimeout(reloadTimeoutId);
+        reloadTimeoutId = null;
+      }
+      resetPullGesture();
+      canUsePullToRefresh = false;
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
@@ -266,153 +281,157 @@
   });
 </script>
 
-<div class="app-shell">
-  <div class="app">
-    <!-- Sidebar (tablet+) -->
-    <nav class="sidebar" aria-label={t("nav.sidebar")}>
-      <div class="sidebar-logo">
-        <Logo size={36} />
+{#if !isLoginRoute}
+  <div class="app-shell">
+    <div class="app">
+      <!-- Sidebar (tablet+) -->
+      <nav class="sidebar" aria-label={t("nav.sidebar")}>
+        <div class="sidebar-logo">
+          <Logo size={36} />
+        </div>
+
+        <button
+          class="sidebar-cta corner-tri-hover corner-tri-sm"
+          style="--_tri-color: var(--color-text-inverse)"
+          onclick={handleCta}
+          aria-label={t("nav.fillup")}
+        >
+          <Plus size={20} />
+          <span class="cta-label">{t("nav.fillup")}</span>
+        </button>
+
+        <a
+          href={resolve("/")}
+          class="nav-item corner-tri-hover corner-tri-sm"
+          class:active={isActive("/")}
+        >
+          <LayoutDashboard size={20} />
+          <span class="nav-label">{t("nav.dashboard")}</span>
+        </a>
+
+        <div class="spacer"></div>
+
+        <a
+          href={resolve("/settings")}
+          class="nav-item corner-tri-hover corner-tri-sm"
+          class:active={isActive("/settings")}
+        >
+          <Settings size={20} />
+          <span class="nav-label">{t("nav.settings")}</span>
+        </a>
+      </nav>
+
+      <!-- Bottom bar (mobile) -->
+      <nav class="bottom-bar" aria-label={t("nav.bottomBar")}>
+        <a href={resolve("/")} class="nav-item" class:active={isActive("/")}>
+          <LayoutDashboard size={20} />
+          <span class="nav-label">{t("nav.dashboard")}</span>
+        </a>
+
+        <button
+          class="bottom-cta"
+          onclick={handleCta}
+          aria-label={t("nav.fillup")}
+        >
+          <Plus size={22} />
+        </button>
+
+        <a
+          href={resolve("/settings")}
+          class="nav-item"
+          class:active={isActive("/settings")}
+        >
+          <Settings size={20} />
+          <span class="nav-label">{t("nav.settings")}</span>
+        </a>
+      </nav>
+
+      <!-- Pull-to-refresh indicator -->
+      <div
+        class="pull-indicator"
+        class:visible={pullIndicatorVisible}
+        class:armed={pullIndicatorState === "release"}
+        class:refreshing={pullIndicatorState === "refreshing"}
+        class:settling={!gestureActive && pullIndicatorState !== "refreshing"}
+        style:transform="translateY({pullIndicatorVisible
+          ? Math.min(pullOffset, PULL_TO_REFRESH_THRESHOLD) - 68
+          : -100}px)"
+      >
+        <span class="pull-indicator-label">{pullLabel}</span>
+        {#if pullIndicatorState === "release"}
+          <span class="pull-indicator-check"><Check size={20} /></span>
+        {:else}
+          <span
+            class="pull-indicator-spinner"
+            class:spinning={pullIndicatorState === "refreshing"}
+            style:transform={pullIndicatorState === "pulling"
+              ? `rotate(${spinnerRotation}deg)`
+              : undefined}
+          ></span>
+        {/if}
       </div>
 
-      <button
-        class="sidebar-cta corner-tri-hover corner-tri-sm"
-        style="--_tri-color: var(--color-text-inverse)"
-        onclick={handleCta}
-        aria-label={t("nav.fillup")}
+      <!-- Content -->
+      <main
+        class="content"
+        class:settling={!gestureActive && pullIndicatorState !== "refreshing"}
+        style:margin-top={contentOffset > 0 ? `${contentOffset}px` : undefined}
       >
-        <Plus size={20} />
-        <span class="cta-label">{t("nav.fillup")}</span>
-      </button>
+        {@render children()}
+      </main>
 
-      <a
-        href={resolve("/")}
-        class="nav-item corner-tri-hover corner-tri-sm"
-        class:active={isActive("/")}
-      >
-        <LayoutDashboard size={20} />
-        <span class="nav-label">{t("nav.dashboard")}</span>
-      </a>
-
-      <div class="spacer"></div>
-
-      <a
-        href={resolve("/settings")}
-        class="nav-item corner-tri-hover corner-tri-sm"
-        class:active={isActive("/settings")}
-      >
-        <Settings size={20} />
-        <span class="nav-label">{t("nav.settings")}</span>
-      </a>
-    </nav>
-
-    <!-- Bottom bar (mobile) -->
-    <nav class="bottom-bar" aria-label={t("nav.bottomBar")}>
-      <a href={resolve("/")} class="nav-item" class:active={isActive("/")}>
-        <LayoutDashboard size={20} />
-        <span class="nav-label">{t("nav.dashboard")}</span>
-      </a>
-
-      <button
-        class="bottom-cta"
-        onclick={handleCta}
-        aria-label={t("nav.fillup")}
-      >
-        <Plus size={22} />
-      </button>
-
-      <a
-        href={resolve("/settings")}
-        class="nav-item"
-        class:active={isActive("/settings")}
-      >
-        <Settings size={20} />
-        <span class="nav-label">{t("nav.settings")}</span>
-      </a>
-    </nav>
-
-    <!-- Pull-to-refresh indicator -->
-    <div
-      class="pull-indicator"
-      class:visible={pullIndicatorVisible}
-      class:armed={pullIndicatorState === "release"}
-      class:refreshing={pullIndicatorState === "refreshing"}
-      class:settling={!gestureActive && pullIndicatorState !== "refreshing"}
-      style:transform="translateY({pullIndicatorVisible
-        ? Math.min(pullOffset, PULL_TO_REFRESH_THRESHOLD) - 68
-        : -100}px)"
-    >
-      <span class="pull-indicator-label">{pullLabel}</span>
-      {#if pullIndicatorState === "release"}
-        <span class="pull-indicator-check"><Check size={20} /></span>
-      {:else}
-        <span
-          class="pull-indicator-spinner"
-          class:spinning={pullIndicatorState === "refreshing"}
-          style:transform={pullIndicatorState === "pulling"
-            ? `rotate(${spinnerRotation}deg)`
-            : undefined}
-        ></span>
-      {/if}
+      <ToastHost />
     </div>
-
-    <!-- Content -->
-    <main
-      class="content"
-      class:settling={!gestureActive && pullIndicatorState !== "refreshing"}
-      style:margin-top={contentOffset > 0 ? `${contentOffset}px` : undefined}
-    >
-      {@render children()}
-    </main>
-
-    <ToastHost />
   </div>
-</div>
 
-<!-- Vehicle picker dialog (CTA with multiple vehicles) -->
-<dialog
-  bind:this={pickerDialogEl}
-  class="picker-dialog"
-  oncancel={(e) => {
-    e.preventDefault();
-    closeVehiclePicker();
-  }}
-  onclick={(e) => {
-    if (e.target === pickerDialogEl) closeVehiclePicker();
-  }}
->
-  <div class="picker-body corner-tri">
-    <h3 class="picker-title">{t("nav.selectVehicle")}</h3>
-    <div class="picker-list">
-      {#each getVehicles() as vehicle (vehicle.id)}
-        <button
-          class="picker-item"
-          onclick={() => selectVehicleForCta(vehicle)}
+  <!-- Vehicle picker dialog (CTA with multiple vehicles) -->
+  <dialog
+    bind:this={pickerDialogEl}
+    class="picker-dialog"
+    oncancel={(e) => {
+      e.preventDefault();
+      closeVehiclePicker();
+    }}
+    onclick={(e) => {
+      if (e.target === pickerDialogEl) closeVehiclePicker();
+    }}
+  >
+    <div class="picker-body corner-tri">
+      <h3 class="picker-title">{t("nav.selectVehicle")}</h3>
+      <div class="picker-list">
+        {#each getVehicles() as vehicle (vehicle.id)}
+          <button
+            class="picker-item"
+            onclick={() => selectVehicleForCta(vehicle)}
+          >
+            {vehicle.name}
+            {#if vehicle.make || vehicle.model}
+              <span class="picker-meta">
+                {[vehicle.make, vehicle.model].filter(Boolean).join(" ")}
+              </span>
+            {/if}
+          </button>
+        {/each}
+      </div>
+      <div class="picker-actions">
+        <button class="btn btn-secondary" onclick={closeVehiclePicker}
+          >{t("common.cancel")}</button
         >
-          {vehicle.name}
-          {#if vehicle.make || vehicle.model}
-            <span class="picker-meta">
-              {[vehicle.make, vehicle.model].filter(Boolean).join(" ")}
-            </span>
-          {/if}
-        </button>
-      {/each}
+      </div>
     </div>
-    <div class="picker-actions">
-      <button class="btn btn-secondary" onclick={closeVehiclePicker}
-        >{t("common.cancel")}</button
-      >
-    </div>
-  </div>
-</dialog>
+  </dialog>
 
-<!-- CTA fill-up modal -->
-{#if ctaVehicleId}
-  <FillupModal
-    open={showCtaModal}
-    vehicleId={ctaVehicleId}
-    onsave={handleCtaSave}
-    onclose={closeCtaModal}
-  />
+  <!-- CTA fill-up modal -->
+  {#if ctaVehicleId}
+    <FillupModal
+      open={showCtaModal}
+      vehicleId={ctaVehicleId}
+      onsave={handleCtaSave}
+      onclose={closeCtaModal}
+    />
+  {/if}
+{:else}
+  {@render children()}
 {/if}
 
 <style>

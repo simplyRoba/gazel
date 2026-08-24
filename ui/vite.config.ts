@@ -13,6 +13,7 @@ export default defineConfig(({ mode }) => {
     server: {
       proxy: {
         "/api": "http://localhost:4110",
+        "/auth": "http://localhost:4110",
         "/health": "http://localhost:4110",
       },
     },

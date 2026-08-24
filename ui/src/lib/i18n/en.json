@@ -100,6 +100,9 @@
   "settings.about.license": "License",
   "settings.about.copyright": "Copyright",
   "settings.updateFailed": "Setting could not be saved.",
+  "settings.authentication": "Authentication",
+  "settings.authentication.description": "End your local Gazel session on this device.",
+  "settings.authentication.signOut": "Sign out",
   "settings.deleteVehicle.title": "Delete vehicle",
   "settings.deleteVehicle.message": "Delete \"{name}\"? This cannot be undone.",
 
@@ -210,6 +213,15 @@
   "error.IMPORT_INVALID_MODE": "Invalid import mode.",
   "error.IMPORT_VALIDATION_ERROR": "Import data contains invalid records.",
   "error.UNKNOWN_ERROR": "An error occurred.",
+  "error.AUTHENTICATION_REQUIRED": "Authentication is required.",
+
+  "login.title": "Gazel",
+  "login.authenticationRequired": "Authentication is required to use Gazel.",
+  "login.continueWith": "Continue with {provider}",
+  "login.error.authenticationFailed": "Authentication failed. Please try again.",
+  "login.error.providerUnavailable": "The authentication provider is temporarily unavailable. Please try again.",
+  "login.error.configUnavailable": "Authentication is currently unavailable. Please try again later.",
+  "login.loggedOut": "You have been signed out of Gazel.",
 
   "store.vehicles.loadFailed": "Failed to load vehicles",
   "store.vehicles.createFailed": "Failed to create vehicle",

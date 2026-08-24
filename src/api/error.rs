@@ -12,6 +12,7 @@ use serde_json::json;
 /// implementation maps each variant to the appropriate HTTP status and returns
 /// `{ "code": "<CODE>", "message": "<human-readable>" }`.
 pub enum ApiError {
+    Unauthorized(&'static str),
     NotFound(&'static str),
     Validation(&'static str),
     Conflict(&'static str),
@@ -22,6 +23,7 @@ pub enum ApiError {
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
         let (status, code) = match self {
+            Self::Unauthorized(code) => (StatusCode::UNAUTHORIZED, code),
             Self::NotFound(code) => (StatusCode::NOT_FOUND, code),
             Self::Validation(code) => (StatusCode::UNPROCESSABLE_ENTITY, code),
             Self::Conflict(code) => (StatusCode::CONFLICT, code),
@@ -41,6 +43,7 @@ impl IntoResponse for ApiError {
 /// lookups on the frontend.
 fn default_message(code: &str) -> &'static str {
     match code {
+        "AUTHENTICATION_REQUIRED" => "Authentication is required.",
         "INTERNAL_ERROR" => "An unexpected error occurred.",
         "INVALID_REQUEST_BODY" => "The request body is missing or malformed.",
         "VEHICLE_NOT_FOUND" => "Vehicle not found.",
@@ -131,10 +134,15 @@ where
 
 #[cfg(test)]
 mod tests {
+    use http_body_util::BodyExt;
+
     use super::*;
 
     #[test]
     fn into_response_sets_correct_status() {
+        let response = ApiError::Unauthorized("AUTHENTICATION_REQUIRED").into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+
         let response = ApiError::NotFound("NOT_FOUND").into_response();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
 
@@ -151,8 +159,32 @@ mod tests {
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
+    #[tokio::test]
+    async fn unauthorized_uses_the_stable_json_contract() {
+        let response = ApiError::Unauthorized("AUTHENTICATION_REQUIRED").into_response();
+        assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert!(response.headers().get("location").is_none());
+        let bytes = response
+            .into_body()
+            .collect()
+            .await
+            .expect("body should be readable")
+            .to_bytes();
+        assert_eq!(
+            serde_json::from_slice::<serde_json::Value>(&bytes).expect("body should be JSON"),
+            json!({
+                "code": "AUTHENTICATION_REQUIRED",
+                "message": "Authentication is required."
+            })
+        );
+    }
+
     #[test]
     fn default_message_returns_known_messages() {
+        assert_eq!(
+            default_message("AUTHENTICATION_REQUIRED"),
+            "Authentication is required."
+        );
         assert_eq!(
             default_message("INTERNAL_ERROR"),
             "An unexpected error occurred."

@@ -100,6 +100,9 @@
   "settings.about.license": "Lizenz",
   "settings.about.copyright": "Urheberrecht",
   "settings.updateFailed": "Einstellung konnte nicht gespeichert werden.",
+  "settings.authentication": "Authentifizierung",
+  "settings.authentication.description": "Lokale Gazel-Sitzung auf diesem Gerät beenden.",
+  "settings.authentication.signOut": "Abmelden",
   "settings.deleteVehicle.title": "Fahrzeug löschen",
   "settings.deleteVehicle.message": "\"{name}\" löschen? Dies kann nicht rückgängig gemacht werden.",
 
@@ -210,6 +213,15 @@
   "error.IMPORT_INVALID_MODE": "Ungültiger Import-Modus.",
   "error.IMPORT_VALIDATION_ERROR": "Importdaten enthalten ungültige Einträge.",
   "error.UNKNOWN_ERROR": "Ein Fehler ist aufgetreten.",
+  "error.AUTHENTICATION_REQUIRED": "Authentifizierung ist erforderlich.",
+
+  "login.title": "Gazel",
+  "login.authenticationRequired": "Für die Nutzung von Gazel ist eine Authentifizierung erforderlich.",
+  "login.continueWith": "Weiter mit {provider}",
+  "login.error.authenticationFailed": "Die Authentifizierung ist fehlgeschlagen. Bitte versuche es erneut.",
+  "login.error.providerUnavailable": "Der Authentifizierungsanbieter ist vorübergehend nicht verfügbar. Bitte versuche es erneut.",
+  "login.error.configUnavailable": "Authentifizierung ist derzeit nicht verfügbar. Bitte versuche es später erneut.",
+  "login.loggedOut": "Du wurdest von Gazel abgemeldet.",
 
   "store.vehicles.loadFailed": "Fahrzeuge konnten nicht geladen werden",
   "store.vehicles.createFailed": "Fahrzeug konnte nicht erstellt werden",

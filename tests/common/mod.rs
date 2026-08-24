@@ -34,7 +34,7 @@ pub async fn test_pool() -> SqlitePool {
 /// Create a fully wired application router backed by an in-memory database.
 pub async fn test_app() -> Router {
     let pool = test_pool().await;
-    let state = AppState { pool };
+    let state = AppState::new(pool, None);
     gazel::server::router(state)
 }
 
