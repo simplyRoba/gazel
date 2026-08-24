@@ -1,124 +1,164 @@
 ## Context
 
-See `proposal.md` for motivation. Gazel is one Axum process with a cloneable `AppState`, a single `/api` router, a root `/health` route, and an embedded SvelteKit SPA served by a fallback handler. Configuration is currently synchronous and tolerant, and the application has no identity model. The frontend is a same-origin static SPA, so it already sends cookies without an auth SDK.
+See `proposal.md` for motivation. Gazel is one Axum process with a cloneable `AppState`, a single `/api` router, a root `/health` route, and an embedded client-only SvelteKit SPA served by one fallback handler. The root Svelte layout currently renders the full app shell and starts protected settings/vehicle hydration for every route. The same-origin frontend already sends cookies, but its API helper only throws on errors; settings initialization swallows failures and export functions use separate direct `fetch()` paths.
 
-The security contract is defined by the six delta specs in this change. The design must preserve the disabled path, fail closed before serving traffic when enabled, implement protocol validation through a maintained OIDC crate, and remain appropriate for Gazel’s small single-binary deployment model.
+The security contract is defined by the ten delta specs in this change. The design must preserve normal disabled behavior, fail closed before serving enabled traffic, provide a public branded login route without triggering protected hydration, recover an already-open SPA when its session expires, and remain appropriate for Gazel’s small single-binary deployment model.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Make the enabled and disabled route graphs structurally obvious and auditable.
+- Make enabled public/protected route boundaries structurally obvious and auditable.
+- Provide one minimal public Svelte login experience using Gazel’s existing branding/design system.
 - Keep OIDC protocol parsing, JOSE cryptography, discovery, and claim verification inside a maintained standards library.
+- Interoperate with confidential clients using standard Basic or request-body token authentication.
 - Keep browser state to one encrypted opaque cookie and make local logout revocable on the server.
-- Support HTTPS reverse proxies using one configured public origin, without any forwarded-header trust decision.
-- Produce deterministic security tests against a local provider with no real IdP dependency.
+- Restore the user’s safe local page after initial login or expiry reauthentication.
+- Support reverse proxies through a configured public origin without forwarded-header trust.
+- Test against a local provider with no real IdP dependency.
 
 **Non-Goals:**
 
 - Long-lived provider access, refresh, or user-info access after login.
-- Persistent login across Gazel process restarts or active/active multi-instance deployment.
-- Provider-specific options, dynamic client registration, RP-initiated provider logout, bearer-token API authentication, or refresh-token handling.
-- Any frontend identity profile, logout control, auth library, local user record, or authorization policy.
+- Persistent login across process restarts or active/active multi-instance deployment.
+- Provider-specific integration, dynamic registration, provider logout, bearer API auth, or refresh tokens.
+- Identity profiles, usernames, passwords, registration, local users, authorization policy, per-user ownership, or a frontend auth framework.
 
 ## Decisions
 
-### 1. Build distinct disabled and enabled Axum route graphs
+### 1. Compose public login resources separately from protected application routes
 
-**Decision:** `server::router` will keep the current router shape when `AppState.auth` is `None`. When auth is enabled, it will compose:
+**Decision:** Disabled mode retains current application/API/static/fallback behavior and adds only public `GET /auth/config` returning `{ enabled: false }`, allowing the compiled login route to self-disable. Enabled mode composes:
 
-1. exact public routes: `/health`, `GET /auth/login`, `GET /auth/callback`, and `POST /auth/logout`;
-2. one protected router containing `/api/info`, the complete nested `/api` router, and the embedded SPA fallback;
-3. one outer session layer needed by both public auth handlers and protected middleware;
-4. the existing access log around the completed graph.
+1. public `GET /login`, returning embedded `index.html` so SvelteKit renders the dedicated route;
+2. public exact non-HTML static assets needed by both login and application bundles (`/_app/*`, logo/manifest/favicon resources), explicitly excluding `index.html`;
+3. public `/health`, `GET /auth/config`, `GET /auth/login`, `GET /auth/callback`, and `POST /auth/logout`;
+4. one protected router containing `/api/info`, all nested `/api` routes, and every application SPA document/fallback other than `/login`;
+5. one outer session layer and the existing access log.
 
-The authentication middleware will classify only `path == "/api"` or `path.starts_with("/api/")` as API requests. Missing/invalid sessions return `ApiError::Unauthorized("AUTHENTICATION_REQUIRED")`; other protected paths (including lookalikes such as `/apiary`) get a `303 See Other` to `/auth/login`.
+The embedded handler will be split conceptually into non-HTML exact-asset serving and index fallback so public assets do not make every unknown SPA route public. `index.html` is served publicly only for exact `/login`; direct `/index.html`, nonexistent asset paths, and all other document fallbacks pass through the protected boundary. Public assets contain code and branding only, never application records or OIDC tokens.
 
-**Rationale:** Applying one global auth layer would accidentally protect `/health` and the callback. Protecting only the API would expose the SPA. A protected sub-router makes both mistakes difficult and lets the disabled branch retain current behavior, including fallback handling for paths that only become auth endpoints in enabled mode.
+The middleware classifies only `path == "/api"` or `path.starts_with("/api/")` as API requests. Missing/invalid API sessions return JSON `ApiError::Unauthorized("AUTHENTICATION_REQUIRED")`. Unauthenticated document navigation receives `303` to `/login?return_to=<encoded local request target>`. Asset/subresource requests remain limited to exact public assets and are never treated as a return destination.
 
-**Alternatives:** Per-handler extractors were rejected because they are easy to omit. Frontend route guards were rejected because static assets and API endpoints still need a backend boundary.
+**Rationale:** A Svelte login page cannot run unless its JS/CSS assets are public. Splitting exact assets from protected fallback exposes no user data while preserving the application boundary. A global auth layer would protect login/health/callback; API-only auth would expose application routes.
 
-### 2. Use `openidconnect` directly rather than an authentication framework
+**Alternatives:** A backend-rendered login page would duplicate Svelte branding/styles. Making all SPA fallback public would expose protected application documents and trigger API churn. Per-handler guards are easy to omit.
 
-**Decision:** Add `openidconnect` 4.x with its default async `reqwest`/Rustls support and `timing-resistant-secret-traits`. Use `CoreProviderMetadata::discover_async`, `CoreClient`, Authorization Code flow, `PkceCodeChallenge::new_random_sha256`, generated `CsrfToken` and `Nonce`, token exchange with the stored verifier, and `id_token.claims(client.id_token_verifier(), nonce)`.
+### 2. Use `openidconnect` directly and apply auth-method metadata explicitly
 
-Wrap a `reqwest::Client` configured with `redirect::Policy::none()` in a small `AsyncHttpClient` transport guard. Before delegating each discovery, associated JWKS, or token request, the guard accepts HTTPS or an HTTP loopback URL only. This is necessary because `discover_async` retrieves the associated JWKS before application code can inspect the resulting metadata. After discovery, validate the authorization, token, and JWKS endpoint URLs again, require Authorization Code support, and require at least one JWKS signature-verification key compatible with an advertised ID-token signing algorithm.
+**Decision:** Add `openidconnect` 4.x with async `reqwest`/Rustls and `timing-resistant-secret-traits`. Use startup `CoreProviderMetadata::discover_async`, `CoreClient`, generated state/nonce, S256 PKCE, code exchange, and the normal ID-token verifier.
 
-Startup discovery and its associated JWKS retrieval must succeed before the listener binds. Callback processing will use freshly discovered metadata/JWKS so a normal provider signing-key rotation does not require a Gazel restart. Discovery and token calls are single attempts: startup failure aborts; a runtime provider/network failure returns a generic callback error and requires a new login attempt.
+Wrap `reqwest::Client` using `redirect::Policy::none()` in an `AsyncHttpClient` transport guard accepting HTTPS or HTTP loopback only. Validate exact issuer, authorization/token/JWKS endpoint transport, Authorization Code support, and usable signing metadata/JWKS before binding the listener.
 
-In addition to the verifier’s signature, issuer, audience, expiry, and nonce checks, callback code will verify `at_hash` whenever the ID token contains it. The default verifier behavior that rejects untrusted additional audiences will remain enabled. No unsafe verifier relaxation will be used.
+`CoreClient::from_provider_metadata` 4.0.1 ignores `token_endpoint_auth_methods_supported` (upstream issue #215), so client construction explicitly selects:
 
-**Rationale:** `openidconnect` owns the protocol types, discovery rules, OAuth exchange, JWKS/JWS algorithms, and claim verification. A small set of Axum handlers around it is less surface area than a generalized auth framework. Enabling timing-resistant secret equality provides an appropriate state comparison without custom cryptography.
+- omitted metadata → `AuthType::BasicAuth`;
+- Basic listed (alone or with Post) → `AuthType::BasicAuth`;
+- Basic absent and Post listed → `AuthType::RequestBody`;
+- neither → startup error.
 
-**Alternatives:** Raw `oauth2` lacks OIDC ID-token/discovery validation. Provider-specific crates violate portability. Axum OIDC wrappers either pin older protocol dependencies or add identity/authorization abstractions Gazel does not need. Manual JWT/PKCE/nonce cryptography is explicitly rejected.
+The selected method is retained and reapplied whenever cached verification state is rebuilt.
 
-### 3. Parse auth configuration into a typed optional boundary
+Startup endpoints and JWKS are cached; callbacks do not rediscover. Cache state includes a monotonically increasing JWKS generation. On an eligible no-matching-key/signature failure, callback records the generation it used and acquires a refresh mutex. Under the lock it first checks the current generation: if another callback already advanced it, retry with those keys and perform no fetch; otherwise fetch only JWKS once, replace keys, increment the generation, and retry once. Claim failures other than key/signature never refresh. Token exchange and full discovery are never retried.
 
-**Decision:** Change `Config::load`/`load_from` to return `Result<Config, ConfigError>`. Existing port/database/log-level fallback behavior remains. An absent enable flag maps to `None`; only `true` creates `Some(AuthConfig)`. A malformed enable flag fails rather than silently disabling security. Explicit `false` ignores all auth-only values.
+Normal verification checks signature, issuer, audience, expiry, nonce, and default additional-audience policy. Gazel also verifies `at_hash` when present. No unsafe verifier relaxation is allowed.
 
-`AuthConfig` contains parsed external and issuer URLs, client credentials, and decoded session-key bytes. The secret is standard Base64 that must decode to at least 64 bytes, suitable for `cookie::Key::try_from`. URLs must be absolute, credential/query/fragment-free, and HTTPS except for loopback HTTP. Gazel is root-mounted today, so a non-root external path is rejected instead of pretending subpath support. The external URL is normalized to its origin, and the callback is built by joining the fixed `/auth/callback` path to that origin; request headers never participate.
+**Rationale:** The crate owns protocol and cryptography, while Gazel fills one documented interoperability gap. Generation-aware refresh prevents a stale-key thundering herd and supports normal rotation without per-login discovery races.
 
-**Rationale:** A typed `Option<AuthConfig>` makes disabled behavior explicit and prevents partial enabled configurations. Validating before network I/O gives actionable startup errors. Base64 preserves full random key entropy and avoids interpreting an operator secret as ad hoc key material.
+**Alternatives:** Raw OAuth lacks OIDC claims verification. Full callback discovery is excessive. A mutex without generation comparison serializes but does not deduplicate waiting refreshes.
 
-**Alternatives:** Tolerant defaulting is unsafe for an enable flag. Deriving the origin from `Host` or `X-Forwarded-*` enables host-header/proxy-confusion attacks. Adding trusted-proxy configuration would be more complex than the explicit public URL Gazel already needs for OIDC registration.
+### 3. Parse enabled auth into a typed six-variable boundary
 
-### 4. Use encrypted opaque sessions backed by `tower-sessions::MemoryStore`
+**Decision:** `Config::load`/`load_from` becomes fallible while legacy port/database/log defaults remain. Absent enable means disabled; malformed enable fails rather than silently exposing the app; explicit false ignores auth-only values.
 
-**Decision:** Add `tower-sessions` 0.15 with the `private` feature. The `gazel_session` cookie contains only a random session identifier protected with authenticated encryption. Configure `HttpOnly`, `SameSite=Lax`, `Path=/`, no `Domain`, and `Secure=true` except for validated loopback HTTP development. Successful callback calls `cycle_id()` before writing the authenticated marker. Logout calls `flush()` so the backend record and cookie are both invalidated.
+Required enabled values are external URL, issuer, client ID, and client secret. `GAZEL_OIDC_PROVIDER_NAME` is optional, trimmed, limited to 80 non-control Unicode scalar values, and defaults to `OpenID Connect`. It is display-only and never affects issuer/client decisions.
 
-A process-local `Mutex<HashMap<state, LoginTransaction>>` holds nonce, PKCE verifier, and an absolute five-minute `expires_at`. The tower session stores only the state that binds its browser to that registry entry. Callback first compares the returned and session-bound state, then removes the registry entry while holding the mutex and releases the lock before any provider await. Exactly one concurrent callback can therefore acquire a transaction. Expired entries are pruned when login/callback touches the registry.
+URLs must be absolute, credential/query/fragment-free, and HTTPS except loopback HTTP. Gazel rejects an external non-root path, normalizes the origin, and joins `/auth/callback`. Request headers never participate.
 
-After verification, the transaction binding is replaced with a minimal authenticated record containing the OIDC subject, login time, and absolute `expires_at` twelve hours after callback; access, refresh, and ID tokens are immediately dropped. Middleware compares that timestamp on every protected request and never extends it. Tower session expiry is set to the same absolute time as defense in depth. A small clock abstraction uses wall-clock UTC in production and an injected deterministic clock in tests.
+There is no `GAZEL_AUTH_SECRET`. Enabled startup securely generates one private-cookie key with a fallible OS-random API. Generation failure aborts startup. A persistent operator key cannot preserve sessions after `MemoryStore` restart and adds needless setup.
 
-The session store and atomic transaction registry are intentionally process-local. Restarting Gazel invalidates every session and pending login, and multiple instances would require sticky routing; both are documented. This is acceptable for Gazel’s current single-process/single-binary deployment and keeps auth state out of the application schema.
+**Rationale:** The operator supplies five functional values plus one optional label; no extra cryptographic secret lifecycle is needed. Typed optional config prevents partial enabled operation.
 
-**Rationale:** Server storage gives real local revocation and keeps sensitive transaction values out of the cookie. Authenticated encryption adds defense in depth for the opaque identifier. `SameSite=Lax` permits the cross-site top-level OIDC callback while the state/nonce transaction protects the flow. A POST-only logout avoids cross-site top-level GET logout.
+### 4. Use encrypted opaque sessions plus an atomic login registry
 
-**Alternatives:** A self-contained encrypted auth cookie cannot revoke a copied pre-logout cookie without server state. A custom map/cookie implementation would duplicate lifecycle and cookie security code. The SQLx session-store release currently targets a different SQLx/core version than Gazel and would add a session table plus cleanup task; Redis is disproportionate. Persistent sessions can be reconsidered if Gazel later supports multi-instance operation.
+**Decision:** Use `tower-sessions` 0.15 private cookies with `MemoryStore`. The `gazel_session` cookie contains only a random ID under authenticated encryption. Set `HttpOnly`, `SameSite=Lax`, `Path=/`, no Domain, and Secure except validated loopback HTTP.
 
-### 5. Consume login transactions before provider exchange
+A process-local locked map keyed by state stores nonce, PKCE verifier, validated return target, and absolute five-minute expiry. The tower session stores the state binding. Callback compares returned/session state, atomically removes the registry entry while locked, then releases before provider I/O. Exactly one callback can acquire it. Expired entries are pruned during registry operations; missing, expired, replayed, or concurrently rejected callbacks return to the generic `/login` authentication-failed state rather than a dead-end response.
 
-**Decision:** Login first reads the authenticated record. A valid authenticated session is redirected to `/` unchanged, preventing `GET /auth/login` from becoming a forced-logout endpoint. For an unauthenticated/expired session, login removes any prior pending registry entry, creates one new transaction, stores its state binding in the tower session, and redirects to the provider.
+After verification, write only subject/login time/absolute twelve-hour expiry and discard tokens. Middleware checks expiry without sliding it; tower session expiry mirrors it. Use an injectable clock in tests. Successful callback cycles the ID. Logout flushes. Restart replaces store/key and invalidates all sessions. Multi-instance operation requires sticky routing and remains unsupported/documented.
 
-Callback removes the session binding, performs timing-resistant comparison against returned state, and atomically removes the matching registry transaction before any provider network await. It then checks the absolute transaction expiry, reconstructs the nonce and PKCE verifier, performs fresh discovery and token exchange, verifies the ID token and optional access-token hash, rotates the session ID, and writes the authenticated record with absolute twelve-hour expiry.
+**Rationale:** Server state enables real local revocation. Private cookies add defense in depth. The locked registry fixes request-scoped session-store callback races.
 
-All callback failure paths leave no authenticated record and require a fresh login. Validation/authorization failures return a generic `400 Bad Request`; unavailable or malformed backend provider responses return a generic `502 Bad Gateway`; session infrastructure failures return `500 Internal Server Error`. Responses and logs never include codes, state, nonce, PKCE values, client secrets, provider tokens, callback query strings, or provider error descriptions.
+### 5. Carry only encoded, validated local return targets
 
-**Rationale:** Removing the transaction first makes callbacks one-use even when exchange or verification fails. It also avoids retaining attacker-controlled callback attempts for replay. The user cost of a fresh login after a transient error is small and avoids retry/replay ambiguity.
+**Decision:** Both middleware and frontend produce login-page URLs with the complete local target encoded as one query value. For `/settings?tab=data#export`, the wire URL is `/login?return_to=%2Fsettings%3Ftab%3Ddata%23export`; the fragment is not mistakenly attached to `/login` itself.
 
-**Alternatives:** Keeping a transaction after token failure improves retry convenience but risks code replay and creates more state transitions. Multiple concurrent login transactions per browser are unnecessary for Gazel.
+The login Svelte page reads the decoded value and uses `URLSearchParams` to build `/auth/login?return_to=...`. Backend `/auth/login` is authoritative: after percent-decoding it requires a single-leading-slash same-origin protected UI route and rejects authority/scheme, backslash, control characters, and `/api`, `/auth`, `/health`, or `/login` targets. Invalid/absent becomes `/`. Validation occurs before any `Location` serialization.
 
-### 6. Keep identity and frontend behavior minimal
+The backend transaction stores the safe target. Successful callback redirects to it, including query/fragment. A valid authenticated session visiting `/auth/login` returns directly to the safe target without starting OIDC or destroying its session.
 
-**Decision:** The verified `sub` value is not joined to application data and is not exposed through a new API. Every valid subject receives the same application access. The frontend receives no token and needs no auth library or local-storage change. Normal browser navigation is redirected by Axum; `fetch` calls continue to receive and surface the existing typed API error shape with a new stable 401 code. Add `/auth` to the Vite development proxy only.
+**Rationale:** This restores user context while preventing open redirects and fragment-loss bugs. Backend validation means a tampered login-page query cannot weaken safety.
 
-**Rationale:** The backend is the security boundary, and the existing same-origin browser automatically carries the HTTP-only cookie. Avoiding an identity endpoint, route store, or frontend guard keeps this an authentication-only change and preserves disabled UI behavior byte-for-byte apart from the rebuilt bundle metadata.
+### 6. Add a standalone public Svelte login surface
 
-**Alternatives:** Adding a user-info endpoint and logout UI would enlarge the data contract and layout scope without being required to protect Gazel. Automatic frontend redirect on every 401 could turn background API failures into navigation loops; direct browser navigation already has the intended login behavior.
+**Decision:** Add `ui/src/routes/login/+page.svelte`. The root layout branches on pathname before protected initialization:
 
-### 7. Test through a local standards-shaped provider
+- `/login`: render only the child login page, no app navigation/fill-up controls/pull-to-refresh, and do not initialize settings, vehicles, fill-ups, stats, or other protected stores;
+- all application routes: retain the current app shell/hydration.
 
-**Decision:** Add an integration-test mock provider using an ephemeral local Axum listener. It will expose discovery, authorization, token, and JWKS endpoints. Test ID tokens and JWKS will be built and signed with `openidconnect`’s provider-side RSA types and a test-only key fixture, not custom JWT cryptography. The provider will record PKCE and allow controlled wrong nonce/audience/issuer/signature, expired token, OAuth error, malformed/empty/unusable JWKS, insecure endpoint metadata, malformed discovery, and malformed token responses.
+The page uses the existing Logo/design tokens and translations. It displays Gazel branding, short authentication-required text, and exactly one `Continue with {provider}` link/button. There are no local credential controls.
 
-Router tests will manually preserve `Set-Cookie` values across `oneshot` requests and drive the provider over loopback HTTP. A synchronized token-call counter and concurrent callbacks prove one-time atomic transaction consumption. Focused configuration and session unit tests use the deterministic clock to cover disabled defaults, every invalid configuration class, opaque/tampered/expired sessions, absolute non-sliding expiry, and cookie policy.
+On mount it fetches public `GET /auth/config`. Enabled response contains only `{ enabled: true, provider_name }`; disabled response contains only `{ enabled: false }` and causes a replace-navigation to `/` before auth controls render. The endpoint never exposes issuer details, client ID/secret, discovered endpoints, session state, or tokens. A failed/malformed response shows a generic usable unavailable state, not credential fallback.
 
-**Rationale:** This exercises the actual discovery, HTTP, token, and JOSE path without an external IdP or a mock of the code under test. Unit tests remain preferable for combinatorial validation and expiry boundaries.
+Stable query states are `error=authentication_failed`, `error=provider_unavailable`, and `logged_out=1`. Unknown error values map to the generic failure message and are never rendered directly. Every state retains the explicit OIDC button; none auto-starts login.
+
+**Rationale:** A dedicated page gives enabled users a deliberate, branded boundary and makes failures/logout understandable. The inert disabled status prevents the compiled route from introducing a disabled-mode auth UI. Skipping root hydration prevents `/login` from calling protected APIs and looping on 401.
+
+### 7. Return callback failures and logout to the login page
+
+**Decision:** Callback first validates/consumes state, retaining the safe target locally. Every recoverable protocol, provider-denial, token/claim, expired/replayed, or concurrent-rejection failure redirects to `/login?error=authentication_failed&return_to=<encoded-safe-target>` (or `/` when no target remains). Provider communication/JWKS retrieval failures use `error=provider_unavailable`. No provider description, code, state, nonce, PKCE value, token, or callback query is exposed or logged.
+
+Session infrastructure failures that prevent safe state handling remain generic server errors; Gazel never fabricates an authenticated session.
+
+`POST /auth/logout` flushes the local session/cookie and returns `303 /login?logged_out=1`, even if already anonymous. It never depends on or automatically invokes provider logout/login.
+
+**Rationale:** Users receive a retryable state rather than a dead callback response. Logout visibly ends the local session without immediately recreating it via provider SSO.
+
+### 8. Recover an expired SPA and expose logout conditionally
+
+**Decision:** One frontend error-response helper is used by `request()`, `exportAll()`, and `exportVehicle()`. On exactly 401 plus `AUTHENTICATION_REQUIRED`, a module guard navigates once to `/login?return_to=<encoded current pathname+search+hash>`. Every other response follows normal typed-error behavior.
+
+This is session lifecycle handling only: no token, identity state, or auth framework enters the SPA.
+
+Enabled authenticated `/api/info` adds `auth_enabled: true`; disabled mode omits it and preserves current shape. `AppInfo.auth_enabled` is optional. Settings conditionally renders a translated Authentication section with a normal form posting to `/auth/logout`.
+
+**Rationale:** A static SPA may remain open past absolute expiry and otherwise becomes permanently erroring. Optional app info makes logout usable without changing disabled UI or exposing identity.
+
+### 9. Test through a local standards-shaped provider
+
+**Decision:** Add an ephemeral Axum provider with discovery, authorization, token, and JWKS endpoints. Sign fixtures with `openidconnect` provider-side RSA types. Modes cover Basic/Post/omitted/unsupported auth metadata, PKCE, invalid claims/signatures, malformed responses, endpoint redirects/transport, provider errors, availability failures, and key rotation.
+
+Counters prove normal callbacks do not rediscover/refetch. Concurrent stale-generation callbacks must cause one JWKS request and each retry at most once. Cookie tests cover atomic callbacks, expiry, tampering, restart, and logout.
+
+Vitest/component coverage includes standalone `/login` shell, no protected hydration, branding/text/one button, provider default/custom labels, encoded fragment return target, safe error states, exact 401 handling and exports, navigation guard, optional app info, and logout form.
 
 ## Risks / Trade-offs
 
-- **[In-memory sessions log users out on restart and do not support non-sticky replicas]** → Document the limitation; fail closed with unknown cookies; revisit a compatible SQLite store only when deployment needs justify it.
-- **[OIDC provider downtime prevents startup when auth is enabled]** → This is deliberate fail-closed behavior. Container restart policy and provider recovery provide retry; Gazel never silently disables auth.
-- **[Fresh discovery during callback adds low-frequency discovery and JWKS round trips]** → Login volume is tiny, and current keys/metadata improve key-rotation interoperability. The guarded HTTP client rejects redirects and insecure non-loopback endpoints; errors are bounded to the login attempt.
-- **[A stolen session cookie is sufficient until expiry or logout]** → Require TLS outside loopback, use `Secure`/`HttpOnly`/authenticated encryption, rotate after login, keep the lifetime at twelve hours, and support immediate server-side deletion.
-- **[SameSite=Lax permits cookies on cross-site top-level GET callbacks]** → This is necessary for standard OIDC redirects; one-time state, nonce, and PKCE bind the callback.
-- **[All authenticated identities share all data]** → This is an explicit product constraint, prominently documented; authentication is not tenant isolation.
-- **[Existing unrelated OpenSpec change fails global validation]** → Validate this change strictly and report the pre-existing failure without modifying unrelated artifacts.
+- **[Public static bundles reveal client code]** → Expected for a browser app; bundles contain no application records, secrets, or tokens, while every data/API route remains protected.
+- **[In-memory sessions end on restart and do not support non-sticky replicas]** → Document; old cookies fail closed. Revisit SQLite only if deployment needs change.
+- **[Provider downtime prevents enabled startup]** → Deliberate fail-closed behavior; deployment restart policy supplies retry.
+- **[One signature failure can initiate key refresh]** → Requires a valid one-time transaction/token exchange; generation locking deduplicates concurrent failures and permits one retry.
+- **[A stolen cookie works until expiry/logout]** → TLS, Secure/HttpOnly/private cookie, login rotation, absolute twelve-hour expiry, and server deletion reduce exposure.
+- **[SameSite=Lax permits top-level callback]** → Necessary; state, nonce, and PKCE bind it.
+- **[Provider SSO remains after local logout]** → Login page shows signed-out state and waits for explicit action; Gazel does not claim provider logout.
+- **[All authenticated identities share all data]** → Explicit product constraint; authentication is not tenancy.
+- **[Existing unrelated OpenSpec change fails global validation]** → Validate this change strictly and report the pre-existing issue without editing it.
 
 ## Migration Plan
 
-1. Deploy with `GAZEL_AUTH_ENABLED` absent or `false`; runtime behavior remains unchanged and rollback is simply the previous image.
-2. Register `<GAZEL_EXTERNAL_URL>/auth/callback` as an Authorization Code callback at the generic OIDC provider.
-3. Generate a 64-byte random Base64 auth secret, provide all six settings, and ensure the external/issuer URLs use HTTPS outside loopback.
-4. Restart Gazel. Local validation and provider discovery complete before the listener starts; any error leaves the service unavailable rather than exposed.
-5. Verify public `/health`, browser login, protected `/api`, and local logout through the deployment proxy.
-6. To disable or roll back, set `GAZEL_AUTH_ENABLED=false` or deploy the prior image. Existing application data is untouched because no schema migration is introduced.
+1. Deploy with auth absent/false; existing application/API behavior and app-info shape remain unchanged.
+2. Register `<GAZEL_EXTERNAL_URL>/auth/callback` at the provider.
+3. Provide enable flag, external URL, issuer, client ID/secret, and optionally provider display name; no Gazel cookie secret is needed.
+4. Restart. Secure key generation, discovery/JWKS retrieval, endpoint validation, and token-auth selection finish before listening; failure leaves the service unavailable, never exposed.
+5. Verify public `/login` and assets, custom/default provider label, safe return path, callback error state, public health, protected API, expiry reauthentication, and settings logout through the proxy.
+6. Disable or roll back without data migration; process-local sessions simply cease to exist.
