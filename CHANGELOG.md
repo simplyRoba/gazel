@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/simplyRoba/gazel/compare/v1.2.1...v1.2.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* preserve exact OIDC issuer identifier ([8f4e046](https://github.com/simplyRoba/gazel/commit/8f4e046872376a2bc8bde4bf6fed8521b2a06cf5))
+
 ## [1.2.1](https://github.com/simplyRoba/gazel/compare/v1.2.0...v1.2.1) (2026-08-24)
 
 
