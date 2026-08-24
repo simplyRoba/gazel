@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.1](https://github.com/simplyRoba/gazel/compare/v1.2.0...v1.2.1) (2026-08-24)
+
+
+### Bug Fixes
+
+* improve OIDC discovery diagnostics ([ab5fe1f](https://github.com/simplyRoba/gazel/commit/ab5fe1f383c1442a432cb1d6606bd98713e17f9f))
+
 ## [1.2.0](https://github.com/simplyRoba/gazel/compare/v1.1.5...v1.2.0) (2026-08-24)
 
 
