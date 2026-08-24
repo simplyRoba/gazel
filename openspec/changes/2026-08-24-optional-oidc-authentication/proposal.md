@@ -1,6 +1,6 @@
 ## Why
 
-Gazel currently relies entirely on network placement or an authenticating reverse proxy, which makes safe direct self-hosting harder. Add a minimal, standards-compliant OIDC option with a branded public login experience while preserving today’s zero-auth behavior by default.
+Gazel currently relies entirely on network placement or an authenticating reverse proxy, which makes safe direct self-hosting harder. Add a minimal, standards-compliant OIDC option with a branded public login experience while preserving today’s unauthenticated application/API behavior by default, apart from one inert public auth-config endpoint.
 
 ## What Changes
 
@@ -9,10 +9,10 @@ Gazel currently relies entirely on network placement or an authenticating revers
 - Add optional `GAZEL_OIDC_PROVIDER_NAME`, defaulting to `OpenID Connect`, for the login button label; expose only that display value through a public auth-config endpoint.
 - Negotiate standards-defined `client_secret_basic` and `client_secret_post` token-endpoint authentication from discovery metadata, failing startup when neither is usable.
 - Add secure backend-managed login transactions and authenticated sessions referenced by an authenticated-encrypted, HTTP-only cookie; generate the cookie key per process and keep OIDC tokens entirely backend-side.
-- Protect every application UI route and `/api/*` when authentication is enabled; keep `/login`, required shared static assets, `/health`, and login/callback/logout/config endpoints public.
+- Protect every application UI route plus `/api` and `/api/*` when authentication is enabled; keep `/login`, the static assets required to render it, `/health`, and login/callback/logout/config endpoints public.
 - Return JSON `401 Unauthorized` to unauthenticated API clients while redirecting browser navigation and an already-open SPA to `/login`.
-- Preserve a validated local UI `return_to` target through the login page and OIDC flow without permitting external redirects.
-- Return recoverable authentication failures to `/login` with a safe, user-visible error state.
+- Preserve a validated local UI `return_to` through the login page and OIDC flow: backend navigation captures only request path/query, while SPA expiry recovery may additionally encode `location.hash` as query-parameter data.
+- Return every failed callback to `/login` with a stable error state and an always-present safe `return_to`, defaulting to encoded `/`.
 - Add local logout that always destroys the Gazel session without depending on provider logout support, plus a settings-page action returning to the public login page’s signed-out state.
 - Add fail-closed startup validation and OIDC discovery using an explicit external URL rather than trusting proxy headers.
 - Cache startup discovery metadata and keys, refreshing only one JWKS generation when ID-token signature/key verification requires it.
@@ -42,7 +42,7 @@ Gazel currently relies entirely on network placement or an authenticating revers
 
 - **Rust**: focused authentication module plus changes to configuration, startup, shared state, API errors, app-info output, public auth config, static routing, and router assembly.
 - **UI**: new `ui/src/routes/login/+page.svelte`, login-aware root layout, centralized session-expiry handling, and conditional settings logout; no frontend auth library or browser token storage.
-- **HTTP surface**: public `GET /login`, `GET /auth/config`, `GET /auth/login`, `GET /auth/callback`, and `POST /auth/logout`; existing authenticated domain endpoint payloads remain unchanged.
+- **HTTP surface**: public `GET /login`, `GET /auth/config`, `GET /auth/login`, `GET /auth/callback`, `POST /auth/logout`, and exact login-page assets when enabled; inert `GET /auth/config` is also public when disabled; existing domain endpoint payloads remain unchanged.
 - **Configuration**: `GAZEL_AUTH_ENABLED`, `GAZEL_EXTERNAL_URL`, `GAZEL_OIDC_ISSUER`, `GAZEL_OIDC_CLIENT_ID`, `GAZEL_OIDC_CLIENT_SECRET`, and optional `GAZEL_OIDC_PROVIDER_NAME`.
 - **Dependencies**: maintained `openidconnect` for protocol validation and `tower-sessions` for private-cookie-referenced server-side sessions; no generalized authentication framework.
 - **Tests/docs/deployment**: mock OIDC integration tests, configuration/session/router tests, login/API-client/settings component tests, README updates, and Docker Compose examples.

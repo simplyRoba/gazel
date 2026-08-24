@@ -26,9 +26,10 @@ When built-in authentication is enabled, Gazel SHALL serve a public Svelte page 
 ### Requirement: Login page starts OIDC and preserves local return target
 The login button SHALL navigate to `/auth/login` and propagate only the current decoded `return_to` query value for backend validation.
 
-#### Scenario: Encoded settings return target
-- **WHEN** the page URL is `/login?return_to=%2Fsettings%3Ftab%3Ddata%23export`
+#### Scenario: SPA-originated encoded settings return target
+- **WHEN** SPA expiry handling navigates to `/login?return_to=%2Fsettings%3Ftab%3Ddata%23export`
 - **THEN** the OIDC button target SHALL be `/auth/login?return_to=%2Fsettings%3Ftab%3Ddata%23export`
+- **AND** `%23export` SHALL remain query-parameter data rather than becoming a fragment of the `/auth/login` request
 - **AND** successful authentication SHALL ultimately navigate to `/settings?tab=data#export`
 
 #### Scenario: Return target absent
@@ -44,9 +45,10 @@ The login button SHALL navigate to `/auth/login` and propagate only the current 
 The page SHALL render stable local status codes without displaying provider descriptions, callback parameters, or secrets.
 
 #### Scenario: Authentication failed
-- **WHEN** the page URL contains `error=authentication_failed`
+- **WHEN** the page URL contains `error=authentication_failed` and an encoded `return_to`
 - **THEN** the page SHALL display a translated authentication-failed alert
 - **AND** retain the one OIDC button so the user can retry
+- **AND** the retry button SHALL propagate that `return_to` through the normal validation flow
 
 #### Scenario: Provider temporarily unavailable
 - **WHEN** the page URL contains `error=provider_unavailable`

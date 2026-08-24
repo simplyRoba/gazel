@@ -2,7 +2,7 @@
 
 See `proposal.md` for motivation. Gazel is one Axum process with a cloneable `AppState`, a single `/api` router, a root `/health` route, and an embedded client-only SvelteKit SPA served by one fallback handler. The root Svelte layout currently renders the full app shell and starts protected settings/vehicle hydration for every route. The same-origin frontend already sends cookies, but its API helper only throws on errors; settings initialization swallows failures and export functions use separate direct `fetch()` paths.
 
-The security contract is defined by the ten delta specs in this change. The design must preserve normal disabled behavior, fail closed before serving enabled traffic, provide a public branded login route without triggering protected hydration, recover an already-open SPA when its session expires, and remain appropriate for Gazel’s small single-binary deployment model.
+The security contract is defined by the ten delta specs in this change. The design must preserve existing disabled application/API behavior apart from the new inert public auth-config endpoint, fail closed before serving enabled traffic, provide a public branded login route without triggering protected hydration, recover an already-open SPA when its session expires, and remain appropriate for Gazel’s small single-binary deployment model.
 
 ## Goals / Non-Goals
 
@@ -33,12 +33,12 @@ The security contract is defined by the ten delta specs in this change. The desi
 1. public `GET /login`, returning embedded `index.html` so SvelteKit renders the dedicated route;
 2. public exact non-HTML static assets needed by both login and application bundles (`/_app/*`, logo/manifest/favicon resources), explicitly excluding `index.html`;
 3. public `/health`, `GET /auth/config`, `GET /auth/login`, `GET /auth/callback`, and `POST /auth/logout`;
-4. one protected router containing `/api/info`, all nested `/api` routes, and every application SPA document/fallback other than `/login`;
+4. one protected router containing exact `/api`, all `/api/*` routes (including `/api/info`), and every application SPA document/fallback other than `/login`;
 5. one outer session layer and the existing access log.
 
 The embedded handler will be split conceptually into non-HTML exact-asset serving and index fallback so public assets do not make every unknown SPA route public. `index.html` is served publicly only for exact `/login`; direct `/index.html`, nonexistent asset paths, and all other document fallbacks pass through the protected boundary. Public assets contain code and branding only, never application records or OIDC tokens.
 
-The middleware classifies only `path == "/api"` or `path.starts_with("/api/")` as API requests. Missing/invalid API sessions return JSON `ApiError::Unauthorized("AUTHENTICATION_REQUIRED")`. Unauthenticated document navigation receives `303` to `/login?return_to=<encoded local request target>`. Asset/subresource requests remain limited to exact public assets and are never treated as a return destination.
+The middleware classifies only `path == "/api"` or `path.starts_with("/api/")` as API requests. Missing/invalid API sessions return JSON `ApiError::Unauthorized("AUTHENTICATION_REQUIRED")`. Unauthenticated document navigation receives `303` to `/login?return_to=<encoded request path and query>`. The backend uses only `Request::uri().path_and_query()`; browser fragments never reach it. Asset/subresource requests remain limited to exact public assets and are never treated as a return destination.
 
 **Rationale:** A Svelte login page cannot run unless its JS/CSS assets are public. Splitting exact assets from protected fallback exposes no user data while preserving the application boundary. A global auth layer would protect login/health/callback; API-only auth would expose application routes.
 
@@ -75,7 +75,7 @@ Required enabled values are external URL, issuer, client ID, and client secret. 
 
 URLs must be absolute, credential/query/fragment-free, and HTTPS except loopback HTTP. Gazel rejects an external non-root path, normalizes the origin, and joins `/auth/callback`. Request headers never participate.
 
-There is no `GAZEL_AUTH_SECRET`. Enabled startup securely generates one private-cookie key with a fallible OS-random API. Generation failure aborts startup. A persistent operator key cannot preserve sessions after `MemoryStore` restart and adds needless setup.
+No operator-managed cookie secret setting is introduced. Enabled startup securely generates one private-cookie key with a fallible OS-random API. Generation failure aborts startup. A persistent operator key could not preserve sessions after `MemoryStore` restart and would add needless setup.
 
 **Rationale:** The operator supplies five functional values plus one optional label; no extra cryptographic secret lifecycle is needed. Typed optional config prevents partial enabled operation.
 
@@ -91,13 +91,16 @@ After verification, write only subject/login time/absolute twelve-hour expiry an
 
 ### 5. Carry only encoded, validated local return targets
 
-**Decision:** Both middleware and frontend produce login-page URLs with the complete local target encoded as one query value. For `/settings?tab=data#export`, the wire URL is `/login?return_to=%2Fsettings%3Ftab%3Ddata%23export`; the fragment is not mistakenly attached to `/login` itself.
+**Decision:** Server middleware and the SPA each encode the complete target available to them as one `return_to` query value, but their inputs differ:
 
-The login Svelte page reads the decoded value and uses `URLSearchParams` to build `/auth/login?return_to=...`. Backend `/auth/login` is authoritative: after percent-decoding it requires a single-leading-slash same-origin protected UI route and rejects authority/scheme, backslash, control characters, and `/api`, `/auth`, `/health`, or `/login` targets. Invalid/absent becomes `/`. Validation occurs before any `Location` serialization.
+- middleware sees only the HTTP request path and query. A request target `/settings?tab=data` becomes `/login?return_to=%2Fsettings%3Ftab%3Ddata`; the backend cannot receive, infer, or preserve a browser fragment from that navigation;
+- the already-running SPA can read `location.pathname + location.search + location.hash`. For `/settings?tab=data#export`, it produces `/login?return_to=%2Fsettings%3Ftab%3Ddata%23export`, carrying `%23export` as query-parameter data rather than as `/login`'s own fragment.
 
-The backend transaction stores the safe target. Successful callback redirects to it, including query/fragment. A valid authenticated session visiting `/auth/login` returns directly to the safe target without starting OIDC or destroying its session.
+The login Svelte page reads the decoded query value and uses `URLSearchParams` to build `/auth/login?return_to=...`. Backend `/auth/login` is authoritative: after percent-decoding the query parameter, it requires a single-leading-slash same-origin protected UI target and rejects authority/scheme, backslash, control characters, and `/api`, `/auth`, `/health`, or `/login` targets. Invalid/absent becomes `/`. Validation occurs before any `Location` serialization.
 
-**Rationale:** This restores user context while preventing open redirects and fragment-loss bugs. Backend validation means a tampered login-page query cannot weaken safety.
+The backend transaction stores the validated serialized target. Successful callback redirects to that stored `return_to`. It can contain a hash suffix only when the SPA previously supplied that suffix as percent-encoded query-parameter data; no HTTP request fragment was received by the backend. A valid authenticated session visiting `/auth/login` returns directly to the safe target without starting OIDC or destroying its session.
+
+**Rationale:** This restores all context available to the component that initiated reauthentication while preventing open redirects and false claims about server-visible fragments. Backend validation means a tampered login-page query cannot weaken safety.
 
 ### 6. Add a standalone public Svelte login surface
 
@@ -116,9 +119,7 @@ Stable query states are `error=authentication_failed`, `error=provider_unavailab
 
 ### 7. Return callback failures and logout to the login page
 
-**Decision:** Callback first validates/consumes state, retaining the safe target locally. Every recoverable protocol, provider-denial, token/claim, expired/replayed, or concurrent-rejection failure redirects to `/login?error=authentication_failed&return_to=<encoded-safe-target>` (or `/` when no target remains). Provider communication/JWKS retrieval failures use `error=provider_unavailable`. No provider description, code, state, nonce, PKCE value, token, or callback query is exposed or logged.
-
-Session infrastructure failures that prevent safe state handling remain generic server errors; Gazel never fabricates an authenticated session.
+**Decision:** Callback first validates/consumes state, retaining the safe target locally when one is available. Every callback failure returns `303` to `/login?error=<stable-error>&return_to=<encoded-safe-target>`. State, provider-denial, protocol, token, claim, replay, expiry, concurrency, and other authentication failures use `authentication_failed`; provider token/JWKS communication failures use `provider_unavailable`. The `return_to` parameter is always present and uses `%2F` when no validated transaction target remains. Failed callbacks never redirect directly to `/` and never expose or log provider descriptions, code, state, nonce, PKCE values, tokens, or raw callback queries.
 
 `POST /auth/logout` flushes the local session/cookie and returns `303 /login?logged_out=1`, even if already anonymous. It never depends on or automatically invokes provider logout/login.
 
@@ -136,11 +137,11 @@ Enabled authenticated `/api/info` adds `auth_enabled: true`; disabled mode omits
 
 ### 9. Test through a local standards-shaped provider
 
-**Decision:** Add an ephemeral Axum provider with discovery, authorization, token, and JWKS endpoints. Sign fixtures with `openidconnect` provider-side RSA types. Modes cover Basic/Post/omitted/unsupported auth metadata, PKCE, invalid claims/signatures, malformed responses, endpoint redirects/transport, provider errors, availability failures, and key rotation.
+**Decision:** Add an ephemeral Axum provider with discovery, authorization, token, and JWKS endpoints. Sign fixtures with `openidconnect` provider-side RSA types. Modes cover Basic/Post/omitted/unsupported auth metadata, including wire assertions that Basic uses only the Authorization header and Post uses only request-body client credentials, plus PKCE, invalid claims/signatures, malformed responses, endpoint redirects/transport, provider errors, availability failures, and key rotation.
 
 Counters prove normal callbacks do not rediscover/refetch. Concurrent stale-generation callbacks must cause one JWKS request and each retry at most once. Cookie tests cover atomic callbacks, expiry, tampering, restart, and logout.
 
-Vitest/component coverage includes standalone `/login` shell, no protected hydration, branding/text/one button, provider default/custom labels, encoded fragment return target, safe error states, exact 401 handling and exports, navigation guard, optional app info, and logout form.
+Backend router coverage proves server navigation preserves path/query only. Vitest/component coverage includes standalone `/login` shell, no protected hydration, branding/text/one button, provider default/custom labels, SPA-encoded `location.hash`, safe error states, exact 401 handling and exports, navigation guard, optional app info, and logout form.
 
 ## Risks / Trade-offs
 
@@ -156,7 +157,7 @@ Vitest/component coverage includes standalone `/login` shell, no protected hydra
 
 ## Migration Plan
 
-1. Deploy with auth absent/false; existing application/API behavior and app-info shape remain unchanged.
+1. Deploy with auth absent/false; existing application/API behavior and app-info shape remain unchanged, with only inert public `GET /auth/config` added.
 2. Register `<GAZEL_EXTERNAL_URL>/auth/callback` at the provider.
 3. Provide enable flag, external URL, issuer, client ID/secret, and optionally provider display name; no Gazel cookie secret is needed.
 4. Restart. Secure key generation, discovery/JWKS retrieval, endpoint validation, and token-auth selection finish before listening; failure leaves the service unavailable, never exposed.

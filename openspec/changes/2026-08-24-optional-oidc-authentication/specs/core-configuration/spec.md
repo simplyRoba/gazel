@@ -11,7 +11,8 @@ Built-in authentication SHALL be controlled by `GAZEL_AUTH_ENABLED`, which SHALL
 #### Scenario: Authentication explicitly disabled
 - **WHEN** `GAZEL_AUTH_ENABLED=false`
 - **THEN** built-in authentication SHALL be disabled
-- **AND** authentication-specific values SHALL NOT alter existing startup or request behavior
+- **AND** authentication-specific values SHALL NOT alter existing application or API behavior
+- **AND** the separately defined inert `GET /auth/config` response SHALL remain available
 
 #### Scenario: Invalid authentication flag
 - **WHEN** `GAZEL_AUTH_ENABLED` is present but is not `true` or `false`
@@ -65,12 +66,12 @@ When `GAZEL_AUTH_ENABLED=true`, Gazel MUST require non-empty values for `GAZEL_E
 - **AND** the application SHALL NOT start
 
 ### Requirement: Cookie encryption requires no operator-managed secret
-Gazel SHALL NOT require an authentication cookie secret setting when using process-local sessions; it SHALL generate the private-cookie key securely during each enabled startup.
+Gazel SHALL NOT define or require an operator-managed authentication cookie secret setting when using process-local sessions; it SHALL generate the private-cookie key securely during each enabled startup.
 
 #### Scenario: Enabled startup generates cookie key
 - **WHEN** authentication is enabled with complete OIDC configuration
 - **THEN** Gazel SHALL obtain a cryptographically secure random private-cookie key before serving traffic
-- **AND** no `GAZEL_AUTH_SECRET` value SHALL be required
+- **AND** no operator-supplied cookie key SHALL be required
 
 #### Scenario: Secure randomness unavailable
 - **WHEN** Gazel cannot securely generate the private-cookie key

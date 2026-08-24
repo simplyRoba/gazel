@@ -1,19 +1,11 @@
 ## ADDED Requirements
 
-### Requirement: Authentication-required error maps to 401
-Authentication middleware SHALL represent a missing, invalid, or expired Gazel session as `ApiError::Unauthorized("AUTHENTICATION_REQUIRED")` for API requests.
+### Requirement: Authentication failures use the Unauthorized API error
+Authentication middleware SHALL represent a missing, invalid, or expired Gazel session for `/api` and `/api/*` as `ApiError::Unauthorized("AUTHENTICATION_REQUIRED")`. This new variant SHALL use the existing JSON API error machinery, map to `401 Unauthorized`, and never produce a browser redirect.
 
-#### Scenario: Unauthorized maps to 401
-- **WHEN** authentication middleware returns `ApiError::Unauthorized("AUTHENTICATION_REQUIRED")`
-- **THEN** the HTTP status SHALL be `401 Unauthorized`
-- **AND** the JSON body SHALL be `{ "code": "AUTHENTICATION_REQUIRED", "message": "Authentication is required." }`
-
-### Requirement: API authentication failures never redirect
-Authentication failures for `/api` and `/api/*` SHALL use the normal JSON API error shape and SHALL NOT redirect or return provider HTML.
-
-#### Scenario: Unauthenticated API client
+#### Scenario: Unauthenticated API request maps to Unauthorized
 - **WHEN** a request without a valid Gazel session targets `/api` or any `/api/*` path
 - **THEN** the response SHALL be `401 Unauthorized`
-- **AND** the `Content-Type` SHALL be `application/json`
-- **AND** the response SHALL contain code `AUTHENTICATION_REQUIRED`
+- **AND** the JSON error code SHALL be `AUTHENTICATION_REQUIRED`
+- **AND** the fallback message SHALL be `Authentication is required.`
 - **AND** no `Location` header SHALL be present

@@ -5,21 +5,23 @@ Defines Gazel’s optional generic OIDC authentication boundary, secure authoriz
 ## ADDED Requirements
 
 ### Requirement: Authentication is optional and disabled by default
-Gazel SHALL enforce no authentication when built-in authentication is disabled, and all existing UI and API behavior SHALL remain unchanged.
+Gazel SHALL enforce no authentication when built-in authentication is disabled. Existing application UI and API behavior SHALL remain unchanged except for the new inert public `GET /auth/config` endpoint used by the compiled login route.
 
 #### Scenario: Default startup has no authentication gate
 - **WHEN** Gazel starts without authentication enabled
 - **THEN** existing application UI navigation SHALL be served without a login
-- **AND** `/api/*` requests SHALL be processed exactly as before this capability was added
+- **AND** `/api` and `/api/*` requests SHALL be processed exactly as before this capability was added
 - **AND** OIDC discovery and authentication key generation SHALL NOT be attempted
-- **AND** the inert public auth config SHALL report `enabled: false` so the compiled `/login` route can return to `/` without showing authentication controls
+- **AND** `GET /auth/config` SHALL report `{ "enabled": false }` so the compiled `/login` route can return to `/` without showing authentication controls
 
 ### Requirement: Enabled authentication protects the application
 When built-in authentication is enabled, Gazel MUST require a valid Gazel session for every application UI route and every `/api` and `/api/*` route. The dedicated `/login` page and exact static assets required to render it SHALL remain public and SHALL contain no application data or OIDC token.
 
 #### Scenario: Unauthenticated UI navigation
 - **WHEN** an unauthenticated browser requests a protected application route
-- **THEN** Gazel SHALL redirect the browser to `/login?return_to=<encoded-safe-local-target>`
+- **THEN** Gazel SHALL redirect the browser to `/login?return_to=<encoded-request-path-and-query>`
+- **AND** the return target SHALL contain only the HTTP request path and optional query
+- **AND** Gazel SHALL NOT infer or claim to preserve a browser URL fragment that was not sent in the request
 - **AND** it SHALL NOT serve protected application content
 
 #### Scenario: Unauthenticated API request
@@ -91,13 +93,19 @@ Gazel MUST explicitly select a supported confidential-client authentication meth
 - **AND** SHALL NOT initiate a provider authorization request
 
 ### Requirement: Return navigation cannot become an open redirect
-Gazel MUST accept only a local protected UI path, with optional query and fragment, as `return_to`; it MUST reject absolute URLs, protocol-relative values, backslashes, control characters, and API, health, or authentication endpoint targets.
+Gazel MUST accept only a serialized local protected UI target as `return_to`; it MUST reject absolute URLs, protocol-relative values, backslashes, control characters, and API, health, or authentication endpoint targets. Authentication middleware can derive only the protected HTTP request path and optional query because browser URL fragments are not sent to the backend. The SPA MAY additionally place `location.hash` inside the percent-encoded `return_to` query value.
 
-#### Scenario: Safe encoded local return target
+#### Scenario: Backend navigation preserves only path and query
+- **WHEN** authentication middleware handles an unauthenticated request target `/settings?tab=data`
+- **THEN** it SHALL redirect to `/login?return_to=%2Fsettings%3Ftab%3Ddata`
+- **AND** it SHALL NOT append, infer, or claim to have received a browser URL fragment
+
+#### Scenario: SPA-originated hash is query-parameter data
 - **WHEN** the wire request is `GET /auth/login?return_to=%2Fsettings%3Ftab%3Ddata%23export`
-- **THEN** Gazel SHALL decode and validate `/settings?tab=data#export`
+- **THEN** `%23export` SHALL be treated as data inside the `return_to` query parameter, not as a fragment of the `/auth/login` request
+- **AND** Gazel SHALL decode and validate the serialized local target `/settings?tab=data#export`
 - **AND** store that target only in the backend login transaction
-- **AND** redirect there after successful authentication
+- **AND** redirect to the stored target after successful authentication
 
 #### Scenario: External or reserved return target
 - **WHEN** the decoded login value is external, protocol-relative, malformed, reserved, contains a backslash, or contains a control character
@@ -109,7 +117,7 @@ Gazel MUST accept only a local protected UI path, with optional query and fragme
 - **THEN** the backend login transaction SHALL use `/`
 
 ### Requirement: Callback validation is one-time and complete
-`GET /auth/callback` MUST validate and atomically consume the backend login transaction before establishing a Gazel session, so at most one concurrent callback can obtain it.
+`GET /auth/callback` MUST validate and atomically consume the backend login transaction before establishing a Gazel session, so at most one concurrent callback can obtain it. A successful callback SHALL redirect to the safe `return_to` stored in that transaction. Every failed callback SHALL instead respond with `303 See Other` and redirect to `/login?error=<stable-error-code>&return_to=<encoded-safe-local-target>`. The `return_to` parameter MUST always be present; when no validated transaction target remains, Gazel SHALL use `/`, encoded as `%2F`.
 
 #### Scenario: Valid callback
 - **WHEN** the callback contains an authorization code and state matching an unexpired login transaction
@@ -118,23 +126,23 @@ Gazel MUST accept only a local protected UI path, with optional query and fragme
 - **AND** any access-token hash claim in the ID token matches the returned access token
 - **THEN** Gazel SHALL rotate the session identifier
 - **AND** establish an authenticated Gazel session
-- **AND** redirect the browser to the transaction’s validated local return target
+- **AND** redirect the browser to the safe `return_to` stored in the consumed login transaction
 
 #### Scenario: Missing or mismatched state
 - **WHEN** callback state is absent, does not match the browser-bound transaction, or has no corresponding transaction
 - **THEN** Gazel SHALL NOT contact the token endpoint or establish a session
-- **AND** SHALL redirect to `/login?error=authentication_failed` with `/` as the effective return target
+- **AND** SHALL redirect to `/login?error=authentication_failed&return_to=%2F`
 
 #### Scenario: Expired or replayed login transaction
 - **WHEN** a callback uses an expired transaction or reuses a transaction already presented to a callback
 - **THEN** Gazel SHALL NOT establish an authenticated session
-- **AND** SHALL redirect to `/login?error=authentication_failed` with `/` as the effective target when no transaction target remains
+- **AND** SHALL redirect to `/login?error=authentication_failed&return_to=%2F`
 
 #### Scenario: Concurrent callback replay
 - **WHEN** two callbacks concurrently present the same valid session-bound state
 - **THEN** Gazel SHALL atomically grant the login transaction to at most one callback
 - **AND** every other callback SHALL be rejected before token exchange
-- **AND** every rejected callback SHALL redirect to `/login?error=authentication_failed`
+- **AND** every rejected callback SHALL redirect to `/login?error=authentication_failed&return_to=%2F`
 
 #### Scenario: Invalid nonce or ID token
 - **WHEN** the provider returns a missing, malformed, incorrectly signed, expired, wrong-issuer, wrong-audience, or wrong-nonce ID token
@@ -145,12 +153,12 @@ Gazel MUST accept only a local protected UI path, with optional query and fragme
 - **WHEN** the provider callback reports an error or the returned response/token fails protocol or claim validation
 - **THEN** Gazel SHALL NOT expose the provider’s description, callback parameters, or token details
 - **AND** SHALL NOT establish a session
-- **AND** SHALL redirect to `/login?error=authentication_failed&return_to=<encoded-safe-local-target>` when a transaction target is available
+- **AND** SHALL redirect to `/login?error=authentication_failed&return_to=<encoded-safe-local-target>`
 
 #### Scenario: Provider temporarily unavailable
 - **WHEN** discovery-cached token or JWKS communication fails because the provider is unavailable
 - **THEN** Gazel SHALL NOT establish a session
-- **AND** SHALL redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>` when a transaction target is available
+- **AND** SHALL redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>`
 
 ### Requirement: Provider metadata is cached and each stale JWKS generation refreshes once
 Gazel SHALL use startup-discovered authorization/token metadata for login and token exchange and MUST NOT repeat full discovery per callback. On an eligible key/signature failure, Gazel MUST coordinate refresh by cached JWKS generation so concurrent callbacks cause at most one JWKS request for that stale generation.

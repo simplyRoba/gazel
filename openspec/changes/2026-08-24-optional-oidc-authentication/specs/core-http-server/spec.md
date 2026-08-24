@@ -29,18 +29,19 @@ The server SHALL serve the embedded SvelteKit build with exact shared static ass
 #### Scenario: Unauthenticated application navigation
 - **WHEN** authentication is enabled
 - **AND** an unauthenticated browser navigation requests any application SPA path other than `/login`
-- **THEN** authentication middleware SHALL redirect to `/login` with the local request target encoded as `return_to`
+- **THEN** authentication middleware SHALL redirect to `/login` with only the HTTP request path and optional query encoded as `return_to`
+- **AND** it SHALL NOT infer or claim to preserve a browser URL fragment that was not sent to the server
 - **AND** embedded application content SHALL NOT be served
 
 #### Scenario: API routes take priority over SPA fallback
-- **WHEN** a request is made to a path under `/api/` or to `/health`
+- **WHEN** a request is made to `/api`, a path under `/api/`, or `/health`
 - **THEN** the API route handler or authentication boundary SHALL process the request
 - **AND** the SPA fallback SHALL NOT be invoked
 
 ## ADDED Requirements
 
 ### Requirement: Public and protected routers are composed explicitly
-Existing disabled application/API routes SHALL retain their current behavior while exposing only an inert public auth-config status for the compiled login route. When authentication is enabled, exact public resources SHALL be composed separately from one protected application router.
+When authentication is disabled, existing application, API, health, static, and fallback behavior SHALL remain unchanged except for the new inert public `GET /auth/config` endpoint. When authentication is enabled, exact public resources SHALL be composed separately from one protected application router.
 
 #### Scenario: Disabled route compatibility
 - **WHEN** authentication is disabled
