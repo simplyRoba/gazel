@@ -152,6 +152,40 @@ impl std::error::Error for GuardedHttpError {
     }
 }
 
+fn safe_request_error(error: &GuardedHttpError) -> String {
+    match error {
+        GuardedHttpError::Request(error) => std::error::Error::source(error.as_ref()).map_or_else(
+            || String::from("request failed"),
+            std::string::ToString::to_string,
+        ),
+        _ => error.to_string(),
+    }
+}
+
+fn safe_discovery_error(error: &openidconnect::DiscoveryError<GuardedHttpError>) -> String {
+    match error {
+        openidconnect::DiscoveryError::Request(error) => {
+            format!("request failed: {}", safe_request_error(error))
+        }
+        openidconnect::DiscoveryError::Parse(error) => {
+            format!("invalid response: {error}")
+        }
+        openidconnect::DiscoveryError::Validation(error) => {
+            format!("validation failed: {error}")
+        }
+        openidconnect::DiscoveryError::UrlParse(error) => {
+            format!("invalid URL: {error}")
+        }
+        openidconnect::DiscoveryError::Response(status, _, detail) => {
+            format!("HTTP {status}: {detail}")
+        }
+        openidconnect::DiscoveryError::Other(error) => {
+            format!("discovery failed: {error}")
+        }
+        _ => String::from("OIDC discovery failed"),
+    }
+}
+
 impl<'client> AsyncHttpClient<'client> for GuardedHttpClient {
     type Error = GuardedHttpError;
     type Future =
@@ -242,7 +276,13 @@ impl OidcRuntime {
             .map_err(|_| OidcStartupError::InvalidIssuer)?;
         let metadata = CoreProviderMetadata::discover_async(issuer, &http)
             .await
-            .map_err(|_| OidcStartupError::Discovery)?;
+            .map_err(|error| {
+                tracing::error!(
+                    error = %safe_discovery_error(&error),
+                    "OIDC discovery failed"
+                );
+                OidcStartupError::Discovery
+            })?;
 
         validate_metadata(&metadata)?;
         let auth_method = select_client_auth(metadata.token_endpoint_auth_methods_supported())?;
@@ -542,4 +582,36 @@ fn eligible_for_refresh(error: &ClaimsVerificationError) -> bool {
             SignatureVerificationError::NoMatchingKey | SignatureVerificationError::CryptoError(_)
         )
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn safe_discovery_error_omits_response_body() {
+        let error = openidconnect::DiscoveryError::<GuardedHttpError>::Response(
+            http::StatusCode::BAD_REQUEST,
+            b"client_secret=do-not-log".to_vec(),
+            String::from("unexpected content type"),
+        );
+
+        let diagnostic = safe_discovery_error(&error);
+
+        assert_eq!(diagnostic, "HTTP 400 Bad Request: unexpected content type");
+        assert!(!diagnostic.contains("do-not-log"));
+    }
+
+    #[test]
+    fn safe_discovery_error_preserves_validation_detail() {
+        let error = openidconnect::DiscoveryError::<GuardedHttpError>::Validation(String::from(
+            "unexpected issuer URI `https://wrong.example` (expected `https://issuer.example`)",
+        ));
+
+        let diagnostic = safe_discovery_error(&error);
+
+        assert!(diagnostic.contains("validation failed"));
+        assert!(diagnostic.contains("wrong.example"));
+        assert!(diagnostic.contains("issuer.example"));
+    }
 }
