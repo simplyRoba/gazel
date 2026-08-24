@@ -5,17 +5,23 @@ Application shell layout: root layout structure, responsive sidebar navigation w
 ## Requirements
 
 ### Requirement: Root layout structure
-
-The root layout SHALL render an app shell consisting of a navigation region, a content region, and a pull-to-refresh indicator. The content region SHALL render the active route's page content. The pull-to-refresh indicator SHALL be a fixed-position element at the top of the viewport, hidden by default, that becomes visible during pull-to-refresh gestures.
+The root layout SHALL render the protected application shell for application routes and a standalone public surface for `/login`. Protected application content SHALL include navigation, a main content region, and a pull-to-refresh indicator; the login route SHALL render without protected shell chrome or hydration. For protected application routes, the pull-to-refresh indicator SHALL be fixed at the top of the viewport, hidden by default, and visible during pull-to-refresh gestures.
 
 #### Scenario: Layout renders navigation and content
-- **WHEN** any route is loaded
+- **WHEN** an authenticated application route other than `/login` is loaded
 - **THEN** the layout SHALL render a navigation region, a `<main>` content region, and a pull-to-refresh indicator element
 - **AND** the active route's page content SHALL appear inside the content region
 
 #### Scenario: Pull indicator present but hidden
-- **WHEN** the layout renders and no pull gesture is active
+- **WHEN** the protected application layout renders and no pull gesture is active
 - **THEN** the pull-to-refresh indicator element SHALL exist in the DOM but not be visible
+
+#### Scenario: Public login layout
+- **WHEN** `/login` is loaded
+- **THEN** the layout SHALL render a standalone public login gate while auth config is resolved
+- **AND** SHALL NOT render application navigation, fill-up controls, or the pull-to-refresh indicator
+- **AND** SHALL NOT initialize settings, vehicles, fill-ups, stats, or any other protected store
+- **AND** SHALL render the login experience only when auth config reports enabled, otherwise replacing navigation with `/`
 
 ### Requirement: Responsive sidebar navigation
 
