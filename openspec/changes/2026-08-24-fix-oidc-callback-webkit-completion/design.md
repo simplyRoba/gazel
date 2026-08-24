@@ -1,54 +1,59 @@
 ## Context
 
-The callback implementation in `src/auth/flow.rs` already validates and consumes the browser-bound transaction, exchanges and verifies the authorization code, cycles the session ID, inserts the authenticated session, and then calls the shared `303` redirect helper. Session cookies are configured with `SameSite::Lax` in `src/auth/session.rs`; that attribute and the existing validation boundary are security requirements, not implementation knobs.
+Gazel currently returns a `303` from a successful `/auth/callback` directly to the validated `return_to`. In installed iPhone/iPad WebKit PWAs, continuing the provider redirect chain this way can cause the protected SPA request to arrive without the newly rotated `SameSite=Lax` authenticated session cookie, producing a `401`/login loop.
 
-See `proposal.md` for the WebKit/PWA motivation and `specs/core-authentication/spec.md` for the observable contract.
+The canonical `Callback validation is one-time and complete` and `Return navigation cannot become an open redirect` requirements remain authoritative for callback validation, failure handling, and destination validation. This change modifies only the response emitted after callback processing and authenticated-session establishment have succeeded.
 
 ## Goals / Non-Goals
 
 **Goals:**
 
-- Add a narrow successful-callback response boundary that lets the browser commit the rotated authenticated cookie before navigating into the protected SPA.
-- Preserve the existing callback failure redirects, centralized `return_to` validation, session lifecycle, and cookie attributes.
-- Keep all completion markup independent of frontend routes and avoid reflecting or disclosing sensitive callback data, including through the navigation referrer.
-- Cover successful, unsafe-target, failure, response-header, and sensitive-data cases with Rust tests.
+- End the cross-site authorization redirect chain with a minimal successful HTML response before navigating into the protected SPA.
+- Navigate freshly to the already validated same-origin destination without leaking callback or session material.
+- Preserve the current `SameSite=Lax` session-cookie posture and every existing authentication validation and failure path.
+- Verify the reported installed Homepage PWA behavior on actual iPhone/iPad WebKit in addition to Rust response tests.
 
 **Non-Goals:**
 
-- Do not change `SameSite`, add a second authentication cookie, or redesign CSRF protection.
-- Do not change OIDC issuer, state, nonce, PKCE, token, JWKS, session expiry, or provider error handling.
-- Do not add a SvelteKit route, client abstraction, or provider-specific workaround.
+- Do not change `SameSite` to `None`, add another authentication cookie, or weaken CSRF protection.
+- Do not weaken or alter state, nonce, PKCE, session, token, issuer, audience, or signature validation.
+- Do not change failed-callback behavior or `return_to` validation/open-redirect protection.
+- Do not add a SvelteKit route, frontend abstraction, provider-specific branch, or dependency.
 
 ## Decisions
 
-### Return a completion document only after successful session insertion
+### Return a completion document only for callback success
 
-Keep every failure path in `callback` on `failure_redirect`. Replace only the final successful redirect after `cycle_id` and authenticated-session insertion with a response builder that returns `200 OK`, no `Location` header, `Content-Type: text/html; charset=utf-8`, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, and a small completion document. The document uses `location.replace(...)` so the callback URL is replaced rather than retained in history, allowing the browser to commit the session cookie before the protected navigation. The referrer policy prevents the callback URL, authorization code, and state from being sent as the `Referer` on that same-origin navigation.
+After all existing callback validation, session rotation, and authenticated-session insertion have succeeded, return `200 OK` with `Content-Type: text/html; charset=utf-8`, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, and no `Location` header. The minimal document uses `location.replace()` (or equivalent fresh navigation) to enter the protected SPA, replacing the callback URL in browser history and allowing WebKit to begin a new same-origin navigation after committing the session cookie.
 
-**Alternative considered:** changing the cookie to `SameSite=None` would address some cross-site behavior but weakens the existing CSRF posture and is explicitly out of scope. A server-side delay or frontend route would be less deterministic and larger than the required boundary.
+All failure branches continue to use the existing failure response. The authenticated cookie remains `SameSite=Lax`.
 
-### Serialize the already validated destination in two output contexts
+**Alternative considered:** `SameSite=None` is rejected because it weakens the existing cookie/CSRF posture and does not provide the requested navigation boundary. A delay or frontend route is less direct and increases surface area.
 
-Use only `transaction.return_to`, which has already passed `validate_return_to`. Serialize it as a JSON string for the JavaScript argument, then escape HTML-sensitive characters (`<`, `>`, and `&`, as well as equivalent line-separator hazards) in the serialized representation so a path such as one containing a script terminator cannot escape the script element. Independently HTML-escape the destination when placing it in the `meta` refresh and link `href` fallback attributes. Do not include raw callback query values, transaction state, tokens, subject, or session data in the document.
+### Serialize only the already validated destination
 
-**Alternative considered:** interpolating the destination directly into JavaScript or an HTML attribute is rejected because local-path validation does not by itself make either output context safe. A new templating or frontend dependency is unnecessary for this one response.
+The document receives only the `return_to` already accepted and stored by the existing centralized validation. Serialize the destination for JavaScript, then neutralize HTML-significant and script-termination characters in that serialized value. Independently HTML-escape the destination for any fallback attribute, such as a refresh target or link. A visible non-script continuation gives restricted user agents a safe fallback without introducing a frontend route or templating dependency.
 
-### Keep the fallback static, cache-resistant, and referrer-safe
+Do not interpolate callback query values or emit authorization code, state, nonce, PKCE verifier, access token, ID token, client secret, cookie/session identifier, backend session content, or other authentication material. `Referrer-Policy: no-referrer` prevents the callback URL and query from becoming navigation metadata.
 
-Include a non-script fallback (a `meta` refresh and/or link) using the same escaped destination, plus a short “Continue” label. Set `Cache-Control: no-store` so an authentication transition document is not reused from a browser or intermediary cache, and set `Referrer-Policy: no-referrer` so script, meta-refresh, and link navigation cannot disclose callback parameters. The response contains no application state and is not a new frontend route.
+### Verify both the HTTP contract and the WebKit behavior
 
-### Test through the existing callback integration helpers
+Rust integration tests will verify the successful status, headers, authenticated cookie, navigation target, context-safe escaping, and absence of authentication material. Existing tests for callback validation failures and unsafe `return_to` handling remain unchanged because those contracts are not modified.
 
-Update `tests/auth.rs` to assert the successful response status/body, session `Set-Cookie`, exact HTML content type, `Cache-Control: no-store`, `Referrer-Policy: no-referrer`, and absence of a success `Location` header, while retaining assertions that failed callbacks have the exact existing `Location`. Add coverage for a query/hash return target, an unsafe target rejected during `/auth/login` and stored as `/`, and absence of authorization code, token, nonce, state, client secret, and session-content markers in the body. Keep the existing cookie-attribute assertions, especially `SameSite=Lax`.
+Those tests cannot reproduce the installed WebKit/PWA cookie-commit bug. Acceptance therefore also requires a manual run against a TinyAuth-backed deployment on an actual iPhone or iPad:
+
+`Installed Homepage PWA → open Gazel → Gazel login page → TinyAuth OIDC authorization → successful callback → completion document → Gazel SPA loads → protected API calls succeed → no 401/login loop`
+
+The same deployment must also pass login in ordinary Safari, login in an ordinary desktop browser, and logout followed by login afterward.
 
 ## Risks / Trade-offs
 
-- [Risk] Older or restricted user agents may not execute the script or meta refresh. → Provide an escaped link fallback to the same validated local destination.
-- [Risk] A future change to return-target validation could introduce characters unsafe for one output context. → Keep context-specific JSON/HTML escaping in the completion builder and test script-terminator/quote-shaped local targets.
-- [Risk] Some clients may display a blank intermediate document. → Keep the body minimal, provide a visible fallback link, and use `location.replace` immediately.
-- [Risk] Same-origin navigation normally carries the callback URL as a referrer. → Set and test `Referrer-Policy: no-referrer` on the completion response.
-- [Risk] Tests that assume every successful callback has a `Location` header may fail. → Change only successful callback expectations; preserve all failure redirect assertions and explicitly assert `200 OK` with no `Location` for success.
+- [Risk] Script execution may be disabled or restricted. → Include an independently escaped same-origin HTML fallback.
+- [Risk] A validated local path may contain characters dangerous in script or HTML contexts. → Use context-specific escaping and adversarial response tests.
+- [Risk] The callback URL could leak through navigation metadata. → Set and test `Referrer-Policy: no-referrer`; emit no authentication material in the body.
+- [Risk] Automated response tests may pass while installed WebKit still loops. → Require the explicit physical-device PWA acceptance flow before considering the change complete.
+- [Risk] The intermediate page may briefly appear. → Keep it minimal and navigate immediately with `location.replace()`.
 
 ## Migration Plan
 
-No data migration or configuration change is required. Deploy the backend change normally; existing sessions and login transactions continue to use their current process-local storage and cookie attributes. If rollback is needed, reverting the callback response builder restores the previous immediate success redirect without changing stored data or provider configuration.
+No data or configuration migration is required. Deploy the backend response change normally. Reverting it restores the prior successful `303` response without changing stored sessions, provider configuration, or cookie attributes.
