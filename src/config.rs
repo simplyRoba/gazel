@@ -35,8 +35,8 @@ pub struct OidcConfig {
     pub external_url: Url,
     /// Callback URL registered with the OIDC provider.
     pub callback_url: Url,
-    /// OIDC issuer URL used for discovery.
-    pub issuer: Url,
+    /// Exact validated OIDC issuer identifier used for discovery.
+    pub issuer: String,
     /// Confidential-client identifier.
     pub client_id: String,
     /// Confidential-client secret.
@@ -160,13 +160,13 @@ fn load_oidc_config(source: &impl ConfigSource) -> Result<OidcConfig, ConfigErro
     let callback_url = external_url
         .join("auth/callback")
         .map_err(|_| ConfigError::invalid("GAZEL_EXTERNAL_URL", "cannot construct callback"))?;
-    let issuer = validate_auth_url(&issuer_value, "GAZEL_OIDC_ISSUER")?;
+    validate_auth_url(&issuer_value, "GAZEL_OIDC_ISSUER")?;
     let provider_name = provider_name(source)?;
 
     Ok(OidcConfig {
         external_url,
         callback_url,
-        issuer,
+        issuer: issuer_value,
         client_id,
         client_secret,
         provider_name,
@@ -435,6 +435,18 @@ mod tests {
             let mut entries = enabled_entries();
             entries.insert("GAZEL_OIDC_ISSUER".to_string(), issuer.to_string());
             Config::load_from(&MockConfigSource(entries)).expect("issuer URL should be valid");
+        }
+    }
+
+    #[test]
+    fn oidc_issuer_preserves_the_validated_text() {
+        for issuer in ["https://id.example", "https://id.example/"] {
+            let mut entries = enabled_entries();
+            entries.insert("GAZEL_OIDC_ISSUER".to_string(), issuer.to_string());
+
+            let config = Config::load_from(&MockConfigSource(entries)).expect("config should load");
+
+            assert_eq!(config.auth.expect("auth should be enabled").issuer, issuer);
         }
     }
 

@@ -272,8 +272,8 @@ impl OidcRuntime {
         clock: Arc<dyn Clock>,
     ) -> Result<Self, OidcStartupError> {
         let http = GuardedHttpClient::new().map_err(OidcStartupError::HttpClient)?;
-        let issuer = IssuerUrl::new(config.issuer.to_string())
-            .map_err(|_| OidcStartupError::InvalidIssuer)?;
+        let issuer =
+            IssuerUrl::new(config.issuer.clone()).map_err(|_| OidcStartupError::InvalidIssuer)?;
         let metadata = CoreProviderMetadata::discover_async(issuer, &http)
             .await
             .map_err(|error| {

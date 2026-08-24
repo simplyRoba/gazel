@@ -92,7 +92,7 @@ The enabled authentication boundary SHALL consist of five functional settings: `
 - **AND** the application SHALL NOT start with an unusable login label
 
 ### Requirement: Authentication URLs are validated at startup
-`GAZEL_EXTERNAL_URL` and `GAZEL_OIDC_ISSUER` MUST be absolute URLs without credentials, query strings, or fragments; HTTPS SHALL be required except for HTTP loopback development URLs. The external URL MUST represent a root-mounted origin without a non-root path and SHALL be normalized as an origin before callback construction.
+`GAZEL_EXTERNAL_URL` and `GAZEL_OIDC_ISSUER` MUST be absolute URLs without credentials, query strings, or fragments; HTTPS SHALL be required except for HTTP loopback development URLs. The external URL MUST represent a root-mounted origin without a non-root path and SHALL be normalized as an origin before callback construction. The validated OIDC issuer identifier MUST preserve its exact configured textual form for exact comparison with provider metadata.
 
 #### Scenario: Valid HTTPS URLs
 - **WHEN** authentication is enabled with valid HTTPS external and issuer URLs
@@ -102,6 +102,15 @@ The enabled authentication boundary SHALL consist of five functional settings: `
 #### Scenario: Valid loopback development URLs
 - **WHEN** an enabled external URL or issuer URL uses HTTP with host `localhost`, `127.0.0.1`, or `::1`
 - **THEN** local URL validation SHALL permit it for development and tests
+
+#### Scenario: Exact origin-only issuer identifier
+- **WHEN** `GAZEL_OIDC_ISSUER` is `https://id.example` and provider metadata reports `https://id.example`
+- **THEN** discovery issuer validation SHALL succeed
+- **AND** Gazel SHALL NOT normalize the configured issuer to `https://id.example/`
+
+#### Scenario: Trailing slash remains significant
+- **WHEN** `GAZEL_OIDC_ISSUER` is `https://id.example/` and provider metadata reports `https://id.example`
+- **THEN** discovery issuer validation SHALL fail
 
 #### Scenario: Unsafe or ambiguous URL
 - **WHEN** an enabled external or issuer URL uses unsupported HTTP on a non-loopback host, includes credentials, a query, or a fragment, or the external URL includes a non-root path

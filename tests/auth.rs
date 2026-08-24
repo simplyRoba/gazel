@@ -207,7 +207,7 @@ impl MockProvider {
             external_url: url::Url::parse("https://gazel.example/").expect("URL should parse"),
             callback_url: url::Url::parse("https://gazel.example/auth/callback")
                 .expect("URL should parse"),
-            issuer: url::Url::parse(self.issuer()).expect("URL should parse"),
+            issuer: self.issuer().to_owned(),
             client_id: String::from(CLIENT_ID),
             client_secret: String::from(CLIENT_SECRET),
             provider_name: String::from("Test Provider"),
@@ -826,6 +826,32 @@ async fn mock_authorization_endpoint_returns_a_standards_shaped_callback() {
             .get(header::LOCATION)
             .and_then(|value| value.to_str().ok()),
         Some("https://gazel.example/auth/callback?code=provider-code&state=test-state")
+    );
+}
+
+#[tokio::test]
+async fn discovery_preserves_exact_origin_only_issuer_identifier() {
+    let provider = MockProvider::start(ProviderOptions::default()).await;
+    let provider_issuer = provider.issuer().trim_end_matches('/').to_owned();
+    provider
+        .set_options(|options| options.issuer_override = Some(provider_issuer.clone()))
+        .await;
+
+    let mut exact_config = provider.config();
+    exact_config.issuer.clone_from(&provider_issuer);
+    Authentication::bootstrap(exact_config)
+        .await
+        .expect("matching origin-only issuer should initialize");
+
+    let error = Authentication::bootstrap(provider.config())
+        .await
+        .expect_err("trailing slash must fail exact issuer validation");
+    assert!(error.to_string().contains("discovery"));
+    assert_eq!(provider.discovery_count(), 2);
+    assert_eq!(
+        provider.jwks_count(),
+        1,
+        "issuer mismatch must fail before JWKS"
     );
 }
 
