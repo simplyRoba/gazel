@@ -11,18 +11,16 @@
  * not thousand separators):
  * - If both separators appear, the last-occurring one is the decimal point
  *   and the other is grouping ("1.234,56" → 1234.56, "1,234.56" → 1234.56).
- * - A single separator (of either kind) is ALWAYS the decimal point, even with
- *   three trailing digits ("1,919" → 1.919, "477,2" → 477.2).
+ * - For a single separator followed by exactly three digits, the locale
+ *   disambiguates decimal from grouping ("234.567" in `de` → 234567, while
+ *   the same input in `en` → 234.567). Other single separators are decimal.
  * - Repeated occurrences of one separator are grouping ("1.234.567" → 1234567).
- *
- * The `locale` parameter is accepted for API symmetry with the formatters but
- * is not needed for parsing under these rules.
  *
  * Returns `NaN` for empty or unparseable input.
  */
 export function parseDecimal(
   input: string | number | null | undefined,
-  _locale: string = "en",
+  locale: string = "en",
 ): number {
   if (typeof input === "number") return input;
   if (input === null || input === undefined) return NaN;
@@ -44,10 +42,17 @@ export function parseDecimal(
   } else if (hasComma || hasDot) {
     const sep = hasComma ? "," : ".";
     const occurrences = s.split(sep).length - 1;
-    // A single separator is always the decimal point — users entering fill-up
-    // data type decimals, not thousand separators ("1,919" => 1.919). Only
-    // repeated separators (e.g. "1.234.567") are treated as grouping.
-    s = occurrences > 1 ? s.split(sep).join("") : s.replace(sep, ".");
+    if (occurrences > 1) {
+      s = s.split(sep).join("");
+    } else {
+      const localeDecimal =
+        new Intl.NumberFormat(locale)
+          .formatToParts(1.1)
+          .find((part) => part.type === "decimal")?.value ?? ".";
+      const fractionLength = s.length - s.indexOf(sep) - 1;
+      const isLocaleGrouping = fractionLength === 3 && sep !== localeDecimal;
+      s = isLocaleGrouping ? s.replace(sep, "") : s.replace(sep, ".");
+    }
   }
 
   return Number(s);
@@ -234,10 +239,10 @@ export function deriveFuelPriceTotal(
     return { field: "total", value: fuel * price };
   }
   if (target === "price") {
-    if (!valid(fuel) || !valid(total) || fuel === 0) return null;
+    if (!valid(fuel) || !valid(total) || fuel <= 0) return null;
     return { field: "price", value: total / fuel };
   }
   // target === "fuel"
-  if (!valid(price) || !valid(total) || price === 0) return null;
+  if (!valid(price) || !valid(total) || price <= 0) return null;
   return { field: "fuel", value: total / price };
 }

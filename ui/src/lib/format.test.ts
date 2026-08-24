@@ -65,15 +65,21 @@ describe("deriveFuelPriceTotal", () => {
     ).toEqual({ field: "fuel", value: 40 });
   });
 
-  it("guards against dividing by zero fuel", () => {
+  it("guards against dividing by non-positive fuel", () => {
     expect(
       deriveFuelPriceTotal({ fuel: 0, total: 60 }, ["fuel", "total"]),
     ).toBeNull();
+    expect(
+      deriveFuelPriceTotal({ fuel: -40, total: 60 }, ["fuel", "total"]),
+    ).toBeNull();
   });
 
-  it("guards against dividing by zero price", () => {
+  it("guards against dividing by non-positive price", () => {
     expect(
       deriveFuelPriceTotal({ price: 0, total: 60 }, ["price", "total"]),
+    ).toBeNull();
+    expect(
+      deriveFuelPriceTotal({ price: -1.5, total: 60 }, ["price", "total"]),
     ).toBeNull();
   });
 
@@ -110,12 +116,11 @@ describe("parseDecimal", () => {
     expect(parseDecimal("1,234.56", "en")).toBe(1234.56);
   });
 
-  it("treats a single separator with three trailing digits as a decimal (fuel price)", () => {
-    // The key fuel-price case: "1,919" is €1.919/L, never 1919.
-    expect(parseDecimal("1,919")).toBe(1.919);
-    expect(parseDecimal("1.919")).toBe(1.919);
-    expect(parseDecimal("234.567")).toBe(234.567);
-    expect(parseDecimal("234,567")).toBe(234.567);
+  it("uses locale to disambiguate a single separator with three trailing digits", () => {
+    expect(parseDecimal("234.567", "de")).toBe(234567);
+    expect(parseDecimal("234.567", "en")).toBe(234.567);
+    expect(parseDecimal("234,567", "en")).toBe(234567);
+    expect(parseDecimal("234,567", "de")).toBe(234.567);
   });
 
   it("treats repeated grouping separators as grouping", () => {

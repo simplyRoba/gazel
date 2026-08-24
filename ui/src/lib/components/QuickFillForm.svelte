@@ -18,6 +18,7 @@
 
   const VOLUME_LABELS: Record<string, string> = { l: "L", gal: "gal" };
   const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", EUR: "\u20AC" };
+  const LITERS_PER_GALLON = 3.785_411_784;
 
   let {
     vehicleId,
@@ -48,6 +49,36 @@
     const fillups = getFillupsByVehicle(vehicleId);
     if (fillups.length === 0) return undefined;
     return fillups[0].odometer;
+  });
+
+  // Tank-to-tank baseline for the live efficiency preview. Partial fills after
+  // the latest full tank contribute fuel to the pending segment; a missed fill
+  // makes that segment invalid, matching the backend stats rules.
+  const efficiencySegment = $derived.by(() => {
+    const fillups = getFillupsByVehicle(vehicleId);
+    const fullTankIndex = fillups.findIndex(
+      (fillup) => fillup.is_full_tank && fillup.odometer > 0,
+    );
+    if (fullTankIndex < 0) return undefined;
+
+    const fillsSinceFullTank = fillups.slice(0, fullTankIndex);
+    if (fillsSinceFullTank.some((fillup) => fillup.is_missed)) return undefined;
+
+    const toActiveVolume = (amount: number, unit: string) => {
+      const liters = unit === "gal" ? amount * LITERS_PER_GALLON : amount;
+      return settings.volume_unit === "gal"
+        ? liters / LITERS_PER_GALLON
+        : liters;
+    };
+
+    return {
+      startOdometer: fillups[fullTankIndex].odometer,
+      accumulatedFuel: fillsSinceFullTank.reduce(
+        (sum, fillup) =>
+          sum + toActiveVolume(fillup.fuel_amount, fillup.fuel_unit),
+        0,
+      ),
+    };
   });
 
   // Track previous odoMode to convert the odometer value on switch
@@ -160,14 +191,16 @@
 
   // ── Live efficiency preview ─────────────────────────────
   const efficiencyPreview = $derived.by(() => {
-    const fuel = parseDecimal(fuelAmount, locale);
-    if (isNaN(fuel) || fuel <= 0) return null;
-    if (lastOdometer == null) return null;
+    const enteredFuel = parseDecimal(fuelAmount, locale);
+    if (isNaN(enteredFuel) || enteredFuel <= 0) return null;
+    if (!efficiencySegment || !isFullTank || isMissed) return null;
     const absoluteOdo = resolveOdometer();
     if (isNaN(absoluteOdo)) return null;
-    const distance = absoluteOdo - lastOdometer;
+    const distance = absoluteOdo - efficiencySegment.startOdometer;
     if (distance <= 0) return null;
-    const kmPerVolume = distance / fuel;
+    const segmentFuel = efficiencySegment.accumulatedFuel + enteredFuel;
+    if (segmentFuel <= 0) return null;
+    const kmPerVolume = distance / segmentFuel;
     return formatEfficiency(
       kmPerVolume,
       settings.distance_unit,

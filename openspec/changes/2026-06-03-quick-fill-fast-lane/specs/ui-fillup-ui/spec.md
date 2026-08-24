@@ -21,7 +21,7 @@ Numeric fill-up inputs (odometer, fuel amount, price per unit, cost) SHALL guard
 
 The fill-up form SHALL open as a modal dialog. Creating a fill-up SHALL use the Quick Fill fast-lane surface; editing a fill-up SHALL use the detailed form. The total/trip odometer mode toggle SHALL be available in both.
 
-#### Scenario: Create mode uses Quick Fill
+#### Scenario: Create mode
 
 - **WHEN** the modal opens without an existing fill-up
 - **THEN** it SHALL present the Quick Fill screen (large numeric inputs, fuel/price/total auto-calc, live efficiency preview, collapsible "More details")
@@ -30,7 +30,7 @@ The fill-up form SHALL open as a modal dialog. Creating a fill-up SHALL use the 
 - **AND** `is_missed` SHALL default to `false`
 - **AND** the primary action SHALL save the fill-up
 
-#### Scenario: Edit mode uses the detailed form
+#### Scenario: Edit mode
 
 - **WHEN** the modal opens with an existing fill-up
 - **THEN** it SHALL present the detailed form with all fields pre-filled with the fill-up's current values
@@ -42,7 +42,7 @@ The fill-up form SHALL open as a modal dialog. Creating a fill-up SHALL use the 
 - **WHEN** the user taps a fill-up card on the dashboard
 - **THEN** the fill-up form modal SHALL open in edit mode with that fill-up's data
 
-#### Scenario: Detailed form fields
+#### Scenario: Form fields
 
 - **WHEN** the detailed fill-up form is displayed (edit mode, or the expanded "More details" section in create mode)
 - **THEN** it SHALL contain: date input (required), odometer input (required, with unit label from settings), fuel amount input (required, with unit label from settings), cost input (required, with currency symbol from settings), station input (optional), notes input (optional), is_full_tank toggle (default ON), is_missed toggle (default OFF)
