@@ -24,6 +24,60 @@ const AUTHENTICATED_TTL: Duration = Duration::hours(12);
 const TRANSACTION_SESSION_KEY: &str = "oidc_transaction";
 const AUTHENTICATED_SESSION_KEY: &str = "authenticated";
 
+#[derive(Clone, Copy)]
+pub(crate) struct AuthenticatedCallbackResponse;
+
+#[derive(Clone, Copy)]
+pub(crate) enum AuthenticatedRecordState {
+    Present,
+    Absent,
+    Expired,
+    SessionReadFailure,
+}
+
+impl AuthenticatedRecordState {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Present => "present",
+            Self::Absent => "absent",
+            Self::Expired => "present_but_expired",
+            Self::SessionReadFailure => "session_read_failure",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum SessionRecordResolution {
+    Resolved,
+    NoSessionId,
+    MissingFromStore,
+    ReadFailure,
+}
+
+impl SessionRecordResolution {
+    pub(crate) const fn as_str(self) -> &'static str {
+        match self {
+            Self::Resolved => "resolved",
+            Self::NoSessionId => "no_session_id",
+            Self::MissingFromStore => "missing_from_store",
+            Self::ReadFailure => "read_failure",
+        }
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct AuthenticationStatus {
+    pub(crate) authenticated_record: AuthenticatedRecordState,
+    pub(crate) tower_session_id_resolved: bool,
+    pub(crate) tower_session_record: SessionRecordResolution,
+}
+
+impl AuthenticationStatus {
+    pub(crate) const fn is_authenticated(self) -> bool {
+        matches!(self.authenticated_record, AuthenticatedRecordState::Present)
+    }
+}
+
 /// Time source used for transaction and authenticated-session expiry.
 pub trait Clock: Send + Sync {
     /// Return the current UTC time.
@@ -120,7 +174,11 @@ async fn login(
     RawQuery(raw_query): RawQuery,
 ) -> Response {
     let return_to = return_to_from_query(raw_query.as_deref());
-    if authentication.is_authenticated(&session).await {
+    if authentication
+        .authentication_status(&session)
+        .await
+        .is_authenticated()
+    {
         return redirect(&return_to);
     }
 
@@ -217,6 +275,7 @@ async fn callback(
     let now = authentication.clock.now();
     let expires_at = now + AUTHENTICATED_TTL;
     if session.cycle_id().await.is_err() {
+        tracing::error!("Failed to rotate authentication session");
         return failure_redirect(FailureCode::ProviderUnavailable, &transaction.return_to);
     }
     session.set_expiry(Some(Expiry::AtDateTime(expires_at)));
@@ -232,28 +291,66 @@ async fn callback(
         .await
         .is_err()
     {
+        tracing::error!("Failed to write authenticated session record");
         return failure_redirect(FailureCode::ProviderUnavailable, &transaction.return_to);
     }
 
-    callback_completion(&transaction.return_to)
+    let mut response = callback_completion(&transaction.return_to);
+    response
+        .extensions_mut()
+        .insert(AuthenticatedCallbackResponse);
+    response
 }
 
 impl Authentication {
-    pub(crate) async fn is_authenticated(&self, session: &Session) -> bool {
-        let record = session
+    pub(crate) async fn authentication_status(&self, session: &Session) -> AuthenticationStatus {
+        let tower_session_id_resolved = session.id().is_some();
+        let Ok(record) = session
             .get::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
             .await
-            .ok()
-            .flatten();
+        else {
+            tracing::error!("Failed to read authentication session record");
+            return AuthenticationStatus {
+                authenticated_record: AuthenticatedRecordState::SessionReadFailure,
+                tower_session_id_resolved,
+                tower_session_record: SessionRecordResolution::ReadFailure,
+            };
+        };
+        let tower_session_record = if !tower_session_id_resolved {
+            SessionRecordResolution::NoSessionId
+        } else if session.id().is_some() {
+            SessionRecordResolution::Resolved
+        } else {
+            SessionRecordResolution::MissingFromStore
+        };
+
         match record {
-            Some(record) if authenticated_session_is_valid(&record, self.clock.now()) => true,
-            Some(_) => {
-                let _ = session
-                    .remove::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
-                    .await;
-                false
+            Some(record) if authenticated_session_is_valid(&record, self.clock.now()) => {
+                AuthenticationStatus {
+                    authenticated_record: AuthenticatedRecordState::Present,
+                    tower_session_id_resolved,
+                    tower_session_record,
+                }
             }
-            None => false,
+            Some(_) => {
+                if session
+                    .remove::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
+                    .await
+                    .is_err()
+                {
+                    tracing::error!("Failed to remove expired authentication session record");
+                }
+                AuthenticationStatus {
+                    authenticated_record: AuthenticatedRecordState::Expired,
+                    tower_session_id_resolved,
+                    tower_session_record,
+                }
+            }
+            None => AuthenticationStatus {
+                authenticated_record: AuthenticatedRecordState::Absent,
+                tower_session_id_resolved,
+                tower_session_record,
+            },
         }
     }
 }
