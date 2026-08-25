@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.3](https://github.com/simplyRoba/gazel/compare/v1.2.2...v1.2.3) (2026-08-25)
+
+
+### Bug Fixes
+
+* **auth:** complete OIDC callback via navigation document ([6c8ea16](https://github.com/simplyRoba/gazel/commit/6c8ea1656121c49e3a06929af7bc941a9f7e1631))
+* **ui:** align quick fill with specs ([189a8b6](https://github.com/simplyRoba/gazel/commit/189a8b624596d710d2255ea847e4bfaca0373fe8))
+
+
+### Documentation
+
+* **openspec:** archive quick fill change ([68e6b27](https://github.com/simplyRoba/gazel/commit/68e6b271e51a5a9b5e3b8b4ab2591bdbc311f0ef))
+* **openspec:** plan WebKit-safe OIDC callback completion ([2a7f58e](https://github.com/simplyRoba/gazel/commit/2a7f58e9fedc77c8b9c71a4449e1080e51026688))
+* **openspec:** refine WebKit callback change ([c6d3e37](https://github.com/simplyRoba/gazel/commit/c6d3e37b31c4c05f30616151ddd2fd1246db9863))
+* plan logout UI placement fix ([c710188](https://github.com/simplyRoba/gazel/commit/c710188be27c28f59b0e3d2be00e2cb31e93c69e))
+
 ## [1.2.2](https://github.com/simplyRoba/gazel/compare/v1.2.1...v1.2.2) (2026-08-24)
 
 
