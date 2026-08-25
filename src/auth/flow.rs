@@ -4,6 +4,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use axum::Router;
+use axum::body::Body;
 use axum::extract::{RawQuery, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::Response;
@@ -234,7 +235,7 @@ async fn callback(
         return failure_redirect(FailureCode::ProviderUnavailable, &transaction.return_to);
     }
 
-    redirect(&transaction.return_to)
+    callback_completion(&transaction.return_to)
 }
 
 impl Authentication {
@@ -317,6 +318,63 @@ fn failure_redirect(error: FailureCode, return_to: &str) -> Response {
         &[("error", error.as_str()), ("return_to", return_to)],
     );
     redirect(&location)
+}
+
+fn callback_completion(return_to: &str) -> Response {
+    let script_destination = escape_javascript_string(return_to);
+    let fallback_destination = escape_html_attribute(return_to);
+    let document = format!(
+        "<!doctype html><meta charset=\"utf-8\"><title>Authentication complete</title>\
+         <script>location.replace({script_destination});</script>\
+         <noscript><p><a href=\"{fallback_destination}\">Continue</a></p></noscript>"
+    );
+    let mut response = Response::new(Body::from(document));
+    *response.status_mut() = StatusCode::OK;
+    let headers = response.headers_mut();
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static("text/html; charset=utf-8"),
+    );
+    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    headers.insert(
+        header::REFERRER_POLICY,
+        HeaderValue::from_static("no-referrer"),
+    );
+    response
+}
+
+fn escape_javascript_string(value: &str) -> String {
+    let Ok(serialized) = serde_json::to_string(value) else {
+        return String::from("\"/\"");
+    };
+    let mut escaped = String::with_capacity(serialized.len());
+    for character in serialized.chars() {
+        match character {
+            '&' => escaped.push_str("\\u0026"),
+            '\'' => escaped.push_str("\\u0027"),
+            '<' => escaped.push_str("\\u003c"),
+            '>' => escaped.push_str("\\u003e"),
+            '\u{2028}' => escaped.push_str("\\u2028"),
+            '\u{2029}' => escaped.push_str("\\u2029"),
+            _ => escaped.push(character),
+        }
+    }
+    escaped
+}
+
+fn escape_html_attribute(value: &str) -> String {
+    let mut escaped = String::with_capacity(value.len());
+    for character in value.chars() {
+        match character {
+            '&' => escaped.push_str("&amp;"),
+            '\'' => escaped.push_str("&#39;"),
+            '"' => escaped.push_str("&quot;"),
+            '<' => escaped.push_str("&lt;"),
+            '>' => escaped.push_str("&gt;"),
+            _ => escaped.push(character),
+        }
+    }
+    escaped
 }
 
 pub(crate) fn redirect(location: &str) -> Response {
