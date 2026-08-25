@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.7](https://github.com/simplyRoba/gazel/compare/v1.2.6...v1.2.7) (2026-08-25)
+
+
+### Bug Fixes
+
+* **auth:** restore direct OIDC callback redirect ([233551a](https://github.com/simplyRoba/gazel/commit/233551aead6dd29ea9548632082b149c154b7af3))
+
 ## [1.2.6](https://github.com/simplyRoba/gazel/compare/v1.2.5...v1.2.6) (2026-08-25)
 
 
