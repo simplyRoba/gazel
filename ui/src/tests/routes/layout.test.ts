@@ -48,6 +48,7 @@ describe("root layout public login branch", () => {
 
   afterEach(() => {
     cleanup();
+    vi.restoreAllMocks();
   });
 
   it("renders only login content without protected shell or hydration", () => {
@@ -81,5 +82,40 @@ describe("root layout public login branch", () => {
     await tick();
     expect(container.querySelector(".app-shell")).toBeNull();
     expect(container.querySelector(".pull-indicator")).toBeNull();
+  });
+
+  it("registers standalone touch listeners once without recursively rerunning the effect", async () => {
+    const matchMedia = vi.fn((query: string) => ({
+      matches:
+        query === "(display-mode: standalone)" || query === "(pointer: coarse)",
+    }));
+    vi.stubGlobal("matchMedia", matchMedia);
+    pageState.url = new SvelteURL("http://localhost/");
+
+    const addEventListener = vi.spyOn(window, "addEventListener");
+    const unhandledRejections: unknown[] = [];
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      unhandledRejections.push(event.reason);
+    };
+    window.addEventListener("unhandledrejection", handleUnhandledRejection);
+
+    render(LoginLayoutFixture);
+    await tick();
+    await tick();
+
+    for (const eventName of [
+      "touchstart",
+      "touchmove",
+      "touchend",
+      "touchcancel",
+    ]) {
+      expect(
+        addEventListener.mock.calls.filter(([name]) => name === eventName),
+      ).toHaveLength(1);
+    }
+    expect(matchMedia).toHaveBeenCalledTimes(2);
+    expect(unhandledRejections).toEqual([]);
+
+    window.removeEventListener("unhandledrejection", handleUnhandledRejection);
   });
 });

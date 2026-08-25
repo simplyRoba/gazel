@@ -255,10 +255,10 @@
       navigator: { standalone?: boolean; maxTouchPoints: number };
       ontouchstart?: unknown;
     };
-    canUsePullToRefresh =
-      isStandalonePwaSession(win) && isTouchCapableDevice(win);
+    const enabled = isStandalonePwaSession(win) && isTouchCapableDevice(win);
+    canUsePullToRefresh = enabled;
 
-    if (canUsePullToRefresh) {
+    if (enabled) {
       window.addEventListener("touchstart", handleTouchStart, {
         passive: true,
       });
@@ -276,7 +276,6 @@
         reloadTimeoutId = null;
       }
       resetPullGesture();
-      canUsePullToRefresh = false;
       window.removeEventListener("touchstart", handleTouchStart);
       window.removeEventListener("touchmove", handleTouchMove);
       window.removeEventListener("touchend", handleTouchEnd);
