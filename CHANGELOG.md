@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.5](https://github.com/simplyRoba/gazel/compare/v1.2.4...v1.2.5) (2026-08-25)
+
+
+### Bug Fixes
+
+* **ui:** add production runtime diagnostics ([fc5df97](https://github.com/simplyRoba/gazel/commit/fc5df97456665ba0fc193f2fdd7280708fe65afb))
+
 ## [1.2.4](https://github.com/simplyRoba/gazel/compare/v1.2.3...v1.2.4) (2026-08-25)
 
 
