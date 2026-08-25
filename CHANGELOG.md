@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.4](https://github.com/simplyRoba/gazel/compare/v1.2.3...v1.2.4) (2026-08-25)
+
+
+### Bug Fixes
+
+* **auth:** add safe authentication diagnostics ([77ce2be](https://github.com/simplyRoba/gazel/commit/77ce2be01d5a464d064c247c2a5e38b3497b1d9e))
+
 ## [1.2.3](https://github.com/simplyRoba/gazel/compare/v1.2.2...v1.2.3) (2026-08-25)
 
 
