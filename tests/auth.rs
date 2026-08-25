@@ -1492,6 +1492,26 @@ async fn enabled_router_protects_application_and_api_routes() {
         .expect("oversized request should succeed");
     assert_eq!(response_location(&oversized), "/login?return_to=%2F");
 
+    let client_diagnostic = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/client-diagnostics")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    r#"{"stage":"window_error","outcome":"failed","pathname":"/","exception_type":"Error","exception_message":"render failed"}"#,
+                ))
+                .expect("request should build"),
+        )
+        .await
+        .expect("client diagnostic request should succeed");
+    assert_eq!(client_diagnostic.status(), StatusCode::SEE_OTHER);
+    assert_eq!(
+        response_location(&client_diagnostic),
+        "/login?return_to=%2Fclient-diagnostics"
+    );
+
     for target in ["/api", "/api/vehicles"] {
         let response = app
             .clone()
@@ -1563,6 +1583,23 @@ async fn enabled_router_accepts_authenticated_ui_and_api_requests() {
         .await
         .expect("authenticated page request should succeed");
     assert_eq!(protected_page.status(), StatusCode::OK);
+
+    let client_diagnostic = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri("/client-diagnostics")
+                .header(header::COOKIE, &authenticated_cookie)
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(
+                    r#"{"stage":"window_error","outcome":"failed","pathname":"/","exception_type":"Error","exception_message":"render failed"}"#,
+                ))
+                .expect("request should build"),
+        )
+        .await
+        .expect("client diagnostic request should succeed");
+    assert_eq!(client_diagnostic.status(), StatusCode::NO_CONTENT);
 
     let info = app
         .oneshot(

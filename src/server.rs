@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use axum::body::Body;
-use axum::extract::State;
+use axum::extract::{DefaultBodyLimit, State};
 use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
@@ -41,6 +41,10 @@ fn disabled_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(move || health(pool)))
         .route("/auth/config", get(|| async { disabled_auth_config() }))
+        .route(
+            "/client-diagnostics",
+            post(crate::client_diagnostics::record).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
         .route("/api/info", get(|| async { info(false) }))
         .nest("/api", crate::api::router(state.clone()))
         .fallback(static_handler)
@@ -50,6 +54,10 @@ fn disabled_router(state: AppState) -> Router {
 fn enabled_router(state: &AppState, authentication: &Arc<Authentication>) -> Router {
     let protected = Router::new()
         .route("/api/info", get(|| async { info(true) }))
+        .route(
+            "/client-diagnostics",
+            post(crate::client_diagnostics::record).layer(DefaultBodyLimit::max(4 * 1024)),
+        )
         .nest("/api", crate::api::router(state.clone()))
         .fallback(static_handler)
         .layer(middleware::from_fn_with_state(

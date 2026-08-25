@@ -15,6 +15,7 @@
   import { resolve } from "$app/paths";
   import { untrack } from "svelte";
   import { LayoutDashboard, Settings, Plus, Check } from "lucide-svelte";
+  import { installGlobalClientDiagnostics } from "$lib/client-diagnostics";
   import { initSettings } from "$lib/stores/settings.svelte";
   import { getVehicles, loadVehicles } from "$lib/stores/vehicles.svelte";
   import {
@@ -239,10 +240,12 @@
   $effect(() => {
     if (isLoginRoute) return;
 
+    const removeGlobalClientDiagnostics = installGlobalClientDiagnostics();
+
     if (!protectedStoresInitialized) {
       protectedStoresInitialized = true;
       untrack(() => {
-        void initSettings().then(() => loadVehicles());
+        void initSettings().then(() => loadVehicles("layout"));
       });
     }
 
@@ -267,6 +270,7 @@
     }
 
     return () => {
+      removeGlobalClientDiagnostics();
       if (reloadTimeoutId !== null) {
         clearTimeout(reloadTimeoutId);
         reloadTimeoutId = null;

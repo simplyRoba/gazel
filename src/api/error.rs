@@ -44,6 +44,7 @@ impl IntoResponse for ApiError {
 fn default_message(code: &str) -> &'static str {
     match code {
         "AUTHENTICATION_REQUIRED" => "Authentication is required.",
+        "CLIENT_DIAGNOSTIC_INVALID" => "Client diagnostic is invalid.",
         "INTERNAL_ERROR" => "An unexpected error occurred.",
         "INVALID_REQUEST_BODY" => "The request body is missing or malformed.",
         "VEHICLE_NOT_FOUND" => "Vehicle not found.",
