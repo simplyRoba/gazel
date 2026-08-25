@@ -31,10 +31,7 @@
     loadAllStats,
     invalidateStats,
   } from "$lib/stores/stats.svelte";
-  import {
-    getLoading as getSettingsLoading,
-    getSettings,
-  } from "$lib/stores/settings.svelte";
+  import { getSettings } from "$lib/stores/settings.svelte";
   import {
     formatDistance,
     formatCurrency,
@@ -43,7 +40,6 @@
     toDisplayEfficiency,
   } from "$lib/format";
   import { t } from "$lib/i18n";
-  import { reportClientDiagnostic } from "$lib/client-diagnostics";
   import type { Fillup, CreateFillup } from "$lib/api";
   import {
     buildEfficiencyMap,
@@ -134,38 +130,13 @@
 
   // ── Lifecycle ──────────────────────────────────────────
 
-  function reportDashboardLoadingSnapshot(): void {
-    reportClientDiagnostic({
-      stage: "dashboard_loading_snapshot",
-      outcome: "snapshot",
-      settings_loading: getSettingsLoading(),
-      vehicles_loading: getVehiclesLoading(),
-      active_vehicle_selected: getActiveVehicleId() !== null,
-      fillups_loading: getFillupsLoading(),
-      stats_loading: getStatsLoading(),
-    });
-  }
-
-  async function initializeDashboard(): Promise<void> {
-    await loadVehicles("dashboard");
-
+  onMount(async () => {
+    await loadVehicles();
     const vs = getVehicles();
     if (vs.length > 0) {
-      const fillups = setActiveVehicle(vs[0].id);
-      const stats = loadAllStats(vs.map((v) => v.id));
-      void Promise.all([fillups, stats]).then(reportDashboardLoadingSnapshot);
+      setActiveVehicle(vs[0].id);
+      loadAllStats(vs.map((v) => v.id));
     }
-    reportDashboardLoadingSnapshot();
-  }
-
-  onMount(() => {
-    void initializeDashboard();
-
-    const snapshotTimer = window.setTimeout(
-      reportDashboardLoadingSnapshot,
-      10_000,
-    );
-    return () => window.clearTimeout(snapshotTimer);
   });
 
   function handleChipClick(vehicleId: number) {

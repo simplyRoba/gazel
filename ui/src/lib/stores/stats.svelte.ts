@@ -2,10 +2,6 @@ import { SvelteMap } from "svelte/reactivity";
 
 import type { VehicleStats, SegmentHistory } from "$lib/api";
 import * as api from "$lib/api";
-import {
-  exceptionDetails,
-  reportClientDiagnostic,
-} from "$lib/client-diagnostics";
 import { pushNotification } from "$lib/stores/notifications.svelte";
 
 // ── State ────────────────────────────────────────────────
@@ -48,12 +44,8 @@ export async function loadStats(vehicleId: number): Promise<void> {
   loading = true;
   try {
     const [stats, history] = await Promise.all([
-      loadStatsResource("stats_loading", () =>
-        api.fetchVehicleStats(vehicleId),
-      ),
-      loadStatsResource("stats_history_loading", () =>
-        api.fetchVehicleStatsHistory(vehicleId),
-      ),
+      api.fetchVehicleStats(vehicleId),
+      api.fetchVehicleStatsHistory(vehicleId),
     ]);
     statsCache.set(vehicleId, stats);
     historyCache.set(vehicleId, history);
@@ -67,68 +59,22 @@ export async function loadStats(vehicleId: number): Promise<void> {
 export async function loadAllStats(vehicleIds: number[]): Promise<void> {
   error = null;
   loading = true;
-  reportClientDiagnostic({
-    stage: "fleet_stats_loading",
-    outcome: "started",
-    stats_loading: loading,
-  });
-
-  let succeeded = false;
-  let failure: unknown;
   try {
     await Promise.all(vehicleIds.map((id) => loadSingle(id)));
-    succeeded = true;
   } catch (e) {
-    failure = e;
     setError(e, "Failed to load fleet stats");
   } finally {
     loading = false;
-    reportClientDiagnostic({
-      stage: "fleet_stats_loading",
-      outcome: succeeded ? "succeeded" : "failed",
-      ...(succeeded ? {} : exceptionDetails(failure)),
-      stats_loading: loading,
-    });
   }
 }
 
 async function loadSingle(vehicleId: number): Promise<void> {
   const [stats, history] = await Promise.all([
-    loadStatsResource("stats_loading", () => api.fetchVehicleStats(vehicleId)),
-    loadStatsResource("stats_history_loading", () =>
-      api.fetchVehicleStatsHistory(vehicleId),
-    ),
+    api.fetchVehicleStats(vehicleId),
+    api.fetchVehicleStatsHistory(vehicleId),
   ]);
   statsCache.set(vehicleId, stats);
   historyCache.set(vehicleId, history);
-}
-
-async function loadStatsResource<T>(
-  stage: "stats_loading" | "stats_history_loading",
-  load: () => Promise<T>,
-): Promise<T> {
-  reportClientDiagnostic({
-    stage,
-    outcome: "started",
-    stats_loading: loading,
-  });
-  try {
-    const result = await load();
-    reportClientDiagnostic({
-      stage,
-      outcome: "succeeded",
-      stats_loading: loading,
-    });
-    return result;
-  } catch (error) {
-    reportClientDiagnostic({
-      stage,
-      outcome: "failed",
-      ...exceptionDetails(error),
-      stats_loading: loading,
-    });
-    throw error;
-  }
 }
 
 export function clearCache(): void {

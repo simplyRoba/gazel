@@ -2,10 +2,6 @@ import { SvelteMap } from "svelte/reactivity";
 
 import type { Fillup, CreateFillup, UpdateFillup } from "$lib/api";
 import * as api from "$lib/api";
-import {
-  exceptionDetails,
-  reportClientDiagnostic,
-} from "$lib/client-diagnostics";
 import { t } from "$lib/i18n";
 import { resolveError } from "$lib/i18n/errors";
 import { pushNotification } from "$lib/stores/notifications.svelte";
@@ -53,31 +49,13 @@ export function getActiveVehicleId(): number | null {
 export async function loadFillups(vehicleId: number): Promise<void> {
   error = null;
   loading = true;
-  reportClientDiagnostic({
-    stage: "fillup_loading",
-    outcome: "started",
-    active_vehicle_selected: activeVehicleId !== null,
-    fillups_loading: loading,
-  });
-
-  let succeeded = false;
-  let failure: unknown;
   try {
     const fillups = await api.fetchFillups(vehicleId);
     fillupCache.set(vehicleId, fillups);
-    succeeded = true;
   } catch (e) {
-    failure = e;
     setError(e, "store.fillups.loadFailed");
   } finally {
     loading = false;
-    reportClientDiagnostic({
-      stage: "fillup_loading",
-      outcome: succeeded ? "succeeded" : "failed",
-      ...(succeeded ? {} : exceptionDetails(failure)),
-      active_vehicle_selected: activeVehicleId !== null,
-      fillups_loading: loading,
-    });
   }
 }
 
@@ -147,11 +125,5 @@ export function clearCache(): void {
 
 export async function setActiveVehicle(vehicleId: number): Promise<void> {
   activeVehicleId = vehicleId;
-  reportClientDiagnostic({
-    stage: "active_vehicle_selection",
-    outcome: "succeeded",
-    active_vehicle_selected: true,
-    fillups_loading: loading,
-  });
   await loadFillups(vehicleId);
 }

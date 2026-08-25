@@ -4,7 +4,6 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use axum::Router;
-use axum::body::Body;
 use axum::extract::{RawQuery, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::Response;
@@ -23,60 +22,6 @@ const TRANSACTION_TTL: Duration = Duration::minutes(5);
 const AUTHENTICATED_TTL: Duration = Duration::hours(12);
 const TRANSACTION_SESSION_KEY: &str = "oidc_transaction";
 const AUTHENTICATED_SESSION_KEY: &str = "authenticated";
-
-#[derive(Clone, Copy)]
-pub(crate) struct AuthenticatedCallbackResponse;
-
-#[derive(Clone, Copy)]
-pub(crate) enum AuthenticatedRecordState {
-    Present,
-    Absent,
-    Expired,
-    SessionReadFailure,
-}
-
-impl AuthenticatedRecordState {
-    pub(crate) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Present => "present",
-            Self::Absent => "absent",
-            Self::Expired => "present_but_expired",
-            Self::SessionReadFailure => "session_read_failure",
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(crate) enum SessionRecordResolution {
-    Resolved,
-    NoSessionId,
-    MissingFromStore,
-    ReadFailure,
-}
-
-impl SessionRecordResolution {
-    pub(crate) const fn as_str(self) -> &'static str {
-        match self {
-            Self::Resolved => "resolved",
-            Self::NoSessionId => "no_session_id",
-            Self::MissingFromStore => "missing_from_store",
-            Self::ReadFailure => "read_failure",
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-pub(crate) struct AuthenticationStatus {
-    pub(crate) authenticated_record: AuthenticatedRecordState,
-    pub(crate) tower_session_id_resolved: bool,
-    pub(crate) tower_session_record: SessionRecordResolution,
-}
-
-impl AuthenticationStatus {
-    pub(crate) const fn is_authenticated(self) -> bool {
-        matches!(self.authenticated_record, AuthenticatedRecordState::Present)
-    }
-}
 
 /// Time source used for transaction and authenticated-session expiry.
 pub trait Clock: Send + Sync {
@@ -174,11 +119,7 @@ async fn login(
     RawQuery(raw_query): RawQuery,
 ) -> Response {
     let return_to = return_to_from_query(raw_query.as_deref());
-    if authentication
-        .authentication_status(&session)
-        .await
-        .is_authenticated()
-    {
+    if authentication.is_authenticated(&session).await {
         return redirect(&return_to);
     }
 
@@ -275,7 +216,6 @@ async fn callback(
     let now = authentication.clock.now();
     let expires_at = now + AUTHENTICATED_TTL;
     if session.cycle_id().await.is_err() {
-        tracing::error!("Failed to rotate authentication session");
         return failure_redirect(FailureCode::ProviderUnavailable, &transaction.return_to);
     }
     session.set_expiry(Some(Expiry::AtDateTime(expires_at)));
@@ -291,66 +231,28 @@ async fn callback(
         .await
         .is_err()
     {
-        tracing::error!("Failed to write authenticated session record");
         return failure_redirect(FailureCode::ProviderUnavailable, &transaction.return_to);
     }
 
-    let mut response = callback_completion(&transaction.return_to);
-    response
-        .extensions_mut()
-        .insert(AuthenticatedCallbackResponse);
-    response
+    redirect(&transaction.return_to)
 }
 
 impl Authentication {
-    pub(crate) async fn authentication_status(&self, session: &Session) -> AuthenticationStatus {
-        let tower_session_id_resolved = session.id().is_some();
-        let Ok(record) = session
+    pub(crate) async fn is_authenticated(&self, session: &Session) -> bool {
+        let record = session
             .get::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
             .await
-        else {
-            tracing::error!("Failed to read authentication session record");
-            return AuthenticationStatus {
-                authenticated_record: AuthenticatedRecordState::SessionReadFailure,
-                tower_session_id_resolved,
-                tower_session_record: SessionRecordResolution::ReadFailure,
-            };
-        };
-        let tower_session_record = if !tower_session_id_resolved {
-            SessionRecordResolution::NoSessionId
-        } else if session.id().is_some() {
-            SessionRecordResolution::Resolved
-        } else {
-            SessionRecordResolution::MissingFromStore
-        };
-
+            .ok()
+            .flatten();
         match record {
-            Some(record) if authenticated_session_is_valid(&record, self.clock.now()) => {
-                AuthenticationStatus {
-                    authenticated_record: AuthenticatedRecordState::Present,
-                    tower_session_id_resolved,
-                    tower_session_record,
-                }
-            }
+            Some(record) if authenticated_session_is_valid(&record, self.clock.now()) => true,
             Some(_) => {
-                if session
+                let _ = session
                     .remove::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
-                    .await
-                    .is_err()
-                {
-                    tracing::error!("Failed to remove expired authentication session record");
-                }
-                AuthenticationStatus {
-                    authenticated_record: AuthenticatedRecordState::Expired,
-                    tower_session_id_resolved,
-                    tower_session_record,
-                }
+                    .await;
+                false
             }
-            None => AuthenticationStatus {
-                authenticated_record: AuthenticatedRecordState::Absent,
-                tower_session_id_resolved,
-                tower_session_record,
-            },
+            None => false,
         }
     }
 }
@@ -415,63 +317,6 @@ fn failure_redirect(error: FailureCode, return_to: &str) -> Response {
         &[("error", error.as_str()), ("return_to", return_to)],
     );
     redirect(&location)
-}
-
-fn callback_completion(return_to: &str) -> Response {
-    let script_destination = escape_javascript_string(return_to);
-    let fallback_destination = escape_html_attribute(return_to);
-    let document = format!(
-        "<!doctype html><meta charset=\"utf-8\"><title>Authentication complete</title>\
-         <script>location.replace({script_destination});</script>\
-         <noscript><p><a href=\"{fallback_destination}\">Continue</a></p></noscript>"
-    );
-    let mut response = Response::new(Body::from(document));
-    *response.status_mut() = StatusCode::OK;
-    let headers = response.headers_mut();
-    headers.insert(
-        header::CONTENT_TYPE,
-        HeaderValue::from_static("text/html; charset=utf-8"),
-    );
-    headers.insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
-    headers.insert(
-        header::REFERRER_POLICY,
-        HeaderValue::from_static("no-referrer"),
-    );
-    response
-}
-
-fn escape_javascript_string(value: &str) -> String {
-    let Ok(serialized) = serde_json::to_string(value) else {
-        return String::from("\"/\"");
-    };
-    let mut escaped = String::with_capacity(serialized.len());
-    for character in serialized.chars() {
-        match character {
-            '&' => escaped.push_str("\\u0026"),
-            '\'' => escaped.push_str("\\u0027"),
-            '<' => escaped.push_str("\\u003c"),
-            '>' => escaped.push_str("\\u003e"),
-            '\u{2028}' => escaped.push_str("\\u2028"),
-            '\u{2029}' => escaped.push_str("\\u2029"),
-            _ => escaped.push(character),
-        }
-    }
-    escaped
-}
-
-fn escape_html_attribute(value: &str) -> String {
-    let mut escaped = String::with_capacity(value.len());
-    for character in value.chars() {
-        match character {
-            '&' => escaped.push_str("&amp;"),
-            '\'' => escaped.push_str("&#39;"),
-            '"' => escaped.push_str("&quot;"),
-            '<' => escaped.push_str("&lt;"),
-            '>' => escaped.push_str("&gt;"),
-            _ => escaped.push(character),
-        }
-    }
-    escaped
 }
 
 pub(crate) fn redirect(location: &str) -> Response {

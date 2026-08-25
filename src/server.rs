@@ -2,8 +2,8 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use axum::body::Body;
-use axum::extract::{DefaultBodyLimit, State};
-use axum::http::{HeaderMap, HeaderValue, Request, StatusCode, header};
+use axum::extract::State;
+use axum::http::{HeaderValue, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
@@ -41,10 +41,6 @@ fn disabled_router(state: AppState) -> Router {
     Router::new()
         .route("/health", get(move || health(pool)))
         .route("/auth/config", get(|| async { disabled_auth_config() }))
-        .route(
-            "/client-diagnostics",
-            post(crate::client_diagnostics::record).layer(DefaultBodyLimit::max(4 * 1024)),
-        )
         .route("/api/info", get(|| async { info(false) }))
         .nest("/api", crate::api::router(state.clone()))
         .fallback(static_handler)
@@ -54,10 +50,6 @@ fn disabled_router(state: AppState) -> Router {
 fn enabled_router(state: &AppState, authentication: &Arc<Authentication>) -> Router {
     let protected = Router::new()
         .route("/api/info", get(|| async { info(true) }))
-        .route(
-            "/client-diagnostics",
-            post(crate::client_diagnostics::record).layer(DefaultBodyLimit::max(4 * 1024)),
-        )
         .nest("/api", crate::api::router(state.clone()))
         .fallback(static_handler)
         .layer(middleware::from_fn_with_state(
@@ -104,28 +96,11 @@ async fn require_authentication(
     request: Request<Body>,
     next: Next,
 ) -> Response {
-    let path = request.uri().path();
-    let cookie_header_present = request.headers().contains_key(header::COOKIE);
-    let gazel_session_cookie_present =
-        request_has_named_cookie(request.headers(), crate::auth::SESSION_COOKIE_NAME);
-    let authentication_status = authentication.authentication_status(&session).await;
-    let authenticated = authentication_status.is_authenticated();
-
-    debug!(
-        request_path = path,
-        cookie_header_present,
-        gazel_session_cookie_present,
-        tower_session_id_resolved = authentication_status.tower_session_id_resolved,
-        tower_session_record = authentication_status.tower_session_record.as_str(),
-        authenticated_record = authentication_status.authenticated_record.as_str(),
-        authenticated,
-        "Authentication request diagnostics"
-    );
-
-    if authenticated {
+    if authentication.is_authenticated(&session).await {
         return next.run(request).await;
     }
 
+    let path = request.uri().path();
     if path == "/api" || path.starts_with("/api/") {
         return ApiError::Unauthorized("AUTHENTICATION_REQUIRED").into_response();
     }
@@ -139,11 +114,7 @@ async fn require_authentication(
 }
 
 async fn login_page(authentication: Arc<Authentication>, session: Session) -> Response {
-    if authentication
-        .authentication_status(&session)
-        .await
-        .is_authenticated()
-    {
+    if authentication.is_authenticated(&session).await {
         crate::auth::redirect("/")
     } else {
         index_handler().await
@@ -194,53 +165,11 @@ async fn access_log(req: Request<Body>, next: Next) -> Response {
 
     let response = next.run(req).await;
 
-    if response
-        .extensions()
-        .get::<crate::auth::AuthenticatedCallbackResponse>()
-        .is_some()
-    {
-        debug!(
-            request_path = path,
-            authenticated_session_established = true,
-            gazel_session_set_cookie_present = response_has_named_set_cookie(
-                response.headers(),
-                crate::auth::SESSION_COOKIE_NAME,
-            ),
-            "Authentication callback diagnostics"
-        );
-    }
-
     let status = response.status();
     let duration = start.elapsed();
     debug!("{method} {path} → {status} ({duration:.1?})");
 
     response
-}
-
-fn request_has_named_cookie(headers: &HeaderMap, name: &str) -> bool {
-    headers
-        .get_all(header::COOKIE)
-        .iter()
-        .filter_map(|value| value.to_str().ok())
-        .flat_map(|value| value.split(';'))
-        .any(|pair| {
-            pair.split_once('=')
-                .is_some_and(|(cookie_name, _)| cookie_name.trim() == name)
-        })
-}
-
-fn response_has_named_set_cookie(headers: &HeaderMap, name: &str) -> bool {
-    headers
-        .get_all(header::SET_COOKIE)
-        .iter()
-        .filter_map(|value| value.to_str().ok())
-        .any(|value| {
-            value
-                .split(';')
-                .next()
-                .and_then(|pair| pair.split_once('='))
-                .is_some_and(|(cookie_name, _)| cookie_name.trim() == name)
-        })
 }
 
 /// Application info handler. Returns version, repository, and license
@@ -318,42 +247,5 @@ async fn shutdown_signal() {
     tokio::select! {
         () = ctrl_c => { info!("Received SIGINT, shutting down"); }
         () = terminate => { info!("Received SIGTERM, shutting down"); }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn request_cookie_diagnostic_matches_the_exact_cookie_name() {
-        let mut headers = HeaderMap::new();
-        headers.append(
-            header::COOKIE,
-            HeaderValue::from_static("other=1; gazel_session_extra=2"),
-        );
-        assert!(!request_has_named_cookie(&headers, "gazel_session"));
-
-        headers.append(
-            header::COOKIE,
-            HeaderValue::from_static("gazel_session=opaque"),
-        );
-        assert!(request_has_named_cookie(&headers, "gazel_session"));
-    }
-
-    #[test]
-    fn response_cookie_diagnostic_matches_only_the_set_cookie_name() {
-        let mut headers = HeaderMap::new();
-        headers.append(
-            header::SET_COOKIE,
-            HeaderValue::from_static("other=opaque; gazel_session=attribute-like"),
-        );
-        assert!(!response_has_named_set_cookie(&headers, "gazel_session"));
-
-        headers.append(
-            header::SET_COOKIE,
-            HeaderValue::from_static("gazel_session=opaque; HttpOnly; Path=/"),
-        );
-        assert!(response_has_named_set_cookie(&headers, "gazel_session"));
     }
 }

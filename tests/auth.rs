@@ -157,7 +157,6 @@ struct ProviderState {
     options: Mutex<ProviderOptions>,
     counters: ProviderCounters,
     token_requests: Mutex<Vec<TokenRequest>>,
-    issued_id_tokens: Mutex<Vec<String>>,
     expected_logins: Mutex<HashMap<String, (String, String)>>,
     token_barrier: Mutex<Option<Arc<Barrier>>>,
 }
@@ -181,7 +180,6 @@ impl MockProvider {
             options: Mutex::new(options),
             counters: ProviderCounters::default(),
             token_requests: Mutex::new(Vec::new()),
-            issued_id_tokens: Mutex::new(Vec::new()),
             expected_logins: Mutex::new(HashMap::new()),
             token_barrier: Mutex::new(None),
         });
@@ -235,10 +233,6 @@ impl MockProvider {
 
     async fn token_requests(&self) -> Vec<TokenRequest> {
         self.state.token_requests.lock().await.clone()
-    }
-
-    async fn issued_id_tokens(&self) -> Vec<String> {
-        self.state.issued_id_tokens.lock().await.clone()
     }
 
     fn discovery_count(&self) -> usize {
@@ -497,7 +491,6 @@ async fn token(
             } else {
                 token
             };
-            state.issued_id_tokens.lock().await.push(serialized.clone());
             Json(json!({
                 "access_token": "access-token",
                 "token_type": "Bearer",
@@ -686,21 +679,12 @@ async fn login_attempt(app: &Router, provider: &MockProvider, return_to: &str) -
 }
 
 async fn callback_request(app: &Router, attempt: &LoginAttempt, suffix: &str) -> Response {
-    callback_request_with_code(app, attempt, &attempt.state, suffix).await
-}
-
-async fn callback_request_with_code(
-    app: &Router,
-    attempt: &LoginAttempt,
-    code: &str,
-    suffix: &str,
-) -> Response {
     app.clone()
         .oneshot(
             Request::builder()
                 .uri(format!(
-                    "/auth/callback?code={code}&state={}{}",
-                    attempt.state, suffix
+                    "/auth/callback?code={}&state={}{}",
+                    attempt.state, attempt.state, suffix
                 ))
                 .header(header::COOKIE, &attempt.cookie)
                 .body(Body::empty())
@@ -803,32 +787,6 @@ async fn response_json(response: Response) -> Value {
         .expect("response body should be readable")
         .to_bytes();
     serde_json::from_slice(&bytes).expect("response should contain JSON")
-}
-
-async fn response_text(response: Response) -> String {
-    let bytes = response
-        .into_body()
-        .collect()
-        .await
-        .expect("response body should be readable")
-        .to_bytes();
-    String::from_utf8(bytes.to_vec()).expect("response should contain UTF-8")
-}
-
-async fn assert_callback_completion(response: Response, return_to: &str) {
-    assert_eq!(response.status(), StatusCode::OK);
-    assert!(response.headers().get(header::LOCATION).is_none());
-    let body = response_text(response).await;
-    let script_destination =
-        serde_json::to_string(return_to).expect("return target should serialize");
-    assert!(
-        body.contains(&format!("location.replace({script_destination})")),
-        "completion script should navigate to {return_to:?}: {body}"
-    );
-    assert!(
-        body.contains(&format!("href=\"{return_to}\"")),
-        "completion fallback should link to {return_to:?}: {body}"
-    );
 }
 
 #[tokio::test]
@@ -1063,120 +1021,11 @@ async fn login_uses_fresh_state_nonce_s256_pkce_and_configured_callback() {
 }
 
 #[tokio::test]
-async fn successful_callback_uses_a_non_cacheable_completion_document() {
+async fn spa_hash_is_accepted_only_as_encoded_return_to_query_data() {
     let (provider, _, app) = initialized(ProviderOptions::default()).await;
     let attempt = login_attempt(&app, &provider, "%2Fsettings%3Ftab%3Ddata%23export").await;
     let response = callback_request(&app, &attempt, "").await;
-
-    assert_eq!(response.status(), StatusCode::OK);
-    assert!(response.headers().get(header::LOCATION).is_none());
-    assert_eq!(
-        response
-            .headers()
-            .get(header::CONTENT_TYPE)
-            .and_then(|value| value.to_str().ok()),
-        Some("text/html; charset=utf-8")
-    );
-    assert_eq!(
-        response
-            .headers()
-            .get(header::CACHE_CONTROL)
-            .and_then(|value| value.to_str().ok()),
-        Some("no-store")
-    );
-    assert_eq!(
-        response
-            .headers()
-            .get("referrer-policy")
-            .and_then(|value| value.to_str().ok()),
-        Some("no-referrer")
-    );
-    let cookie_attributes: Vec<_> = response_set_cookie(&response)
-        .split(';')
-        .map(str::trim)
-        .collect();
-    assert!(cookie_attributes.contains(&"SameSite=Lax"));
-
-    let body = response_text(response).await;
-    assert!(body.contains("location.replace(\"/settings?tab=data#export\")"));
-    assert!(body.contains("<noscript>"));
-    assert!(body.contains("href=\"/settings?tab=data#export\""));
-}
-
-#[tokio::test]
-async fn callback_completion_escapes_the_target_and_excludes_authentication_material() {
-    let (provider, _, app) = initialized(ProviderOptions::default()).await;
-    let encoded_target =
-        "%2Fsettings%3Fvalue%3D%22%27%3C%2Fscript%3E%26line%3D%E2%80%A8%E2%80%A9%23fragment";
-    let target = "/settings?value=\"'</script>&line=\u{2028}\u{2029}#fragment";
-    let attempt = login_attempt(&app, &provider, encoded_target).await;
-    let authorization_code = "authorization-code-material";
-    provider
-        .expect_login(
-            String::from(authorization_code),
-            attempt.nonce.clone(),
-            attempt.challenge.clone(),
-        )
-        .await;
-    let transaction_cookie = attempt.cookie.clone();
-    let state = attempt.state.clone();
-    let nonce = attempt.nonce.clone();
-    let response = callback_request_with_code(
-        &app,
-        &attempt,
-        authorization_code,
-        "&error_description=provider-description-secret",
-    )
-    .await;
-    let authenticated_cookie = response_cookie(&response);
-    let token_requests = provider.token_requests().await;
-    let token_request = token_requests
-        .last()
-        .expect("token request should be captured");
-    let pkce_verifier = token_request
-        .form
-        .get("code_verifier")
-        .expect("PKCE verifier should be sent");
-    let issued_id_tokens = provider.issued_id_tokens().await;
-    let id_token = issued_id_tokens
-        .last()
-        .expect("ID token should be captured");
-
-    assert_eq!(response.status(), StatusCode::OK);
-    assert!(response.headers().get(header::LOCATION).is_none());
-    assert_eq!(
-        response
-            .headers()
-            .get("referrer-policy")
-            .and_then(|value| value.to_str().ok()),
-        Some("no-referrer")
-    );
-    let body = response_text(response).await;
-    assert!(body.contains(
-        "location.replace(\"/settings?value=\\\"\\u0027\\u003c/script\\u003e\\u0026line=\\u2028\\u2029#fragment\")"
-    ));
-    assert!(body.contains(
-        "href=\"/settings?value=&quot;&#39;&lt;/script&gt;&amp;line=\u{2028}\u{2029}#fragment\""
-    ));
-    assert!(!body.contains(target));
-    for secret in [
-        authorization_code,
-        state.as_str(),
-        nonce.as_str(),
-        pkce_verifier.as_str(),
-        id_token.as_str(),
-        CLIENT_SECRET,
-        "access-token",
-        "test-subject",
-        "provider-description-secret",
-        transaction_cookie.as_str(),
-        authenticated_cookie.as_str(),
-    ] {
-        assert!(
-            !body.contains(secret),
-            "completion document exposed authentication material: {secret}"
-        );
-    }
+    assert_eq!(response_location(&response), "/settings?tab=data#export");
 }
 
 #[tokio::test]
@@ -1225,18 +1074,17 @@ async fn login_defaults_invalid_percent_decoded_reserved_and_oversized_targets()
     ] {
         let attempt = login_attempt(&app, &provider, target).await;
         let response = callback_request(&app, &attempt, "").await;
-        assert_callback_completion(response, "/").await;
+        assert_eq!(response_location(&response), "/");
     }
-    let boundary_target = format!("/{}", "a".repeat(RETURN_TO_MAX_BYTES - 1));
     let boundary = format!("%2F{}", "a".repeat(RETURN_TO_MAX_BYTES - 1));
     let attempt = login_attempt(&app, &provider, &boundary).await;
     let response = callback_request(&app, &attempt, "").await;
-    assert_callback_completion(response, &boundary_target).await;
+    assert_eq!(response_location(&response).len(), RETURN_TO_MAX_BYTES);
 
     let oversized = format!("%2F{}", "a".repeat(RETURN_TO_MAX_BYTES));
     let attempt = login_attempt(&app, &provider, &oversized).await;
     let response = callback_request(&app, &attempt, "").await;
-    assert_callback_completion(response, "/").await;
+    assert_eq!(response_location(&response), "/");
 }
 
 #[tokio::test]
@@ -1257,7 +1105,8 @@ async fn valid_callbacks_use_the_discovery_selected_wire_auth_and_pkce() {
         let (provider, _, app) = initialized(options).await;
         let attempt = login_attempt(&app, &provider, "%2Fsettings%3Ftab%3Ddata").await;
         let response = callback_request(&app, &attempt, "").await;
-        assert_callback_completion(response, "/settings?tab=data").await;
+        assert_eq!(response.status(), StatusCode::SEE_OTHER);
+        assert_eq!(response_location(&response), "/settings?tab=data");
         let requests = provider.token_requests().await;
         let request = requests.last().expect("token request should be captured");
         if expect_basic {
@@ -1492,26 +1341,6 @@ async fn enabled_router_protects_application_and_api_routes() {
         .expect("oversized request should succeed");
     assert_eq!(response_location(&oversized), "/login?return_to=%2F");
 
-    let client_diagnostic = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/client-diagnostics")
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(
-                    r#"{"stage":"window_error","outcome":"failed","pathname":"/","exception_type":"Error","exception_message":"render failed"}"#,
-                ))
-                .expect("request should build"),
-        )
-        .await
-        .expect("client diagnostic request should succeed");
-    assert_eq!(client_diagnostic.status(), StatusCode::SEE_OTHER);
-    assert_eq!(
-        response_location(&client_diagnostic),
-        "/login?return_to=%2Fclient-diagnostics"
-    );
-
     for target in ["/api", "/api/vehicles"] {
         let response = app
             .clone()
@@ -1583,23 +1412,6 @@ async fn enabled_router_accepts_authenticated_ui_and_api_requests() {
         .await
         .expect("authenticated page request should succeed");
     assert_eq!(protected_page.status(), StatusCode::OK);
-
-    let client_diagnostic = app
-        .clone()
-        .oneshot(
-            Request::builder()
-                .method("POST")
-                .uri("/client-diagnostics")
-                .header(header::COOKIE, &authenticated_cookie)
-                .header(header::CONTENT_TYPE, "application/json")
-                .body(Body::from(
-                    r#"{"stage":"window_error","outcome":"failed","pathname":"/","exception_type":"Error","exception_message":"render failed"}"#,
-                ))
-                .expect("request should build"),
-        )
-        .await
-        .expect("client diagnostic request should succeed");
-    assert_eq!(client_diagnostic.status(), StatusCode::NO_CONTENT);
 
     let info = app
         .oneshot(
@@ -1874,9 +1686,9 @@ async fn session_cookie_expiry_is_five_minutes_then_twelve_non_sliding_hours() {
         challenge: String::new(),
     };
     let callback = callback_request(&app, &attempt, "").await;
+    assert_eq!(response_location(&callback), "/settings");
     assert!((43_195..=43_200).contains(&cookie_max_age(response_set_cookie(&callback))));
     let authenticated_cookie = response_cookie(&callback);
-    assert_callback_completion(callback, "/settings").await;
 
     let authenticated = app
         .oneshot(
@@ -1909,8 +1721,8 @@ async fn injected_clock_rejects_expired_transactions_and_sessions() {
 
     let valid_attempt = login_attempt(&app, &provider, "%2Fsettings").await;
     let callback = callback_request(&app, &valid_attempt, "").await;
+    assert_eq!(response_location(&callback), "/settings");
     let authenticated_cookie = response_cookie(&callback);
-    assert_callback_completion(callback, "/settings").await;
 
     clock.advance(Duration::hours(11));
     let before_expiry = app
@@ -1978,7 +1790,7 @@ async fn callbacks_reject_missing_mismatched_and_replayed_state_before_exchange(
     assert_eq!(provider.token_count(), 0);
 
     let success = callback_request(&app, &attempt, "").await;
-    assert_callback_completion(success, "/settings").await;
+    assert_eq!(response_location(&success), "/settings");
     let replay = callback_request(&app, &attempt, "").await;
     assert_eq!(
         response_location(&replay),
@@ -1995,16 +1807,11 @@ async fn concurrent_callback_consumption_allows_one_token_exchange() {
     let first = callback_request(&app, &attempt, "");
     let second = callback_request(&app, &attempt, "");
     let (first, second) = tokio::join!(first, second);
-    let (success, rejected) = if first.status() == StatusCode::OK {
-        (first, second)
-    } else {
-        (second, first)
-    };
-    assert_callback_completion(success, "/settings").await;
-    assert_eq!(
-        response_location(&rejected),
+    let locations = [response_location(&first), response_location(&second)];
+    assert!(locations.contains(&String::from("/settings")));
+    assert!(locations.contains(&String::from(
         "/login?error=authentication_failed&return_to=%2F"
-    );
+    )));
     assert_eq!(provider.token_count(), 1);
 }
 
@@ -2226,8 +2033,8 @@ async fn failed_jwks_refresh_retries_after_cooldown_and_recovers() {
         callback_request(&app, &first_recovered, ""),
         callback_request(&app, &second_recovered, "")
     );
-    assert_callback_completion(first_response, "/recovered-first").await;
-    assert_callback_completion(second_response, "/recovered-second").await;
+    assert_eq!(response_location(&first_response), "/recovered-first");
+    assert_eq!(response_location(&second_response), "/recovered-second");
     assert_eq!(provider.discovery_count(), 1);
     assert_eq!(
         provider.jwks_count(),
@@ -2252,8 +2059,8 @@ async fn concurrent_stale_generation_callbacks_fetch_jwks_once_and_retry_cached_
     let first_callback = callback_request(&app, &first, "");
     let second_callback = callback_request(&app, &second, "");
     let (first_response, second_response) = tokio::join!(first_callback, second_callback);
-    assert_callback_completion(first_response, "/first").await;
-    assert_callback_completion(second_response, "/second").await;
+    assert_eq!(response_location(&first_response), "/first");
+    assert_eq!(response_location(&second_response), "/second");
     assert_eq!(provider.discovery_count(), 1);
     assert_eq!(provider.jwks_count(), 2, "startup plus one refresh");
 }

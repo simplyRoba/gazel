@@ -14,7 +14,6 @@ export default defineConfig(({ mode }) => {
       proxy: {
         "/api": "http://localhost:4110",
         "/auth": "http://localhost:4110",
-        "/client-diagnostics": "http://localhost:4110",
         "/health": "http://localhost:4110",
       },
     },

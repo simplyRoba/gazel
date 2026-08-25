@@ -1,10 +1,5 @@
 import type { Vehicle, CreateVehicle } from "$lib/api";
 import * as api from "$lib/api";
-import {
-  exceptionDetails,
-  reportClientDiagnostic,
-  type ClientDiagnosticStage,
-} from "$lib/client-diagnostics";
 import { t } from "$lib/i18n";
 import { resolveError } from "$lib/i18n/errors";
 import { pushNotification } from "$lib/stores/notifications.svelte";
@@ -31,39 +26,15 @@ export function getError(): string | null {
   return error;
 }
 
-export async function loadVehicles(
-  source: "layout" | "dashboard" | "other" = "other",
-): Promise<void> {
-  const stage: ClientDiagnosticStage =
-    source === "layout"
-      ? "layout_vehicle_initialization"
-      : source === "dashboard"
-        ? "dashboard_vehicle_initialization"
-        : "vehicle_loading";
+export async function loadVehicles(): Promise<void> {
   error = null;
   loading = true;
-  reportClientDiagnostic({
-    stage,
-    outcome: "started",
-    vehicles_loading: loading,
-  });
-
-  let succeeded = false;
-  let failure: unknown;
   try {
     vehicles = await api.fetchVehicles();
-    succeeded = true;
   } catch (e) {
-    failure = e;
     setError(e, "store.vehicles.loadFailed");
   } finally {
     loading = false;
-    reportClientDiagnostic({
-      stage,
-      outcome: succeeded ? "succeeded" : "failed",
-      ...(succeeded ? {} : exceptionDetails(failure)),
-      vehicles_loading: loading,
-    });
   }
 }
 
