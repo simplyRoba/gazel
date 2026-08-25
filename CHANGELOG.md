@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.6](https://github.com/simplyRoba/gazel/compare/v1.2.5...v1.2.6) (2026-08-25)
+
+
+### Bug Fixes
+
+* **ui:** prevent pull-to-refresh effect loop ([6407351](https://github.com/simplyRoba/gazel/commit/640735100341eaa6cf566bcd10dcd543f1aa53b9))
+
 ## [1.2.5](https://github.com/simplyRoba/gazel/compare/v1.2.4...v1.2.5) (2026-08-25)
 
 
