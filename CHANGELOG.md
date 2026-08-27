@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.0](https://github.com/simplyRoba/gazel/compare/v1.2.7...v1.3.0) (2026-08-27)
+
+
+### Features
+
+* add shared prerelease creation workflow ([77d286b](https://github.com/simplyRoba/gazel/commit/77d286b836ccc4890b200d3e7425a44547cb31ac))
+
+
+### Bug Fixes
+
+* move logout section below units ([ee7b0f5](https://github.com/simplyRoba/gazel/commit/ee7b0f5a57772c7c6621efef6caa28f285f56ee1))
+* update shared Rust workflow revision ([503f8a5](https://github.com/simplyRoba/gazel/commit/503f8a5ff1839a1f960277584cbe5a5b22c1763b))
+
+
+### Dependencies
+
+* bump @testing-library/user-event from 14.6.5 to 14.6.6 in /ui ([2164396](https://github.com/simplyRoba/gazel/commit/2164396e12f4ca6c0efbc262ac8478a4070c1246))
+* bump @types/d3-shape from 3.1.8 to 3.2.0 in /ui ([db1ccfd](https://github.com/simplyRoba/gazel/commit/db1ccfdebcf7c9d42749da97cadfc64d129674bc))
+* bump getrandom from 0.4.2 to 0.4.3 ([43e5abc](https://github.com/simplyRoba/gazel/commit/43e5abcf8f70ade8564a523afe47f4510e216203))
+* bump uuid from 1.24.1 to 1.25.0 ([9d24193](https://github.com/simplyRoba/gazel/commit/9d24193d71b2511efae4d6085de8d16d14a74609))
+* bump vitest from 4.1.10 to 4.1.11 in /ui ([72bce5c](https://github.com/simplyRoba/gazel/commit/72bce5c34f944ddc5fe9945a4a405a232562b6de))
+
 ## [1.2.7](https://github.com/simplyRoba/gazel/compare/v1.2.6...v1.2.7) (2026-08-25)
 
 
