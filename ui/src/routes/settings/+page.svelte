@@ -451,6 +451,8 @@
       </div>
     </section>
 
+    <AuthenticationSettings authEnabled={appInfo?.auth_enabled === true} />
+
     <!-- Vehicles -->
     <section class="section corner-tri corner-tri-sm">
       <h2 class="section-title">
@@ -678,8 +680,6 @@
         </div>
       {/if}
     </section>
-
-    <AuthenticationSettings authEnabled={appInfo?.auth_enabled === true} />
 
     <!-- About -->
     {#if appInfo}
