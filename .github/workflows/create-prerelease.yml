@@ -7,5 +7,5 @@ jobs:
   prerelease:
     permissions:
       contents: read
-    uses: simplyRoba/.github/.github/workflows/rust-create-prerelease.yml@e387ed580251a5623f32c0ab648a108e2b9ef8dc
+    uses: simplyRoba/.github/.github/workflows/rust-create-prerelease.yml@v1
     secrets: inherit
