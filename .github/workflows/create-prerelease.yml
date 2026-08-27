@@ -1,0 +1,11 @@
+name: Create Prerelease
+
+on:
+  workflow_dispatch:
+
+jobs:
+  prerelease:
+    permissions:
+      contents: read
+    uses: simplyRoba/.github/.github/workflows/rust-create-prerelease.yml@0ed285363158a138968c60d667ac70d9a1299fc3
+    secrets: inherit
