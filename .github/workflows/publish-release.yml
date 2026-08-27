@@ -9,6 +9,6 @@ jobs:
     permissions:
       contents: write
       packages: write
-    uses: simplyRoba/.github/.github/workflows/rust-publish-release.yml@b81ec038c117de33290ae28fd4185c2763a1fbc8
+    uses: simplyRoba/.github/.github/workflows/rust-publish-release.yml@e387ed580251a5623f32c0ab648a108e2b9ef8dc
     with:
       binary-name: gazel
