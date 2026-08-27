@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.3.0](https://github.com/simplyRoba/gazel/compare/v1.2.7...v1.3.0) (2026-08-27)
+
+
+### Features
+
+* add shared prerelease creation workflow ([77d286b](https://github.com/simplyRoba/gazel/commit/77d286b836ccc4890b200d3e7425a44547cb31ac))
+
+
+### Bug Fixes
+
+* move logout section below units ([ee7b0f5](https://github.com/simplyRoba/gazel/commit/ee7b0f5a57772c7c6621efef6caa28f285f56ee1))
+
 ## [1.2.7](https://github.com/simplyRoba/gazel/compare/v1.2.6...v1.2.7) (2026-08-25)
 
 
