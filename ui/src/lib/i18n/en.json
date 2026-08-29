@@ -30,6 +30,8 @@
   "dashboard.fillups.empty.action": "Add fill-up",
   "dashboard.fillups.fullTank": "Full tank",
   "dashboard.fillups.missed": "Missed",
+  "dashboard.fillups.loadingMore": "Loading older fill-ups...",
+  "dashboard.fillups.retry": "Try again",
 
   "settings.title": "Settings",
   "settings.subtitle": "Configure vehicles, units, appearance, and data.",

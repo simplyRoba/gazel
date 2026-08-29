@@ -18,6 +18,7 @@ import {
   importData,
   fetchAppInfo,
   authenticationLoginUrl,
+  fetchFillups,
 } from "./api";
 
 function stubBrowserLocation(
@@ -31,6 +32,42 @@ function stubBrowserLocation(
   });
   return assign;
 }
+
+describe("fill-up API", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns the first FillupPage without a query string", async () => {
+    const page = { items: [], next_cursor: "older-page" };
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(page),
+    });
+
+    await expect(fetchFillups(42)).resolves.toEqual(page);
+    expect(mockFetch).toHaveBeenCalledWith("/api/vehicles/42/fillups", {
+      method: "GET",
+    });
+  });
+
+  it("encodes and forwards a server cursor unchanged", async () => {
+    const cursor = "2026-03-01T12:00:00Z/id+with spaces&symbols";
+    const page = { items: [], next_cursor: null };
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(page),
+    });
+
+    await expect(fetchFillups(42, cursor)).resolves.toEqual(page);
+    expect(mockFetch).toHaveBeenCalledWith(
+      `/api/vehicles/42/fillups?${new URLSearchParams({ cursor })}`,
+      { method: "GET" },
+    );
+  });
+});
 
 describe("Export/Import API", () => {
   beforeEach(() => {

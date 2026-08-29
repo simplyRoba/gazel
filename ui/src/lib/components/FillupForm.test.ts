@@ -1,8 +1,66 @@
-import { describe, expect, it } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/svelte";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Test the validation logic extracted from FillupForm.
-// Since the form uses Svelte 5 runes in a component, we test the
-// pure validation rules rather than mounting the component.
+import type { CreateFillup, Fillup } from "$lib/api";
+import FillupForm from "./FillupForm.svelte";
+
+const storeState = vi.hoisted(() => ({
+  fillups: [] as Fillup[],
+  loadMoreFillups: vi.fn(),
+}));
+
+vi.mock("$lib/stores/settings.svelte", () => ({
+  getSettings: () => ({
+    unit_system: "metric",
+    distance_unit: "km",
+    volume_unit: "l",
+    currency: "USD",
+    color_mode: "system",
+    locale: "en",
+  }),
+}));
+
+vi.mock("$lib/stores/fillups.svelte", () => ({
+  getFillupsByVehicle: () => storeState.fillups,
+  loadMoreFillups: storeState.loadMoreFillups,
+}));
+
+function loadedFillup(id: number, odometer: number): Fillup {
+  return {
+    id,
+    vehicle_id: 1,
+    date: `2026-01-${String(id).padStart(2, "0")}`,
+    odometer,
+    fuel_amount: 40,
+    fuel_unit: "l",
+    cost: 60,
+    currency: "USD",
+    is_full_tank: true,
+    is_missed: false,
+    station: null,
+    notes: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-01T00:00:00Z",
+  };
+}
+
+beforeEach(() => {
+  storeState.fillups = [];
+});
+
+afterEach(() => {
+  cleanup();
+  vi.clearAllMocks();
+});
+
+// Test the validation logic extracted from FillupForm independently; the
+// loaded-history behavior below mounts the component to cover store usage.
 
 describe("FillupForm validation rules", () => {
   function validate(fields: {
@@ -149,6 +207,37 @@ describe("FillupForm validation rules", () => {
       cost: "",
     });
     expect(Object.keys(errors)).toHaveLength(4);
+  });
+});
+
+describe("FillupForm loaded history helpers", () => {
+  it("uses currently loaded recent entries without requesting continuation", async () => {
+    storeState.fillups = [
+      loadedFillup(3, 2000),
+      loadedFillup(2, 1500),
+      loadedFillup(1, 1000),
+    ];
+    const onsave = vi.fn(async (_data: CreateFillup): Promise<void> => {});
+    render(FillupForm, {
+      props: {
+        vehicleId: 1,
+        onsave,
+        oncancel: vi.fn(),
+      },
+    });
+
+    const odometer = screen.getByRole("textbox", {
+      name: /Odometer/,
+    }) as HTMLInputElement;
+    await waitFor(() => expect(odometer.value).toBe("2000"));
+
+    await fireEvent.input(odometer, { target: { value: "3000" } });
+    expect(
+      await screen.findByText(
+        "That's a larger gap than usual. Did you miss a fill-up?",
+      ),
+    ).toBeTruthy();
+    expect(storeState.loadMoreFillups).not.toHaveBeenCalled();
   });
 });
 

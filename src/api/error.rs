@@ -59,6 +59,8 @@ fn default_message(code: &str) -> &'static str {
         "FILLUP_INVALID_ODOMETER" => "Odometer reading must not be less than the previous reading.",
         "FILLUP_COST_REQUIRED" => "Cost is required.",
         "FILLUP_INVALID_COST" => "Cost must not be negative.",
+        "FILLUP_INVALID_PAGE_LIMIT" => "Page limit must be an integer between 1 and 100.",
+        "FILLUP_INVALID_CURSOR" => "Fill-up cursor is invalid.",
         "SETTINGS_INVALID_COLOR_MODE" => "Invalid color mode. Must be light, dark, or system.",
         "SETTINGS_INVALID_UNIT_SYSTEM" => {
             "Invalid unit system. Must be metric, imperial, or custom."

@@ -18,8 +18,13 @@
   import {
     getFillups,
     getLoading as getFillupsLoading,
+    getLoadingMore as getFillupsLoadingMore,
+    getContinuationError as getFillupsContinuationError,
+    getNextCursor as getFillupsNextCursor,
     getActiveVehicleId,
     setActiveVehicle,
+    loadMoreFillups,
+    retryLoadMoreFillups,
     createFillup as storeCreateFillup,
     updateFillup as storeUpdateFillup,
     deleteFillup as storeDeleteFillup,
@@ -127,6 +132,57 @@
     const cardWidth = carouselEl.offsetWidth;
     activeChartIndex = Math.round(scrollLeft / cardWidth);
   }
+
+  // ── Endless fill-up scrolling ──────────────────────────
+
+  let fillupsColumnEl = $state<HTMLDivElement | null>(null);
+  let fillupsSentinelEl = $state<HTMLDivElement | null>(null);
+  let usesFillupsColumnRoot = $state(false);
+
+  onMount(() => {
+    const desktopQuery = window.matchMedia("(min-width: 960px)");
+    const updateScrollRoot = () => {
+      usesFillupsColumnRoot = desktopQuery.matches;
+    };
+
+    updateScrollRoot();
+    desktopQuery.addEventListener("change", updateScrollRoot);
+
+    return () => desktopQuery.removeEventListener("change", updateScrollRoot);
+  });
+
+  $effect(() => {
+    const vehicleId = getActiveVehicleId();
+    const sentinel = fillupsSentinelEl;
+    const root = usesFillupsColumnRoot ? fillupsColumnEl : null;
+    const canContinue = getFillupsNextCursor() !== null;
+    const paused = getFillupsContinuationError() !== null;
+
+    if (!vehicleId || !sentinel || !canContinue || paused) return;
+
+    let observing = true;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          observing &&
+          getActiveVehicleId() === vehicleId &&
+          entries.some((entry) => entry.isIntersecting)
+        ) {
+          void loadMoreFillups(vehicleId);
+        }
+      },
+      {
+        root,
+        rootMargin: "0px 0px 240px 0px",
+      },
+    );
+    observer.observe(sentinel);
+
+    return () => {
+      observing = false;
+      observer.disconnect();
+    };
+  });
 
   // ── Lifecycle ──────────────────────────────────────────
 
@@ -438,7 +494,7 @@
       {/if}
 
       <!-- Fill-up list column -->
-      <div class="fillups-column">
+      <div class="fillups-column" bind:this={fillupsColumnEl}>
         <!-- Fill-up list -->
         {#if getFillupsLoading()}
           <div class="fillup-list">
@@ -558,6 +614,36 @@
                 </div>
               </button>
             {/each}
+
+            {#if getFillupsContinuationError()}
+              <div class="fillups-continuation fillups-continuation--error">
+                <span>{getFillupsContinuationError()}</span>
+                <button
+                  type="button"
+                  class="btn btn-sm"
+                  onclick={() => void retryLoadMoreFillups()}
+                >
+                  {t("dashboard.fillups.retry")}
+                </button>
+              </div>
+            {:else if getFillupsNextCursor() !== null}
+              <div
+                class="fillups-sentinel"
+                data-testid="fillups-sentinel"
+                bind:this={fillupsSentinelEl}
+                aria-hidden="true"
+              ></div>
+              {#if getFillupsLoadingMore()}
+                <div
+                  class="fillups-continuation"
+                  role="status"
+                  aria-live="polite"
+                >
+                  <span class="continuation-spinner" aria-hidden="true"></span>
+                  <span>{t("dashboard.fillups.loadingMore")}</span>
+                </div>
+              {/if}
+            {/if}
           </div>
         {/if}
       </div>
@@ -867,6 +953,42 @@
 
   .fillup-badges:empty {
     display: none;
+  }
+
+  .fillups-sentinel {
+    height: 1px;
+  }
+
+  .fillups-continuation {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: 40px;
+    color: var(--color-text-secondary);
+    font-size: var(--font-sm);
+    text-align: center;
+  }
+
+  .fillups-continuation--error {
+    flex-direction: column;
+    padding: var(--space-2);
+    color: var(--color-error);
+  }
+
+  .continuation-spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: continuation-spin 0.8s linear infinite;
+  }
+
+  @keyframes continuation-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   /* ── Skeletons ──────────────────────────────────────── */

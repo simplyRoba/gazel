@@ -201,6 +201,11 @@ export interface Fillup {
   updated_at: string;
 }
 
+export interface FillupPage {
+  items: Fillup[];
+  next_cursor: string | null;
+}
+
 export interface CreateFillup {
   date: string;
   odometer: number;
@@ -225,8 +230,13 @@ export interface UpdateFillup {
 
 // ── Fill-up API functions ────────────────────────────────
 
-export function fetchFillups(vehicleId: number): Promise<Fillup[]> {
-  return request("GET", `/api/vehicles/${vehicleId}/fillups`);
+export function fetchFillups(
+  vehicleId: number,
+  cursor?: string,
+): Promise<FillupPage> {
+  const query =
+    cursor === undefined ? "" : `?${new URLSearchParams({ cursor })}`;
+  return request("GET", `/api/vehicles/${vehicleId}/fillups${query}`);
 }
 
 export function fetchFillup(

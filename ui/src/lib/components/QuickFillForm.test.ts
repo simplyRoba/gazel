@@ -10,7 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CreateFillup, Fillup } from "$lib/api";
 import QuickFillForm from "./QuickFillForm.svelte";
 
-const storeState = vi.hoisted(() => ({ fillups: [] as Fillup[] }));
+const storeState = vi.hoisted(() => ({
+  fillups: [] as Fillup[],
+  loadMoreFillups: vi.fn(),
+}));
 
 vi.mock("$lib/stores/settings.svelte", () => ({
   getSettings: () => ({
@@ -25,6 +28,7 @@ vi.mock("$lib/stores/settings.svelte", () => ({
 
 vi.mock("$lib/stores/fillups.svelte", () => ({
   getFillupsByVehicle: () => storeState.fillups,
+  loadMoreFillups: storeState.loadMoreFillups,
 }));
 
 function fillup(
@@ -197,6 +201,23 @@ describe("QuickFillForm", () => {
     expect(screen.getByLabelText("Notes")).toBeTruthy();
     expect(screen.getByLabelText("Full tank")).toBeTruthy();
     expect(screen.getByLabelText("Missed fill-up before this")).toBeTruthy();
+  });
+
+  it("uses currently loaded recent entries without requesting continuation", async () => {
+    storeState.fillups = [fillup(3, 2000), fillup(2, 1500), fillup(1, 1000)];
+    renderForm();
+
+    await waitFor(() => expect(inputNamed(/Odometer/).value).toBe("2000"));
+    await fireEvent.input(inputNamed(/Odometer/), {
+      target: { value: "3000" },
+    });
+
+    expect(
+      await screen.findByText(
+        "That's a larger gap than usual. Did you miss a fill-up?",
+      ),
+    ).toBeTruthy();
+    expect(storeState.loadMoreFillups).not.toHaveBeenCalled();
   });
 
   it("offers the smart missed-fill-up action for an unusually large gap", async () => {

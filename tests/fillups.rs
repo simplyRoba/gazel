@@ -32,67 +32,210 @@ async fn setup_vehicle(app: &mut axum::Router) -> i64 {
 
 // ── List ─────────────────────────────────────────────────
 
-#[tokio::test]
-async fn list_empty() {
-    let mut app = common::test_app().await;
-    let vid = setup_vehicle(&mut app).await;
-
+async fn list_fillups(app: &axum::Router, uri: &str) -> serde_json::Value {
     let resp = app
         .clone()
-        .oneshot(common::json_request(
-            "GET",
-            &format!("/api/vehicles/{vid}/fillups"),
-            None,
-        ))
+        .oneshot(common::json_request("GET", uri, None))
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    let json = common::body_json(resp).await;
-    assert_eq!(json, serde_json::json!([]));
+    common::body_json(resp).await
 }
 
-#[tokio::test]
-async fn list_returns_fillups_sorted_by_date_desc() {
-    let mut app = common::test_app().await;
-    let vid = setup_vehicle(&mut app).await;
+async fn create_ordered_fillups(app: &mut axum::Router, vehicle_id: i64, count: u8) -> Vec<i64> {
+    let mut ids = Vec::with_capacity(count.into());
+    for day in 1..=count {
+        let response = create_fillup(
+            app,
+            vehicle_id,
+            &format!(
+                r#"{{"date":"2026-01-{day:02}","fuel_amount":30.0,"odometer":{},"cost":50.0}}"#,
+                10_000 + i64::from(day)
+            ),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::CREATED);
+        ids.push(common::body_json(response).await["id"].as_i64().unwrap());
+    }
+    ids
+}
 
-    create_fillup(
-        &mut app,
-        vid,
-        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
-    )
-    .await;
-    create_fillup(
-        &mut app,
-        vid,
-        r#"{"date":"2026-03-01","fuel_amount":25.0,"odometer":11000,"cost":45.0}"#,
-    )
-    .await;
-    create_fillup(
-        &mut app,
-        vid,
-        r#"{"date":"2026-02-01","fuel_amount":20.0,"odometer":12000,"cost":35.0}"#,
-    )
-    .await;
-
-    let resp = app
-        .clone()
-        .oneshot(common::json_request(
-            "GET",
-            &format!("/api/vehicles/{vid}/fillups"),
-            None,
-        ))
-        .await
-        .unwrap();
-    assert_eq!(resp.status(), StatusCode::OK);
-    let json = common::body_json(resp).await;
-    let dates: Vec<&str> = json
+fn item_ids(page: &serde_json::Value) -> Vec<i64> {
+    page["items"]
         .as_array()
         .unwrap()
         .iter()
-        .map(|f| f["date"].as_str().unwrap())
-        .collect();
-    assert_eq!(dates, vec!["2026-03-01", "2026-02-01", "2026-01-01"]);
+        .map(|fillup| fillup["id"].as_i64().unwrap())
+        .collect()
+}
+
+#[tokio::test]
+async fn list_empty_returns_empty_page() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let page = list_fillups(&app, &format!("/api/vehicles/{vid}/fillups")).await;
+    assert_eq!(page["items"], serde_json::json!([]));
+    assert!(page["next_cursor"].is_null());
+}
+
+#[tokio::test]
+async fn list_uses_default_limit_and_returns_cursor_when_more_items_exist() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+    let ids = create_ordered_fillups(&mut app, vid, 26).await;
+
+    let page = list_fillups(&app, &format!("/api/vehicles/{vid}/fillups")).await;
+    assert_eq!(
+        item_ids(&page),
+        ids.into_iter().rev().take(25).collect::<Vec<_>>()
+    );
+    assert!(page["next_cursor"].is_string());
+}
+
+#[tokio::test]
+async fn list_honors_custom_limit() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+    let ids = create_ordered_fillups(&mut app, vid, 4).await;
+
+    let page = list_fillups(&app, &format!("/api/vehicles/{vid}/fillups?limit=2")).await;
+    assert_eq!(
+        item_ids(&page),
+        ids.into_iter().rev().take(2).collect::<Vec<_>>()
+    );
+    assert!(page["next_cursor"].is_string());
+}
+
+#[tokio::test]
+async fn list_orders_by_date_then_id_and_continues_after_same_date_items() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let first = common::body_json(
+        create_fillup(
+            &mut app,
+            vid,
+            r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+        )
+        .await,
+    )
+    .await["id"]
+        .as_i64()
+        .unwrap();
+    let same_date_first = common::body_json(
+        create_fillup(
+            &mut app,
+            vid,
+            r#"{"date":"2026-03-01","fuel_amount":30.0,"odometer":11000,"cost":50.0}"#,
+        )
+        .await,
+    )
+    .await["id"]
+        .as_i64()
+        .unwrap();
+    let same_date_second = common::body_json(
+        create_fillup(
+            &mut app,
+            vid,
+            r#"{"date":"2026-03-01","fuel_amount":30.0,"odometer":12000,"cost":50.0}"#,
+        )
+        .await,
+    )
+    .await["id"]
+        .as_i64()
+        .unwrap();
+    let middle = common::body_json(
+        create_fillup(
+            &mut app,
+            vid,
+            r#"{"date":"2026-02-01","fuel_amount":30.0,"odometer":13000,"cost":50.0}"#,
+        )
+        .await,
+    )
+    .await["id"]
+        .as_i64()
+        .unwrap();
+
+    let first_page = list_fillups(&app, &format!("/api/vehicles/{vid}/fillups?limit=2")).await;
+    assert_eq!(
+        item_ids(&first_page),
+        vec![same_date_second, same_date_first]
+    );
+
+    let cursor = first_page["next_cursor"].as_str().unwrap();
+    let second_page = list_fillups(
+        &app,
+        &format!("/api/vehicles/{vid}/fillups?limit=2&cursor={cursor}"),
+    )
+    .await;
+    assert_eq!(item_ids(&second_page), vec![middle, first]);
+    assert!(second_page["next_cursor"].is_null());
+}
+
+#[tokio::test]
+async fn list_continuation_returns_all_items_without_duplicates() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+    let ids = create_ordered_fillups(&mut app, vid, 5).await;
+
+    let first_page = list_fillups(&app, &format!("/api/vehicles/{vid}/fillups?limit=2")).await;
+    let second_page = list_fillups(
+        &app,
+        &format!(
+            "/api/vehicles/{vid}/fillups?limit=2&cursor={}",
+            first_page["next_cursor"].as_str().unwrap()
+        ),
+    )
+    .await;
+    let terminal_page = list_fillups(
+        &app,
+        &format!(
+            "/api/vehicles/{vid}/fillups?limit=2&cursor={}",
+            second_page["next_cursor"].as_str().unwrap()
+        ),
+    )
+    .await;
+
+    let mut returned_ids = item_ids(&first_page);
+    returned_ids.extend(item_ids(&second_page));
+    returned_ids.extend(item_ids(&terminal_page));
+    assert_eq!(returned_ids, ids.into_iter().rev().collect::<Vec<_>>());
+    assert!(terminal_page["next_cursor"].is_null());
+}
+
+#[tokio::test]
+async fn list_rejects_invalid_pagination_input_with_json_error_codes() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    for (query, code) in [
+        ("limit=0", "FILLUP_INVALID_PAGE_LIMIT"),
+        ("limit=101", "FILLUP_INVALID_PAGE_LIMIT"),
+        ("limit=not-an-integer", "FILLUP_INVALID_PAGE_LIMIT"),
+        ("cursor=not-a-cursor", "FILLUP_INVALID_CURSOR"),
+        ("cursor=bm90LWpzb24", "FILLUP_INVALID_CURSOR"),
+        (
+            "cursor=eyJkYXRlIjoiICAgIiwiaWQiOjF9",
+            "FILLUP_INVALID_CURSOR",
+        ),
+        (
+            "cursor=eyJkYXRlIjoiMjAyNi0wMS0wMSIsImlkIjowfQ",
+            "FILLUP_INVALID_CURSOR",
+        ),
+    ] {
+        let resp = app
+            .clone()
+            .oneshot(common::json_request(
+                "GET",
+                &format!("/api/vehicles/{vid}/fillups?{query}"),
+                None,
+            ))
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(common::body_json(resp).await["code"], code);
+    }
 }
 
 #[tokio::test]

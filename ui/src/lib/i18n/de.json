@@ -30,6 +30,8 @@
   "dashboard.fillups.empty.action": "Tankfüllung hinzufügen",
   "dashboard.fillups.fullTank": "Voll getankt",
   "dashboard.fillups.missed": "Verpasst",
+  "dashboard.fillups.loadingMore": "Ältere Tankfüllungen werden geladen...",
+  "dashboard.fillups.retry": "Erneut versuchen",
 
   "settings.title": "Einstellungen",
   "settings.subtitle": "Fahrzeuge, Einheiten, Darstellung und Daten konfigurieren.",

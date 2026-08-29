@@ -1,6 +1,8 @@
 use axum::Json;
-use axum::extract::{Path, State};
+use axum::extract::{Path, RawQuery, State};
 use axum::http::StatusCode;
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tracing::{debug, info};
@@ -26,6 +28,13 @@ pub struct Fillup {
     pub notes: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+/// A cursor-paginated page of fill-ups.
+#[derive(Serialize)]
+pub struct FillupPage {
+    pub items: Vec<Fillup>,
+    pub next_cursor: Option<String>,
 }
 
 // ── Database row type ────────────────────────────────────
@@ -106,6 +115,81 @@ pub struct UpdateFillup {
     pub is_missed: Option<bool>,
     pub station: Option<String>,
     pub notes: Option<String>,
+}
+
+const DEFAULT_PAGE_LIMIT: u16 = 25;
+const MAX_PAGE_LIMIT: u16 = 100;
+
+/// Decoded position of the final item in a page.
+#[derive(Deserialize, Serialize)]
+struct FillupCursor {
+    date: String,
+    id: i64,
+}
+
+/// Validated pagination parameters for fill-up listing.
+struct PageQuery {
+    limit: u16,
+    cursor: Option<FillupCursor>,
+}
+
+impl PageQuery {
+    fn parse(raw_query: Option<&str>) -> Result<Self, ApiError> {
+        let mut limit = None;
+        let mut cursor = None;
+
+        for (key, value) in url::form_urlencoded::parse(raw_query.unwrap_or_default().as_bytes()) {
+            match key.as_ref() {
+                "limit" => {
+                    if limit.is_some() {
+                        return Err(ApiError::BadRequest("FILLUP_INVALID_PAGE_LIMIT"));
+                    }
+
+                    let parsed_limit = value
+                        .parse::<u16>()
+                        .map_err(|_| ApiError::BadRequest("FILLUP_INVALID_PAGE_LIMIT"))?;
+                    if !(1..=MAX_PAGE_LIMIT).contains(&parsed_limit) {
+                        return Err(ApiError::BadRequest("FILLUP_INVALID_PAGE_LIMIT"));
+                    }
+                    limit = Some(parsed_limit);
+                }
+                "cursor" => {
+                    if cursor.is_some() {
+                        return Err(ApiError::BadRequest("FILLUP_INVALID_CURSOR"));
+                    }
+                    cursor = Some(decode_cursor(&value)?);
+                }
+                _ => {}
+            }
+        }
+
+        Ok(Self {
+            limit: limit.unwrap_or(DEFAULT_PAGE_LIMIT),
+            cursor,
+        })
+    }
+}
+
+fn decode_cursor(value: &str) -> Result<FillupCursor, ApiError> {
+    let bytes = URL_SAFE_NO_PAD
+        .decode(value)
+        .map_err(|_| ApiError::BadRequest("FILLUP_INVALID_CURSOR"))?;
+    let cursor = serde_json::from_slice::<FillupCursor>(&bytes)
+        .map_err(|_| ApiError::BadRequest("FILLUP_INVALID_CURSOR"))?;
+
+    if cursor.date.trim().is_empty() || cursor.id <= 0 {
+        return Err(ApiError::BadRequest("FILLUP_INVALID_CURSOR"));
+    }
+
+    Ok(cursor)
+}
+
+fn encode_cursor(cursor: &FillupCursor) -> Result<String, ApiError> {
+    let bytes = serde_json::to_vec(cursor).map_err(|error| {
+        tracing::error!(%error, "Failed to serialize fill-up cursor");
+        ApiError::InternalError("INTERNAL_ERROR")
+    })?;
+    Ok(URL_SAFE_NO_PAD.encode(bytes))
 }
 
 // ── Validation ───────────────────────────────────────────
@@ -265,25 +349,65 @@ async fn read_settings(pool: &SqlitePool) -> Result<(String, String), ApiError> 
 
 // ── Handlers ─────────────────────────────────────────────
 
-/// List all fill-ups for a vehicle, sorted by date descending.
+/// List a cursor-paginated fill-up history for a vehicle, sorted by date and ID
+/// descending.
 ///
 /// # Errors
 ///
-/// Returns `ApiError::NotFound` if the vehicle does not exist.
+/// Returns `ApiError::NotFound` if the vehicle does not exist, or
+/// `ApiError::BadRequest` if pagination parameters are invalid.
 pub async fn list(
     State(pool): State<SqlitePool>,
     Path(vehicle_id): Path<i64>,
-) -> Result<Json<Vec<Fillup>>, ApiError> {
+    RawQuery(raw_query): RawQuery,
+) -> Result<Json<FillupPage>, ApiError> {
+    let page_query = PageQuery::parse(raw_query.as_deref())?;
     ensure_vehicle_exists(&pool, vehicle_id).await?;
 
-    let query = format!("{FILLUP_SELECT} WHERE vehicle_id = ? ORDER BY date DESC, id DESC");
-    let rows = sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(query.as_str()))
-        .bind(vehicle_id)
-        .fetch_all(&pool)
-        .await
-        .map_err(db_error)?;
+    let mut rows = if let Some(cursor) = page_query.cursor {
+        let query = format!(
+            "{FILLUP_SELECT} WHERE vehicle_id = ? \
+             AND (date < ? OR (date = ? AND id < ?)) \
+             ORDER BY date DESC, id DESC LIMIT ?"
+        );
+        sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(query.as_str()))
+            .bind(vehicle_id)
+            .bind(&cursor.date)
+            .bind(&cursor.date)
+            .bind(cursor.id)
+            .bind(i64::from(page_query.limit) + 1)
+            .fetch_all(&pool)
+            .await
+            .map_err(db_error)?
+    } else {
+        let query =
+            format!("{FILLUP_SELECT} WHERE vehicle_id = ? ORDER BY date DESC, id DESC LIMIT ?");
+        sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(query.as_str()))
+            .bind(vehicle_id)
+            .bind(i64::from(page_query.limit) + 1)
+            .fetch_all(&pool)
+            .await
+            .map_err(db_error)?
+    };
 
-    Ok(Json(rows.into_iter().map(Fillup::from).collect()))
+    let next_cursor = if rows.len() > usize::from(page_query.limit) {
+        rows.pop();
+        rows.last()
+            .map(|row| {
+                encode_cursor(&FillupCursor {
+                    date: row.date.clone(),
+                    id: row.id,
+                })
+            })
+            .transpose()?
+    } else {
+        None
+    };
+
+    Ok(Json(FillupPage {
+        items: rows.into_iter().map(Fillup::from).collect(),
+        next_cursor,
+    }))
 }
 
 /// Get a single fill-up by ID, scoped to a vehicle.
