@@ -252,9 +252,70 @@
 <PageContainer width="wide" fillHeight>
   <h1 class="visually-hidden">{t("nav.dashboard")}</h1>
   {#if getVehiclesLoading()}
-    <div class="skeleton-area">
-      <div class="shimmer chip-skeleton"></div>
-      <div class="shimmer chip-skeleton"></div>
+    <div
+      class="dashboard-loading"
+      data-testid="dashboard-loading"
+      role="status"
+      aria-busy="true"
+    >
+      <span class="visually-hidden">{t("common.loading")}</span>
+
+      <div class="summary-grid">
+        {#each Array(4) as _, i (i)}
+          <div class="card skeleton-summary">
+            <div class="shimmer" style="width: 70%; height: 16px"></div>
+            <div class="shimmer" style="width: 50%; height: 10px"></div>
+          </div>
+        {/each}
+      </div>
+
+      <div class="chart-carousel-wrapper">
+        <div class="card skeleton-chart">
+          <div
+            class="shimmer"
+            style="width: 60px; height: 10px; margin-bottom: var(--space-2)"
+          ></div>
+          <div class="shimmer" style="width: 100%; height: 150px"></div>
+        </div>
+      </div>
+
+      <div class="dashboard-content">
+        <div class="charts-column">
+          {#each Array(3) as _, i (i)}
+            <div class="card skeleton-chart">
+              <div
+                class="shimmer"
+                style="width: 60px; height: 10px; margin-bottom: var(--space-2)"
+              ></div>
+              <div class="shimmer" style="width: 100%; height: 150px"></div>
+            </div>
+          {/each}
+        </div>
+
+        <div class="fillups-column">
+          <div class="fillup-list">
+            {#each Array(3) as _, i (i)}
+              <div class="card skeleton-fillup">
+                <div class="skeleton-fillup-header">
+                  <div class="shimmer" style="width: 90px; height: 12px"></div>
+                  <div class="shimmer" style="width: 60px; height: 10px"></div>
+                </div>
+                <div class="skeleton-fillup-details">
+                  <div class="shimmer" style="width: 50px; height: 12px"></div>
+                  <div class="shimmer" style="width: 45px; height: 12px"></div>
+                  <div class="shimmer" style="width: 70px; height: 12px"></div>
+                </div>
+                <div class="skeleton-fillup-badges">
+                  <div
+                    class="shimmer"
+                    style="width: 55px; height: 18px; border-radius: 9px"
+                  ></div>
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+      </div>
     </div>
   {:else if vehicles.length === 0}
     <EmptyState
@@ -992,15 +1053,11 @@
   }
 
   /* ── Skeletons ──────────────────────────────────────── */
-  .skeleton-area {
+  .dashboard-loading {
     display: flex;
-    gap: var(--space-1);
-    margin-bottom: var(--space-6);
-  }
-
-  .chip-skeleton {
-    width: 80px;
-    height: 36px;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
   }
 
   .skeleton-fillup {

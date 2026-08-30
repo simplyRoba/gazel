@@ -14,6 +14,7 @@ const apiSpies = vi.hoisted(() => ({
 }));
 const vehicleStore = vi.hoisted(() => ({
   vehicles: [] as Vehicle[],
+  loading: false,
   loadVehicles: vi.fn(() => Promise.resolve()),
 }));
 const statsStore = vi.hoisted(() => ({
@@ -29,7 +30,7 @@ vi.mock("$lib/api", async (importOriginal) => ({
 vi.mock("$lib/stores/vehicles.svelte", () => ({
   loadVehicles: vehicleStore.loadVehicles,
   getVehicles: () => vehicleStore.vehicles,
-  getLoading: () => false,
+  getLoading: () => vehicleStore.loading,
 }));
 
 vi.mock("$lib/stores/stats.svelte", () => ({
@@ -149,6 +150,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   fillupStore.clearCache();
   vehicleStore.vehicles = [vehicle(1, "First"), vehicle(2, "Second")];
+  vehicleStore.loading = false;
   observers = [];
   desktopMatches = false;
   mediaListeners = new Set();
@@ -203,6 +205,28 @@ beforeEach(() => {
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+
+describe("dashboard loading state", () => {
+  it("mirrors the dashboard structure while vehicles load", () => {
+    vehicleStore.loading = true;
+    vehicleStore.loadVehicles.mockReturnValueOnce(deferred<void>().promise);
+
+    const { container } = render(Dashboard);
+    const loading = screen.getByTestId("dashboard-loading");
+
+    expect(loading.getAttribute("aria-busy")).toBe("true");
+    expect(
+      container.querySelectorAll(".summary-grid .skeleton-summary"),
+    ).toHaveLength(4);
+    expect(
+      container.querySelectorAll(".dashboard-content .skeleton-chart"),
+    ).toHaveLength(3);
+    expect(
+      container.querySelectorAll(".fillup-list .skeleton-fillup"),
+    ).toHaveLength(3);
+    expect(container.querySelector(".chip-skeleton")).toBeNull();
+  });
 });
 
 describe("dashboard fill-up endless scrolling", () => {
