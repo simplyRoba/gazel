@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/simplyRoba/gazel/compare/v1.3.0...v1.4.0) (2026-08-30)
+
+
+### Features
+
+* paginate fill-up history ([829932e](https://github.com/simplyRoba/gazel/commit/829932eeec42c983d83c9925d18eb6b275a79c05))
+
 ## [1.3.0](https://github.com/simplyRoba/gazel/compare/v1.2.7...v1.3.0) (2026-08-27)
 
 
