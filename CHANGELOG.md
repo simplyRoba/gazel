@@ -1,5 +1,33 @@
 # Changelog
 
+## [1.4.1](https://github.com/simplyRoba/gazel/compare/v1.4.0...v1.4.1) (2026-08-31)
+
+
+### Bug Fixes
+
+* **auth:** gate login action on config ([11f123d](https://github.com/simplyRoba/gazel/commit/11f123d1bba679797aa194527bc8ea52fe5df4d9))
+* **i18n:** add pagination error translations ([814b38d](https://github.com/simplyRoba/gazel/commit/814b38d5188056b4b723dc809b525f766a68cc8d))
+* **import:** clarify missing vehicle name response ([efcfcac](https://github.com/simplyRoba/gazel/commit/efcfcac7e8817488f5adc567c7de8d2141dbc5eb))
+* match dashboard skeleton to loaded layout ([7720e8d](https://github.com/simplyRoba/gazel/commit/7720e8dd495d5a857a7e96cdcd762b07c24d9a37))
+* **server:** log request duration in milliseconds ([df278fa](https://github.com/simplyRoba/gazel/commit/df278fab3c7e274a7279d491938935c647521c28))
+* **stats:** reject impossible date filters ([46f52b1](https://github.com/simplyRoba/gazel/commit/46f52b113c710821e41aa0c89b3528dd1caf5b84))
+* **vehicles:** reject empty fuel type ([a576a66](https://github.com/simplyRoba/gazel/commit/a576a6692f874d625944666cbb178dc2eca59223))
+
+
+### Code Refactoring
+
+* **auth:** discard verified OIDC subject ([4f680fb](https://github.com/simplyRoba/gazel/commit/4f680fb982794bc04871b80cbb6953d2f139395d))
+
+
+### Documentation
+
+* **api:** clarify JSON error contract ([bc872f8](https://github.com/simplyRoba/gazel/commit/bc872f848b49f08079def398602b7ff46e817e31))
+* **charts:** align bar and axis styling ([2200f99](https://github.com/simplyRoba/gazel/commit/2200f991e148d67671676d962596e3db0b8a2284))
+* **fillups:** clarify odometer update validation ([2682239](https://github.com/simplyRoba/gazel/commit/26822390757af9177fc42d47e8ca59b841c4cf1e))
+* **fillups:** define managed field handling ([5a7dee5](https://github.com/simplyRoba/gazel/commit/5a7dee5ec286523d96ba2b9186e936968cfe1d3a))
+* **layout:** define diamond mobile fill-up action ([b6c95b8](https://github.com/simplyRoba/gazel/commit/b6c95b815fbd88991225478d425bad1b12393227))
+* **layout:** limit logo to sidebar ([df8d220](https://github.com/simplyRoba/gazel/commit/df8d220c810ca842758ae6eb36a4971501ba8a91))
+
 ## [1.4.0](https://github.com/simplyRoba/gazel/compare/v1.3.0...v1.4.0) (2026-08-30)
 
 
