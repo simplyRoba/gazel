@@ -181,7 +181,7 @@ The API SHALL require a positive fuel amount for every fill-up.
 
 ### Requirement: Fill-up odometer validation
 
-The API SHALL require a valid odometer value for every fill-up. Odometer readings SHALL NOT decrease across fill-ups for the same vehicle.
+The API SHALL require a valid odometer value for every fill-up. Odometer readings SHALL NOT decrease across fill-ups for the same vehicle. When updating a fill-up, the reading SHALL fit between the immediately previous and next fill-ups in the existing chronological order, excluding the fill-up being updated. Fill-ups on the same date SHALL be ordered by ID.
 
 #### Scenario: Missing odometer on create
 
@@ -205,13 +205,14 @@ The API SHALL require a valid odometer value for every fill-up. Odometer reading
 #### Scenario: Update with valid odometer
 
 - **WHEN** a `PUT /api/vehicles/{vehicle_id}/fillups/{id}` request is received with an `odometer` value
-- **AND** the value is greater than or equal to the highest existing odometer for that vehicle, excluding the fill-up being updated
+- **AND** the odometer is greater than or equal to the immediately previous chronological fill-up when one exists
+- **AND** the odometer is less than or equal to the immediately next chronological fill-up when one exists
 - **THEN** the request SHALL be accepted
 
 #### Scenario: Update with invalid odometer
 
 - **WHEN** a `PUT /api/vehicles/{vehicle_id}/fillups/{id}` request is received with an `odometer` value
-- **AND** the value is less than the highest existing odometer for that vehicle, excluding the fill-up being updated
+- **AND** the odometer is lower than the immediately previous chronological fill-up or higher than the immediately next chronological fill-up
 - **THEN** the response status SHALL be `422 Unprocessable Entity`
 - **AND** the body SHALL contain `"code": "FILLUP_INVALID_ODOMETER"`
 
