@@ -1,29 +1,13 @@
 schema: spec-driven
 
 context: |
-  Rust/cargo single-crate HTTP service with an embedded SvelteKit frontend for tracking
-  personal fuel expenses, mileage, and efficiency. Shipped as a minimal Docker image with
-  rustfmt/clippy guardrails. Deploy via GHCR/release-please from protected main; run
-  `rustfmt`, `cargo clippy`, and `cargo test` locally before committing. Capture only delta
-  requirements (ADDED/MODIFIED/REMOVED) so `openspec/specs/` stays lean as the source of truth.
+  Rust single-crate HTTP service with an embedded SvelteKit frontend for tracking personal
+  fuel expenses, mileage, and efficiency. The application ships as a minimal Docker image.
 
 rules:
-  proposal:
-    - "Pack intent, scope (in/out), and approach into the proposal, mention affected modules/APIs, and tie the plan back to project constraints."
-    - "Keep each change focused on one logical goal and name it descriptively so `openspec list` stays readable."
-    - "Prefer adding requirements to existing capabilities over creating new ones to keep the spec surface area manageable."
   design:
-    - "Favor simplicity and minimal dependencies to preserve a small Docker image."
-    - "Document error handling, retry/backoff, and fallback behavior while explaining architecture decisions, trade-offs, and alternatives."
-    - "Leverage Rust's type system to enforce correctness and keep HTTP interactions explicit."
+    - "Favor simplicity and avoid unnecessary dependencies to preserve the minimal Docker image."
   specs:
-    - "Describe deltas in ADDED/MODIFIED/REMOVED sections and never rewrite the full spec—refer to existing requirements when modifying."
-    - "Use RFC 2119 keywords (SHALL/MUST/SHOULD) and GIVEN/WHEN/THEN/AND scenarios to keep requirements testable."
-    - "Capabilities live in a single flat folder per capability, with the domain encoded as a prefix in the name (like `core`, `ui`, `api` ..). The schema is specs/{domain}-{capability}/spec.md (e.g. specs/core-database/spec.md, specs/ui-settings/spec.md, specs/api-vehicle-crud/spec.md). A change can touch more than one capability across more than one domain. Do NOT nest capabilities inside a domain subfolder — the OpenSpec CLI only discovers specs one level deep."
-    - "Be aware that at this phase the specs are only created in the change proposal. NOT in the final specs yet."
+    - "Use flat domain-prefixed capability directories at `specs/{domain}-{capability}/spec.md`. Supported domains are `core`, `api`, and `ui`; do not nest capability directories."
   tasks:
-    - "Create branches off main for the change; never merge or push to main. Not every change needs a branch."
-    - "Always write enough tests to cover new/modified functionality and edge cases before implementation."
-    - "Prioritize unit tests over integration tests. But when necessary do not hesitate to write integration tests to cover end-to-end behavior."
-    - "Include a final task to run `ui/npm run check`, `cargo fmt`, `cargo clippy`, and `cargo test` before archiving."
-    - "After implementing features, revisit README.md so it always reflects current important information for the end user. no implementation details. not every change needs a README update."
+    - "Include a final task to run `cargo fmt -- --check`, `cargo clippy -- -D warnings`, `npm run format:check --prefix ui`, `npm run lint --prefix ui`, `npm run check --prefix ui`, and `cargo test` before archiving."
