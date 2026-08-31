@@ -65,7 +65,7 @@ The API SHALL return a single fill-up by its ID, scoped to a vehicle.
 
 ### Requirement: Create a fill-up
 
-The API SHALL create a new fill-up for a vehicle and return it with a generated ID and timestamps. The `odometer` and `cost` fields are now required. The `fuel_unit` and `currency` fields are auto-populated from the application settings and SHALL NOT be accepted in the request body.
+The API SHALL create a new fill-up for a vehicle and return it with a generated ID and timestamps. The `odometer` and `cost` fields are now required. The `fuel_unit` and `currency` fields are auto-populated from the application settings. If supplied in the request body, they SHALL be ignored.
 
 #### Scenario: Create with all fields
 
@@ -261,7 +261,7 @@ The API SHALL apply updated default values for optional boolean fields.
 
 ### Requirement: Auto-populated fuel_unit and currency
 
-The API SHALL read `fuel_unit` and `currency` from the application settings table and apply them to every fill-up on create and update. These fields SHALL NOT be accepted from the request body.
+The API SHALL read `fuel_unit` and `currency` from the application settings table and apply them to every fill-up on create and update. Values supplied for these fields in the request body SHALL be ignored and SHALL NOT override the settings values.
 
 #### Scenario: fuel_unit from settings
 
@@ -272,3 +272,10 @@ The API SHALL read `fuel_unit` and `currency` from the application settings tabl
 
 - **WHEN** a fill-up is created or updated
 - **THEN** `currency` SHALL be set to the current `currency` value from the settings table (e.g., `"USD"` or `"EUR"`)
+
+#### Scenario: Request values do not override settings
+
+- **WHEN** a create or update request supplies `fuel_unit` or `currency` values that differ from the application settings
+- **THEN** the request SHALL be processed normally
+- **AND** the supplied values SHALL be ignored
+- **AND** the stored `fuel_unit` and `currency` SHALL use the application settings values

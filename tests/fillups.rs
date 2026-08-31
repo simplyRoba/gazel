@@ -331,7 +331,7 @@ async fn create_with_all_fields() {
     let resp = create_fillup(
         &mut app,
         vid,
-        r#"{"date":"2026-04-09","odometer":15230.5,"fuel_amount":45.5,"cost":72.80,"is_full_tank":true,"is_missed":false,"station":"Shell Main St","notes":"Regular fill"}"#,
+        r#"{"date":"2026-04-09","odometer":15230.5,"fuel_amount":45.5,"cost":72.80,"fuel_unit":"gal","currency":"USD","is_full_tank":true,"is_missed":false,"station":"Shell Main St","notes":"Regular fill"}"#,
     )
     .await;
     assert_eq!(resp.status(), StatusCode::CREATED);
@@ -625,7 +625,7 @@ async fn update_changes_fields() {
         .oneshot(common::json_request(
             "PUT",
             &format!("/api/vehicles/{vid}/fillups/{fid}"),
-            Some(r#"{"date":"2026-04-02","fuel_amount":35.0,"odometer":10500,"cost":60.0,"station":"BP"}"#),
+            Some(r#"{"date":"2026-04-02","fuel_amount":35.0,"odometer":10500,"cost":60.0,"fuel_unit":"gal","currency":"USD","station":"BP"}"#),
         ))
         .await
         .unwrap();
