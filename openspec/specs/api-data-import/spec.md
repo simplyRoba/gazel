@@ -69,12 +69,13 @@ The import endpoint SHALL validate that the export document's version is compati
 
 The import endpoint SHALL validate all records before committing any changes.
 
-#### Scenario: Vehicle with missing required fields
+#### Scenario: Vehicle with missing name field
 
 - **WHEN** the import document contains a vehicle without a `name` field
-- **THEN** the response status SHALL be `422`
-- **AND** the response body SHALL contain `{ "code": "IMPORT_VALIDATION_ERROR", "message": "..." }`
+- **THEN** the response status SHALL be `400`
+- **AND** the response body SHALL contain `{ "code": "INVALID_REQUEST_BODY", "message": "..." }`
 - **AND** no data SHALL be modified
+- **NOTE** The `name` field is structurally required; a missing field is a schema deserialization error, while an empty `name` is an import validation error
 
 #### Scenario: Fill-up with invalid data
 

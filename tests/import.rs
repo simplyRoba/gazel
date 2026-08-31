@@ -282,7 +282,7 @@ async fn import_malformed_json() {
 }
 
 #[tokio::test]
-async fn import_missing_vehicle_name() {
+async fn import_empty_vehicle_name() {
     let app = common::test_app().await;
 
     let body = format!(
@@ -308,6 +308,34 @@ async fn import_missing_vehicle_name() {
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "IMPORT_VALIDATION_ERROR");
+}
+
+#[tokio::test]
+async fn import_missing_vehicle_name() {
+    let app = common::test_app().await;
+
+    let body = format!(
+        r#"{{
+            "version": "{}",
+            "exported_at": "2026-01-01T00:00:00Z",
+            "vehicles": [{{
+                "fuel_type": "gasoline",
+                "created_at": "2026-01-01T00:00:00Z",
+                "updated_at": "2026-01-01T00:00:00Z",
+                "fillups": []
+            }}]
+        }}"#,
+        env!("CARGO_PKG_VERSION")
+    );
+
+    let resp = app
+        .oneshot(common::json_request("POST", "/api/import", Some(&body)))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "INVALID_REQUEST_BODY");
 }
 
 #[tokio::test]
