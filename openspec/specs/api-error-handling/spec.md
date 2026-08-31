@@ -6,10 +6,10 @@ Consistent JSON error handling for the API: a uniform error response shape, erro
 
 ### Requirement: Consistent JSON error responses
 
-All API error responses SHALL return a JSON body with `code` and `message` fields. The `code` SHALL be a static string identifier and the `message` SHALL be a human-readable description.
+Errors returned by Gazel application code through `ApiError`, including errors from handlers, middleware, and custom extractors, SHALL have a JSON body with `code` and `message` fields. The `code` SHALL be a static string identifier and the `message` SHALL be a human-readable description. Framework-generated rejections that bypass `ApiError`, including malformed path or query extraction and unmatched routes, are outside this requirement.
 
-#### Scenario: Error response format
-- **WHEN** any API endpoint returns an error
+#### Scenario: Application error response format
+- **WHEN** an API handler, middleware, or custom extractor returns an `ApiError`
 - **THEN** the response body SHALL be JSON with the shape `{ "code": "<ERROR_CODE>", "message": "<human-readable message>" }`
 - **AND** the `Content-Type` header SHALL be `application/json`
 
