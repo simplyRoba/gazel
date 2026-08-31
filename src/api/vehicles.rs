@@ -189,10 +189,7 @@ pub async fn create(
     validate_vehicle_name(&name)?;
     let name = name.trim().to_string();
 
-    let fuel_type = body
-        .fuel_type
-        .filter(|f| !f.trim().is_empty())
-        .unwrap_or_else(|| "gasoline".to_string());
+    let fuel_type = body.fuel_type.unwrap_or_else(|| "gasoline".to_string());
     validate_fuel_type(&fuel_type)?;
     validate_year(body.year)?;
 

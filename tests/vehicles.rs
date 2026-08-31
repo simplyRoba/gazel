@@ -113,6 +113,15 @@ async fn create_with_invalid_fuel_type() {
 }
 
 #[tokio::test]
+async fn create_with_empty_fuel_type() {
+    let mut app = common::test_app().await;
+    let resp = create_vehicle(&mut app, r#"{"name":"Car","fuel_type":""}"#).await;
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "VEHICLE_INVALID_FUEL_TYPE");
+}
+
+#[tokio::test]
 async fn create_with_invalid_year() {
     let mut app = common::test_app().await;
     let resp = create_vehicle(&mut app, r#"{"name":"Car","year":1800}"#).await;
