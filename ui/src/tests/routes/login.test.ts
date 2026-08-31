@@ -29,6 +29,17 @@ describe("login page", () => {
     vi.stubGlobal("fetch", mockFetch);
   });
 
+  it("shows a branded loading state without a provider action while config is pending", () => {
+    mockFetch.mockReturnValue(new Promise(() => {}));
+
+    render(LoginPage);
+
+    expect(screen.getByRole("heading", { name: "Gazel" })).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toBe("Loading...");
+    expect(screen.queryByRole("button")).toBeNull();
+    expect(document.querySelector("[aria-busy='true']")).toBeTruthy();
+  });
+
   it("renders Gazel branding and one provider action without local credentials", async () => {
     mockFetch.mockResolvedValue({
       ok: true,
@@ -38,12 +49,12 @@ describe("login page", () => {
 
     render(LoginPage);
 
-    expect(await screen.findByRole("heading", { name: "Gazel" })).toBeTruthy();
+    expect(
+      await screen.findByRole("button", { name: "Continue with Authentik" }),
+    ).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Gazel" })).toBeTruthy();
     expect(
       screen.getByText("Authentication is required to use Gazel."),
-    ).toBeTruthy();
-    expect(
-      screen.getByRole("button", { name: "Continue with Authentik" }),
     ).toBeTruthy();
     expect(screen.getAllByRole("button")).toHaveLength(1);
     const form = document.querySelector("form");

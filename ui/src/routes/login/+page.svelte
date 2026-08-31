@@ -28,6 +28,7 @@
       .then((value) => {
         if (controller.signal.aborted) return;
         if (!value.enabled) {
+          config = value;
           window.location.replace("/");
           return;
         }
@@ -52,9 +53,13 @@
       <p role="alert">{t("login.error.configUnavailable")}</p>
     </section>
   </main>
-{:else if config?.enabled}
+{:else if config === null || config.enabled}
   <main class="login-page">
-    <section class="login-card corner-tri" aria-labelledby="login-title">
+    <section
+      class="login-card corner-tri"
+      aria-labelledby="login-title"
+      aria-busy={config === null}
+    >
       <div class="login-copy">
         <div class="brand" aria-hidden="true"><Logo size={80} /></div>
         <h1 id="login-title">{t("login.title")}</h1>
@@ -63,18 +68,22 @@
 
       <div class="login-action-panel">
         <div class="login-panel">
-          {#if statusMessage}
-            <p class:success={loggedOut} class="status" role="alert">
-              {statusMessage}
-            </p>
-          {/if}
+          {#if config === null}
+            <p class="loading-status" role="status">{t("common.loading")}</p>
+          {:else}
+            {#if statusMessage}
+              <p class:success={loggedOut} class="status" role="alert">
+                {statusMessage}
+              </p>
+            {/if}
 
-          <form method="GET" action="/auth/login">
-            <input name="return_to" type="hidden" value={returnTo} />
-            <button class="btn btn-primary login-action" type="submit">
-              {t("login.continueWith", { provider: config.provider_name })}
-            </button>
-          </form>
+            <form method="GET" action="/auth/login">
+              <input name="return_to" type="hidden" value={returnTo} />
+              <button class="btn btn-primary login-action" type="submit">
+                {t("login.continueWith", { provider: config.provider_name })}
+              </button>
+            </form>
+          {/if}
         </div>
       </div>
     </section>
@@ -140,6 +149,12 @@
     color: var(--color-success);
     background: color-mix(in srgb, var(--color-success) 8%, transparent);
     border-color: color-mix(in srgb, var(--color-success) 20%, transparent);
+  }
+
+  .loading-status {
+    margin: 0;
+    color: var(--color-text-secondary);
+    text-align: center;
   }
 
   form {

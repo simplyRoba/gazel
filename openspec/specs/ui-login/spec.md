@@ -79,6 +79,11 @@ The public login page SHALL load only the shared static assets and public auth-c
 - **THEN** it SHALL request `GET /auth/config` for the provider display name
 - **AND** SHALL NOT call `/api/settings`, `/api/vehicles`, or any other protected application API
 
+#### Scenario: Auth config is loading
+- **WHEN** the public auth-config request is pending
+- **THEN** the page SHALL render the branded login card with a translated loading state
+- **AND** SHALL NOT render or enable an OIDC provider action
+
 #### Scenario: Authentication disabled
 - **WHEN** public auth config reports `enabled: false`
 - **THEN** the login route SHALL replace browser navigation with `/`
