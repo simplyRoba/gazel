@@ -36,45 +36,87 @@ impl IntoResponse for ApiError {
     }
 }
 
+const ERROR_MESSAGES: &[(&str, &str)] = &[
+    ("AUTHENTICATION_REQUIRED", "Authentication is required."),
+    ("INTERNAL_ERROR", "An unexpected error occurred."),
+    (
+        "INVALID_REQUEST_BODY",
+        "The request body is missing or malformed.",
+    ),
+    ("VEHICLE_NOT_FOUND", "Vehicle not found."),
+    ("VEHICLE_NAME_REQUIRED", "Vehicle name is required."),
+    ("VEHICLE_INVALID_FUEL_TYPE", "Invalid fuel type."),
+    ("VEHICLE_INVALID_YEAR", "Invalid year."),
+    (
+        "VEHICLE_HAS_FILLUPS",
+        "Cannot delete vehicle with existing fill-ups.",
+    ),
+    ("FILLUP_NOT_FOUND", "Fill-up not found."),
+    ("FILLUP_DATE_REQUIRED", "Fill-up date is required."),
+    ("FILLUP_FUEL_AMOUNT_REQUIRED", "Fuel amount is required."),
+    (
+        "FILLUP_INVALID_FUEL_AMOUNT",
+        "Fuel amount must be greater than zero.",
+    ),
+    ("FILLUP_ODOMETER_REQUIRED", "Odometer reading is required."),
+    (
+        "FILLUP_INVALID_ODOMETER",
+        "Odometer reading must not be less than the previous reading.",
+    ),
+    ("FILLUP_COST_REQUIRED", "Cost is required."),
+    ("FILLUP_INVALID_COST", "Cost must not be negative."),
+    (
+        "FILLUP_INVALID_PAGE_LIMIT",
+        "Page limit must be an integer between 1 and 100.",
+    ),
+    ("FILLUP_INVALID_CURSOR", "Fill-up cursor is invalid."),
+    (
+        "SETTINGS_INVALID_COLOR_MODE",
+        "Invalid color mode. Must be light, dark, or system.",
+    ),
+    (
+        "SETTINGS_INVALID_UNIT_SYSTEM",
+        "Invalid unit system. Must be metric, imperial, or custom.",
+    ),
+    (
+        "SETTINGS_INVALID_DISTANCE_UNIT",
+        "Invalid distance unit. Must be km or mi.",
+    ),
+    (
+        "SETTINGS_INVALID_VOLUME_UNIT",
+        "Invalid volume unit. Must be l or gal.",
+    ),
+    ("SETTINGS_INVALID_CURRENCY", "Invalid currency."),
+    ("SETTINGS_INVALID_LOCALE", "Invalid locale."),
+    (
+        "STATS_INVALID_DATE_FILTER",
+        "Invalid date filter. Use YYYY-MM-DD format.",
+    ),
+    (
+        "IMPORT_VERSION_MISMATCH",
+        "Export version is incompatible with this server version.",
+    ),
+    (
+        "IMPORT_INVALID_MODE",
+        "Invalid import mode. Must be replace or merge.",
+    ),
+    (
+        "IMPORT_VALIDATION_ERROR",
+        "Import data contains invalid records.",
+    ),
+];
+
 /// Map an error code to a default human-readable message.
 ///
-/// Codes not listed here get a generic fallback. As the app grows, new codes
-/// are added to this match. Future i18n will replace this with translation
-/// lookups on the frontend.
+/// Codes not listed here get a generic fallback. The frontend localizes known
+/// codes and uses this message only as a fallback.
 fn default_message(code: &str) -> &'static str {
-    match code {
-        "AUTHENTICATION_REQUIRED" => "Authentication is required.",
-        "INTERNAL_ERROR" => "An unexpected error occurred.",
-        "INVALID_REQUEST_BODY" => "The request body is missing or malformed.",
-        "VEHICLE_NOT_FOUND" => "Vehicle not found.",
-        "VEHICLE_NAME_REQUIRED" => "Vehicle name is required.",
-        "VEHICLE_INVALID_FUEL_TYPE" => "Invalid fuel type.",
-        "VEHICLE_INVALID_YEAR" => "Invalid year.",
-        "VEHICLE_HAS_FILLUPS" => "Cannot delete vehicle with existing fill-ups.",
-        "FILLUP_NOT_FOUND" => "Fill-up not found.",
-        "FILLUP_DATE_REQUIRED" => "Fill-up date is required.",
-        "FILLUP_FUEL_AMOUNT_REQUIRED" => "Fuel amount is required.",
-        "FILLUP_INVALID_FUEL_AMOUNT" => "Fuel amount must be greater than zero.",
-        "FILLUP_ODOMETER_REQUIRED" => "Odometer reading is required.",
-        "FILLUP_INVALID_ODOMETER" => "Odometer reading must not be less than the previous reading.",
-        "FILLUP_COST_REQUIRED" => "Cost is required.",
-        "FILLUP_INVALID_COST" => "Cost must not be negative.",
-        "FILLUP_INVALID_PAGE_LIMIT" => "Page limit must be an integer between 1 and 100.",
-        "FILLUP_INVALID_CURSOR" => "Fill-up cursor is invalid.",
-        "SETTINGS_INVALID_COLOR_MODE" => "Invalid color mode. Must be light, dark, or system.",
-        "SETTINGS_INVALID_UNIT_SYSTEM" => {
-            "Invalid unit system. Must be metric, imperial, or custom."
+    for &(known_code, message) in ERROR_MESSAGES {
+        if known_code == code {
+            return message;
         }
-        "SETTINGS_INVALID_DISTANCE_UNIT" => "Invalid distance unit. Must be km or mi.",
-        "SETTINGS_INVALID_VOLUME_UNIT" => "Invalid volume unit. Must be l or gal.",
-        "SETTINGS_INVALID_CURRENCY" => "Invalid currency.",
-        "SETTINGS_INVALID_LOCALE" => "Invalid locale.",
-        "STATS_INVALID_DATE_FILTER" => "Invalid date filter. Use YYYY-MM-DD format.",
-        "IMPORT_VERSION_MISMATCH" => "Export version is incompatible with this server version.",
-        "IMPORT_INVALID_MODE" => "Invalid import mode. Must be replace or merge.",
-        "IMPORT_VALIDATION_ERROR" => "Import data contains invalid records.",
-        _ => "An error occurred.",
     }
+    "An error occurred."
 }
 
 /// Deserialize a nullable field for PATCH semantics.
@@ -200,5 +242,25 @@ mod tests {
     #[test]
     fn default_message_returns_fallback_for_unknown_code() {
         assert_eq!(default_message("SOME_UNKNOWN_CODE"), "An error occurred.");
+    }
+
+    #[test]
+    fn every_error_code_has_a_translation_in_each_locale() {
+        let locales = [
+            ("en", include_str!("../../ui/src/lib/i18n/en.json")),
+            ("de", include_str!("../../ui/src/lib/i18n/de.json")),
+        ];
+
+        for (locale, source) in locales {
+            let translations: serde_json::Value =
+                serde_json::from_str(source).expect("translation file should contain valid JSON");
+            for &(code, _) in ERROR_MESSAGES {
+                let key = format!("error.{code}");
+                assert!(
+                    translations.get(&key).is_some(),
+                    "{locale}.json is missing {key}"
+                );
+            }
+        }
     }
 }

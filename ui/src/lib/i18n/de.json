@@ -204,6 +204,8 @@
   "error.FILLUP_INVALID_ODOMETER": "Kilometerstand darf nicht kleiner als der vorherige Stand sein.",
   "error.FILLUP_COST_REQUIRED": "Kosten sind erforderlich.",
   "error.FILLUP_INVALID_COST": "Kosten dürfen nicht negativ sein.",
+  "error.FILLUP_INVALID_PAGE_LIMIT": "Das Seitenlimit muss eine ganze Zahl zwischen 1 und 100 sein.",
+  "error.FILLUP_INVALID_CURSOR": "Der Tankfüllungs-Cursor ist ungültig.",
   "error.SETTINGS_INVALID_COLOR_MODE": "Ungültiges Farbschema.",
   "error.SETTINGS_INVALID_UNIT_SYSTEM": "Ungültiges Einheitensystem.",
   "error.SETTINGS_INVALID_DISTANCE_UNIT": "Ungültige Entfernungseinheit.",

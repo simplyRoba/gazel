@@ -204,6 +204,8 @@
   "error.FILLUP_INVALID_ODOMETER": "Odometer reading must not be less than the previous reading.",
   "error.FILLUP_COST_REQUIRED": "Cost is required.",
   "error.FILLUP_INVALID_COST": "Cost must not be negative.",
+  "error.FILLUP_INVALID_PAGE_LIMIT": "Page limit must be an integer between 1 and 100.",
+  "error.FILLUP_INVALID_CURSOR": "Fill-up cursor is invalid.",
   "error.SETTINGS_INVALID_COLOR_MODE": "Invalid color mode.",
   "error.SETTINGS_INVALID_UNIT_SYSTEM": "Invalid unit system.",
   "error.SETTINGS_INVALID_DISTANCE_UNIT": "Invalid distance unit.",
