@@ -157,7 +157,7 @@ fn enabled_auth_config(provider_name: &str) -> Json<serde_json::Value> {
 }
 
 /// Access-log middleware. Logs every request at `debug` level with method,
-/// path, status code, and elapsed time.
+/// path, status code, and elapsed time in milliseconds.
 async fn access_log(req: Request<Body>, next: Next) -> Response {
     let method = req.method().clone();
     let path = req.uri().path().to_string();
@@ -166,8 +166,8 @@ async fn access_log(req: Request<Body>, next: Next) -> Response {
     let response = next.run(req).await;
 
     let status = response.status();
-    let duration = start.elapsed();
-    debug!("{method} {path} → {status} ({duration:.1?})");
+    let duration_ms = start.elapsed().as_secs_f64() * 1000.0;
+    debug!(%method, %path, %status, duration_ms, "HTTP request");
 
     response
 }
