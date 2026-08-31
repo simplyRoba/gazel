@@ -63,7 +63,7 @@ The navigation SHALL include a prominent call-to-action button for adding fill-u
 
 #### Scenario: Mobile CTA button
 - **WHEN** the viewport is 768px or less
-- **THEN** a raised circular accent-colored button SHALL appear in the center of the bottom tab bar between the Dashboard and Settings items
+- **THEN** a raised diamond-shaped accent-colored button with an upright plus icon SHALL appear in the center of the bottom tab bar between the Dashboard and Settings items
 - **AND** tapping it SHALL open the add fill-up flow
 
 #### Scenario: Tablet CTA button
