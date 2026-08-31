@@ -45,14 +45,15 @@ The application SHALL provide reusable SVG chart layer components under
 - **WHEN** a `Bar` component is placed inside a LayerCake `Svg` layout with a band scale
 - **THEN** it SHALL render SVG `<rect>` elements for each data point
 - **AND** the fill color SHALL default to `var(--color-accent)`
-- **AND** bars SHALL have rounded top corners (border-radius via `rx` attribute)
+- **AND** bars SHALL use square corners without an `rx` attribute
 
 #### Scenario: AxisX component
 
 - **WHEN** an `AxisX` component is placed inside a LayerCake `Svg` layout
 - **THEN** it SHALL render tick marks and labels along the bottom of the chart
 - **AND** tick labels for time scales SHALL format dates as abbreviated month + 2-digit year (e.g., "Jan 25")
-- **AND** grid lines SHALL use `var(--color-border-subtle)` with dashed stroke
+- **AND** continuous time scales SHALL render grid lines using `var(--color-border-subtle)` with dashed stroke
+- **AND** band scales SHALL render labels without vertical grid lines
 
 #### Scenario: AxisY component
 
