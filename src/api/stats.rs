@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::extract::{Path, Query, State};
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 
@@ -94,23 +95,16 @@ struct StatsSettings {
 
 // ── Validation ───────────────────────────────────────────
 
-/// Validate that a date string looks like an ISO date (YYYY-MM-DD).
+/// Validate that a date string is a real ISO calendar date (YYYY-MM-DD).
 ///
 /// # Errors
 ///
-/// Returns `ApiError::BadRequest` if the string is not a valid date format.
+/// Returns `ApiError::BadRequest` if the string is not a valid date.
 fn validate_date_filter(value: &str) -> Result<(), ApiError> {
-    // Accept YYYY-MM-DD format
-    if value.len() == 10
-        && value.as_bytes().get(4) == Some(&b'-')
-        && value.as_bytes().get(7) == Some(&b'-')
-        && value[0..4].chars().all(|c| c.is_ascii_digit())
-        && value[5..7].chars().all(|c| c.is_ascii_digit())
-        && value[8..10].chars().all(|c| c.is_ascii_digit())
-    {
-        return Ok(());
+    match NaiveDate::parse_from_str(value, "%Y-%m-%d") {
+        Ok(_) => Ok(()),
+        Err(_) => Err(ApiError::BadRequest("STATS_INVALID_DATE_FILTER")),
     }
-    Err(ApiError::BadRequest("STATS_INVALID_DATE_FILTER"))
 }
 
 // ── Unit conversion helpers ──────────────────────────────

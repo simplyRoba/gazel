@@ -372,6 +372,17 @@ async fn stats_invalid_date_filter_returns_400() {
 // ── Non-existent vehicle ─────────────────────────────────
 
 #[tokio::test]
+async fn stats_impossible_date_filter_returns_400() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let resp = get_stats_with_filter(&mut app, vid, "from=2025-02-30").await;
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "STATS_INVALID_DATE_FILTER");
+}
+
+#[tokio::test]
 async fn stats_nonexistent_vehicle_returns_404() {
     let app = common::test_app().await;
 
