@@ -65,7 +65,6 @@ impl fmt::Debug for LoginTransaction {
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 struct AuthenticatedSession {
-    subject: String,
     authenticated_at: i64,
     expires_at: i64,
 }
@@ -199,19 +198,19 @@ async fn callback(
         return failure_redirect(FailureCode::AuthenticationFailed, &transaction.return_to);
     };
 
-    let subject = match authentication
+    match authentication
         .runtime
         .exchange_and_verify(code, &transaction.nonce, transaction.pkce_verifier)
         .await
     {
-        Ok(subject) => subject,
+        Ok(_) => {}
         Err(ProtocolError::Authentication) => {
             return failure_redirect(FailureCode::AuthenticationFailed, &transaction.return_to);
         }
         Err(ProtocolError::ProviderUnavailable) => {
             return failure_redirect(FailureCode::ProviderUnavailable, &transaction.return_to);
         }
-    };
+    }
 
     let now = authentication.clock.now();
     let expires_at = now + AUTHENTICATED_TTL;
@@ -223,7 +222,6 @@ async fn callback(
         .insert(
             AUTHENTICATED_SESSION_KEY,
             AuthenticatedSession {
-                subject,
                 authenticated_at: now.unix_timestamp(),
                 expires_at: expires_at.unix_timestamp(),
             },
@@ -527,7 +525,6 @@ mod tests {
         let start = OffsetDateTime::UNIX_EPOCH;
         let expires_at = start + AUTHENTICATED_TTL;
         let record = AuthenticatedSession {
-            subject: String::from("subject"),
             authenticated_at: start.unix_timestamp(),
             expires_at: expires_at.unix_timestamp(),
         };
