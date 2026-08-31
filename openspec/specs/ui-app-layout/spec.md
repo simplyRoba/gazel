@@ -78,15 +78,11 @@ The navigation SHALL include a prominent call-to-action button for adding fill-u
 
 ### Requirement: Logo display
 
-The app logo SHALL be displayed in the sidebar on tablet and desktop viewports, and as a small mark in the page header on mobile.
+The app logo SHALL be displayed in the sidebar on tablet and desktop viewports.
 
 #### Scenario: Logo in sidebar
 - **WHEN** the viewport is 769px or greater
 - **THEN** the logo SHALL appear at the top of the sidebar above the CTA button
-
-#### Scenario: Logo on mobile
-- **WHEN** the viewport is 768px or less
-- **THEN** a small logo mark SHALL appear in the page header area
 
 ### Requirement: Content width tokens
 
