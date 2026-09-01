@@ -1,6 +1,6 @@
 ## Purpose
 
-Chart components and data utilities — LayerCake integration for SVG charting, reusable chart layer components (Line, Area, Bar, AxisX, AxisY), ChartCard and Tooltip wrappers, standalone Sparkline component, vehicle trend charts (efficiency, monthly cost, fuel price), pure data transformation functions for converting segment history to chart-ready shapes, and chart-specific layout patterns.
+Chart components and data utilities — LayerCake integration for SVG charting, reusable chart layer components (Line, Area, Bar, AxisX, AxisY), ChartCard and Tooltip wrappers, standalone summary-card sparklines, vehicle trend charts (monthly cost, monthly/yearly distance, fuel price), pure data transformation functions for converting segment history to chart-ready shapes, and chart-specific layout patterns.
 
 ## Requirements
 
@@ -127,22 +127,28 @@ minimal area+line chart as a background visual, without requiring LayerCake.
 - **WHEN** a `Sparkline` receives fewer than 2 data points
 - **THEN** it SHALL render an empty SVG (no paths)
 
-### Requirement: Efficiency trend chart
+### Requirement: Efficiency summary sparkline
 
-The dashboard SHALL display an efficiency trend line chart for the selected vehicle.
+The dashboard summary area SHALL display average efficiency in a compact card with a background sparkline.
 
-#### Scenario: Efficiency chart data
+#### Scenario: Efficiency summary data
 
-- **WHEN** the selected vehicle has valid segment history with at least 2 valid segments
-- **THEN** the efficiency chart SHALL display a line+area chart
-- **AND** the x-axis SHALL show segment end dates
-- **AND** the y-axis SHALL show efficiency values formatted with the user's unit system (e.g., "km/L" or "mpg")
+- **WHEN** loaded vehicle history contains valid efficiency segments
+- **THEN** the summary card SHALL display average efficiency formatted with the user's unit system
+- **AND** at least 2 valid segments SHALL render a `Sparkline` behind the value
+- **AND** segments where `is_valid` is `false` SHALL be excluded
+
+### Requirement: Distance trend chart
+
+The dashboard SHALL display a distance trend line-and-area chart for the selected vehicle.
+
+#### Scenario: Monthly and yearly distance
+
+- **WHEN** the selected vehicle has at least 2 history segments
+- **THEN** the distance chart SHALL allow switching between monthly and yearly totals
+- **AND** monthly mode SHALL display at most the latest 12 months
+- **AND** the y-axis and tooltip SHALL format values with the user's distance unit
 - **AND** the y-axis domain SHALL start at 0
-
-#### Scenario: Invalid segments excluded
-
-- **WHEN** segment history contains segments where `is_valid` is `false`
-- **THEN** those segments SHALL be excluded from the efficiency chart
 
 ### Requirement: Monthly cost trend chart
 
@@ -190,6 +196,12 @@ The application SHALL provide pure data transformation functions in
 - **THEN** it SHALL return an array of `{month: string, value: number}` objects
 - **AND** costs SHALL be summed per calendar month (YYYY-MM format)
 - **AND** the array SHALL be sorted chronologically
+
+#### Scenario: Monthly and yearly distance transformation
+
+- **WHEN** `toMonthlyDistanceData(segments)` or `toYearlyDistanceData(segments)` is called
+- **THEN** segment distance SHALL be distributed proportionally by calendar days across every month or year it spans
+- **AND** the returned totals SHALL be sorted chronologically
 
 #### Scenario: Fuel price data transformation
 

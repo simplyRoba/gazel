@@ -84,36 +84,37 @@ The stats store SHALL provide an invalidation mechanism so stats refresh after f
 
 ### Requirement: Fleet summary cards
 
-The dashboard SHALL display a row of summary cards showing aggregate metrics. For a single vehicle the cards show that vehicle's data; for multiple vehicles the cards aggregate across all vehicles. The cost-per-distance and fuel-price summary cards SHALL display sparkline background visuals.
+The dashboard SHALL display a row of summary cards showing aggregate metrics. For a single vehicle the cards show that vehicle's data; for multiple vehicles the cards aggregate across all vehicles. The average-efficiency and cost-per-distance summary cards SHALL display sparkline background visuals.
 
 #### Scenario: Summary cards displayed
 
 - **WHEN** the dashboard loads and at least one vehicle exists
-- **THEN** summary cards SHALL be displayed showing: total distance (formatted with `formatDistance`), total fill-ups count, cost per distance unit (formatted with `formatCurrency` and the user's distance_unit), and fuel price (total cost divided by total fuel, formatted with `formatCurrency` and the user's volume_unit)
+- **THEN** summary cards SHALL display total fill-ups, total spent, average efficiency, and cost per distance unit
+- **AND** monetary and efficiency values SHALL use the user's currency, unit, and locale settings
+
+#### Scenario: Sparkline on average-efficiency card
+
+- **WHEN** the average-efficiency summary card has at least 2 valid history segments
+- **THEN** a `Sparkline` component SHALL be rendered as a background visual behind the stat value
+- **AND** the sparkline data SHALL exclude invalid efficiency segments
+- **AND** the sparkline SHALL have low opacity so it does not compete with the stat text
 
 #### Scenario: Sparkline on cost-per-distance card
 
-- **WHEN** the cost-per-distance summary card is rendered and the selected vehicle has segment history
+- **WHEN** the cost-per-distance summary card has at least 2 history segments
 - **THEN** a `Sparkline` component SHALL be rendered as a background visual behind the stat value
-- **AND** the sparkline data SHALL be derived from the vehicle's segment history cost_per_distance values
-- **AND** the sparkline SHALL have low opacity so it does not compete with the stat text
-
-#### Scenario: Sparkline on fuel-price card
-
-- **WHEN** the fuel-price summary card is rendered and the selected vehicle has segment history
-- **THEN** a `Sparkline` component SHALL be rendered as a background visual behind the stat value
-- **AND** the sparkline data SHALL be derived from the vehicle's segment history fuel price values (cost / fuel)
+- **AND** the sparkline data SHALL be derived from the selected vehicle's segment history `cost_per_distance` values
 
 #### Scenario: Sparkline with insufficient data
 
 - **WHEN** a summary card with sparkline has fewer than 2 data points
 - **THEN** the sparkline SHALL NOT be rendered (card shows stat value only)
 
-#### Scenario: No distance or fuel data
+#### Scenario: No efficiency or distance data
 
-- **WHEN** all vehicles have zero fill-ups (total_distance and total_fuel are 0)
-- **THEN** the cost per distance and fuel price cards SHALL show a placeholder "—" instead of a number
-- **AND** no sparkline SHALL be rendered
+- **WHEN** the aggregate has no valid efficiency or cost-per-distance value
+- **THEN** the corresponding cards SHALL show a placeholder "—" instead of a number
+- **AND** no corresponding sparkline SHALL be rendered
 
 #### Scenario: Loading state
 
@@ -153,17 +154,17 @@ The summary cards SHALL use a responsive grid layout that adapts to screen width
 
 ### Requirement: Per-vehicle stats row
 
-The dashboard SHALL display per-vehicle stats below the chip row when multiple vehicles exist. The stats shown SHALL match the same 4 metrics as the summary cards, scoped to the selected vehicle.
+The dashboard SHALL display per-vehicle stats below the chip row when multiple vehicles exist. The stats shown SHALL match the same 4 metrics as the summary cards, scoped to the selected vehicle, without summary-card sparklines.
 
 #### Scenario: Stats shown for active vehicle
 
 - **WHEN** a vehicle chip is selected and that vehicle has stats loaded
-- **THEN** the dashboard SHALL display below the chip row: total distance, fill-ups count, cost per distance unit, and fuel price — all for the selected vehicle only
+- **THEN** the dashboard SHALL display below the chip row: fill-ups count, total spent, average efficiency, and cost per distance unit — all for the selected vehicle only
 
 #### Scenario: No data available
 
-- **WHEN** the selected vehicle has no distance or fuel data
-- **THEN** the cost per distance and fuel price displays SHALL show "—"
+- **WHEN** the selected vehicle has no valid efficiency or cost-per-distance data
+- **THEN** the average-efficiency and cost-per-distance displays SHALL show "—"
 
 #### Scenario: Stats loading
 
@@ -235,7 +236,7 @@ The charts panel SHALL display three trend charts for the currently selected veh
 #### Scenario: Charts displayed
 
 - **WHEN** a vehicle is selected (via chip or single-vehicle mode) and it has segment history
-- **THEN** the charts panel SHALL display: efficiency trend chart, monthly cost chart, and fuel price trend chart — stacked vertically
+- **THEN** the charts panel SHALL display: monthly cost chart, monthly/yearly distance chart, and fuel price trend chart — stacked vertically
 
 #### Scenario: Vehicle selection changes chart data
 
