@@ -101,7 +101,8 @@ details on hover.
 #### Scenario: Tooltip positioning
 
 - **WHEN** the tooltip is displayed
-- **THEN** it SHALL position itself near the hovered point without overflowing the chart bounds
+- **THEN** its value and date text SHALL remain pinned to the chart's top-right corner
+- **AND** the vertical indicator line and highlight dot SHALL identify the selected point
 
 #### Scenario: Tooltip dismiss
 
