@@ -75,6 +75,7 @@
   y="value"
   xScale={bandScale}
   yDomain={[0, null]}
+  minimumDataPoints={1}
 >
   {#snippet actions()}
     <div class="segmented segmented-sm">

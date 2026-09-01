@@ -14,6 +14,7 @@
     yDomain = undefined,
     padding = { top: 10, right: 10, bottom: 30, left: 52 },
     height = 180,
+    minimumDataPoints = 2,
     actions,
     children,
   }: {
@@ -29,12 +30,13 @@
     yDomain?: [number | null, number | null];
     padding?: { top?: number; right?: number; bottom?: number; left?: number };
     height?: number;
+    minimumDataPoints?: number;
     actions?: Snippet;
     children: Snippet;
   } = $props();
   /* eslint-enable @typescript-eslint/no-explicit-any */
 
-  const hasEnoughData = $derived(data.length >= 2);
+  const hasEnoughData = $derived(data.length >= minimumDataPoints);
 </script>
 
 <div class="card chart-card">
