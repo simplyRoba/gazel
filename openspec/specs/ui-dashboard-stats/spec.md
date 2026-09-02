@@ -137,20 +137,20 @@ The dashboard SHALL display a row of summary cards showing aggregate metrics. Fo
 
 The summary cards SHALL use a responsive grid layout that adapts to screen width, with compact sizing suitable for mobile.
 
-#### Scenario: Wide viewport
+#### Scenario: Viewport at least 640 pixels wide
 
-- **WHEN** the viewport is wide enough (desktop)
-- **THEN** summary cards SHALL display in a single row
+- **WHEN** the viewport width is at least 640 pixels
+- **THEN** the four summary cards SHALL display in four equal-width columns
 
-#### Scenario: Narrow viewport
+#### Scenario: Viewport below 640 pixels wide
 
-- **WHEN** the viewport is narrow (mobile)
-- **THEN** summary cards SHALL reflow into fewer columns (2x2 or single column)
+- **WHEN** the viewport width is below 640 pixels
+- **THEN** the summary cards SHALL display in two equal-width columns
 
 #### Scenario: Grid sizing
 
 - **WHEN** the summary card grid is rendered
-- **THEN** each card SHALL have a minimum width of approximately 140px and expand to fill available space
+- **THEN** its equal-width columns SHALL expand to fill the available row width
 
 ### Requirement: Per-vehicle stats row
 
