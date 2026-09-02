@@ -181,5 +181,21 @@ describe("stats store", () => {
       await store.loadStats(10);
       expect(store.getError()).toBeNull();
     });
+
+    it("clears previous error on invalidateStats", async () => {
+      vi.mocked(api.fetchVehicleStats).mockRejectedValue(
+        new ApiError(500, "INTERNAL_ERROR", "First error"),
+      );
+      vi.mocked(api.fetchVehicleStatsHistory).mockRejectedValue(
+        new ApiError(500, "INTERNAL_ERROR", "First error"),
+      );
+      await store.loadStats(10);
+      expect(store.getError()).toBe("First error");
+
+      vi.mocked(api.fetchVehicleStats).mockResolvedValue(mockStats);
+      vi.mocked(api.fetchVehicleStatsHistory).mockResolvedValue(mockHistory);
+      await store.invalidateStats(10);
+      expect(store.getError()).toBeNull();
+    });
   });
 });
