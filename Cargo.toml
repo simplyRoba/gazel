@@ -16,7 +16,7 @@ module_name_repetitions = "allow"
 
 [dependencies]
 axum = "0.8"
-base64 = "0.22"
+base64 = "0.23"
 chrono = "0.4"
 getrandom = "0.4"
 mime_guess = "2"
