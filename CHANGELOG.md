@@ -1,5 +1,32 @@
 # Changelog
 
+## [1.4.2](https://github.com/simplyRoba/gazel/compare/v1.4.1...v1.4.2) (2026-09-02)
+
+
+### Bug Fixes
+
+* **charts:** render single-period cost bars ([ec493f1](https://github.com/simplyRoba/gazel/commit/ec493f19fd5da9dfec674aaa84cb8811cb0cf8aa))
+* **stats:** clear stale errors on refresh ([5e5999a](https://github.com/simplyRoba/gazel/commit/5e5999a914a40aba1f70fc8c57dbd51abffcacd4))
+
+
+### Documentation
+
+* **charts:** clarify fuel price axis units ([756e298](https://github.com/simplyRoba/gazel/commit/756e29847bf3a79161e501fbe8d907da69ccf24e))
+* **charts:** define fixed tooltip position ([26637a9](https://github.com/simplyRoba/gazel/commit/26637a96fc9c87bf832464a888cabafde3bb83c3))
+* **dashboard:** align metrics and chart layout ([c34de1e](https://github.com/simplyRoba/gazel/commit/c34de1ed6e3fe55073473c9182db9a93debb3d64))
+* **dashboard:** define summary grid breakpoints ([b45efcc](https://github.com/simplyRoba/gazel/commit/b45efcce25535ecf4e56b21c435279ebd457e95d))
+* specify dependency update policy ([e436f52](https://github.com/simplyRoba/gazel/commit/e436f52a57360a10b35777aeefbcf168999ca85d))
+
+
+### Dependencies
+
+* bump @humanfs/node from 0.16.7 to 0.16.8 in /ui ([c896c30](https://github.com/simplyRoba/gazel/commit/c896c306459f1a6749b06fec4f80d04d2fc01503))
+* bump base64 from 0.22.1 to 0.23.1 ([e65522a](https://github.com/simplyRoba/gazel/commit/e65522a5e9ace4748ec4a3c2d82ac63605a1a400))
+* bump postcss-selector-parser from 7.1.1 to 7.1.5 in /ui ([e5b9c1f](https://github.com/simplyRoba/gazel/commit/e5b9c1f4f115b904e8e26b07e70b1b60d548fe30))
+* bump svelte in /ui in the svelte group across 1 directory ([05dab89](https://github.com/simplyRoba/gazel/commit/05dab893ff2b4d9214ac584b9dcd34f418750475))
+* bump the eslint group across 1 directory with 2 updates ([972c849](https://github.com/simplyRoba/gazel/commit/972c849e5d350d7a61fd9b7bacbd8f2622995172))
+* bump uuid from 1.25.0 to 1.26.0 ([7287e4f](https://github.com/simplyRoba/gazel/commit/7287e4f85c4a7f0a7d1cf667fe3b20780b226f52))
+
 ## [1.4.1](https://github.com/simplyRoba/gazel/compare/v1.4.0...v1.4.1) (2026-08-31)
 
 
