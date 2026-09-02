@@ -175,7 +175,9 @@ The dashboard SHALL display a fuel price trend line chart for the selected vehic
 
 - **WHEN** the selected vehicle has segment history with at least 2 segments
 - **THEN** the fuel price chart SHALL display a line chart
-- **AND** the y-axis SHALL show cost per volume unit (e.g., "$/L" or "$/gal")
+- **AND** the chart title SHALL identify the currency and volume unit (e.g., "USD/L")
+- **AND** y-axis ticks SHALL show currency values without repeating the volume-unit suffix
+- **AND** tooltip values SHALL include the volume-unit suffix
 - **AND** the x-axis SHALL show segment end dates
 
 ### Requirement: Data transformation utilities
