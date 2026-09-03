@@ -196,10 +196,12 @@ async function continueFillups(
   }
 
   const { generation, nextCursor: cursor } = chain;
+  error = null;
   setChain(vehicleId, {
     ...chain,
     loadingMore: true,
     continuationError: null,
+    error: null,
   });
 
   try {

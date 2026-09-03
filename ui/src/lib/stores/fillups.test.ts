@@ -222,6 +222,24 @@ describe("fillup store pagination", () => {
     expect(api.fetchFillups).toHaveBeenCalledTimes(3);
   });
 
+  it("clears a previous action error before loading a continuation", async () => {
+    const continuation = deferred<FillupPage>();
+    vi.mocked(api.fetchFillups)
+      .mockResolvedValueOnce(page([fillup(2)], "cursor-1"))
+      .mockReturnValueOnce(continuation.promise);
+    await store.setActiveVehicle(10);
+
+    vi.mocked(api.deleteFillup).mockRejectedValueOnce(new Error("delete"));
+    await store.deleteFillup(10, 2);
+    expect(store.getError()).toBe("Failed to delete fill-up");
+
+    const loadMore = store.loadMoreFillups();
+    expect(store.getError()).toBeNull();
+
+    continuation.resolve(page([fillup(1)], null));
+    await loadMore;
+  });
+
   it("keeps failed continuation entries and retries the unchanged cursor", async () => {
     vi.mocked(api.fetchFillups)
       .mockResolvedValueOnce(page([fillup(2)], "retry-cursor"))
