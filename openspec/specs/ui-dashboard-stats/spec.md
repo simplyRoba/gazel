@@ -187,45 +187,37 @@ Every stats store action SHALL clear the previous error before making an API cal
 
 ### Requirement: Dashboard two-column layout
 
-On desktop and tablet viewports (>768px), the dashboard content area SHALL use a
-two-column layout with charts on one side and the fill-up list on the other.
+On viewports at least 960px wide, the dashboard content area SHALL use a two-column layout with charts on one side and the fill-up list on the other.
 
-#### Scenario: Desktop/tablet layout
+#### Scenario: Desktop layout
 
-- **WHEN** the viewport width is greater than 768px
+- **WHEN** the viewport width is at least 960px
 - **THEN** the dashboard below the summary cards and chips/stats rows SHALL display as a two-column CSS Grid
-- **AND** the left column SHALL contain the charts panel
-- **AND** the right column SHALL contain the fill-up list
-- **AND** the charts panel SHALL be sticky (position: sticky) so it remains visible while scrolling
-- **AND** only the fill-up list column SHALL scroll
+- **AND** the flexible-width left column SHALL contain the charts panel
+- **AND** the right fill-up-list column SHALL be capped at 420px
+- **AND** each column SHALL scroll independently when its content exceeds the available height
+- **AND** scrolling the fill-up list SHALL NOT move the charts column
 
-#### Scenario: Column proportions
+### Requirement: Dashboard compact layout
 
-- **WHEN** the two-column layout is active
-- **THEN** the charts panel SHALL occupy approximately 40% of the width
-- **AND** the fill-up list SHALL occupy approximately 60% of the width
+On viewports below 960px, charts SHALL render as a horizontal carousel above the fill-up list.
 
-### Requirement: Dashboard mobile layout
+#### Scenario: Compact chart carousel
 
-On mobile viewports (<=768px), charts SHALL render as a horizontal carousel above
-the fill-up list.
-
-#### Scenario: Mobile chart carousel
-
-- **WHEN** the viewport width is 768px or less
+- **WHEN** the viewport width is below 960px
 - **THEN** charts SHALL be displayed as horizontally swipeable cards using CSS scroll-snap
 - **AND** each chart card SHALL be full-width within the carousel
 - **AND** scroll-snap-type SHALL be set to `x mandatory` for crisp snapping
 
 #### Scenario: Carousel pagination indicator
 
-- **WHEN** the chart carousel is displayed on mobile
+- **WHEN** the chart carousel is displayed in the compact layout
 - **THEN** dot indicators SHALL be shown below the carousel indicating the current chart
 - **AND** the active dot SHALL be visually distinct (e.g., accent color)
 
 #### Scenario: Fill-up list below carousel
 
-- **WHEN** the mobile layout is active
+- **WHEN** the compact layout is active
 - **THEN** the fill-up list SHALL appear below the chart carousel
 - **AND** the fill-up list SHALL scroll normally with the page
 
