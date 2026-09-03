@@ -235,7 +235,8 @@ The charts panel SHALL display three trend charts for the currently selected veh
 - **WHEN** the user selects a different vehicle via the chip row
 - **THEN** the charts panel SHALL update to show charts for the newly selected vehicle
 
-#### Scenario: No chart data
+#### Scenario: Insufficient chart data
 
-- **WHEN** the selected vehicle has no segment history or fewer than 2 data points
-- **THEN** the charts panel SHALL display an empty state indicating more fill-ups are needed
+- **WHEN** the selected vehicle has fewer than 2 history segments
+- **THEN** the chart carousel and chart column SHALL NOT be rendered
+- **AND** the fill-up list SHALL use the available content width
