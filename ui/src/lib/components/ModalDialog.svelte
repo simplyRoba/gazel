@@ -8,7 +8,7 @@
     mode = "confirm",
     variant = "warning",
     loading = false,
-    confirmLabel = t("common.confirm"),
+    confirmLabel,
     onconfirm,
     oncancel,
     onclose,
@@ -24,6 +24,8 @@
     oncancel?: () => void;
     onclose?: () => void;
   } = $props();
+
+  const displayedConfirmLabel = $derived(confirmLabel ?? t("common.confirm"));
 
   let dialogEl: HTMLDialogElement | undefined = $state();
 
@@ -84,7 +86,7 @@
           disabled={loading}
           onclick={onconfirm}
         >
-          {loading ? t("common.saving") : confirmLabel}
+          {loading ? t("common.saving") : displayedConfirmLabel}
         </button>
       {:else}
         <button
