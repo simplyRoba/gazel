@@ -21,6 +21,7 @@ const statsStore = vi.hoisted(() => ({
   loadAllStats: vi.fn(),
   invalidateStats: vi.fn(),
 }));
+const settingsStore = vi.hoisted(() => ({ locale: "en" }));
 
 vi.mock("$lib/api", async (importOriginal) => ({
   ...(await importOriginal<typeof import("$lib/api")>()),
@@ -48,7 +49,7 @@ vi.mock("$lib/stores/settings.svelte", () => ({
     volume_unit: "l",
     currency: "USD",
     color_mode: "system",
-    locale: "en",
+    locale: settingsStore.locale,
   }),
 }));
 
@@ -151,6 +152,7 @@ beforeEach(() => {
   fillupStore.clearCache();
   vehicleStore.vehicles = [vehicle(1, "First"), vehicle(2, "Second")];
   vehicleStore.loading = false;
+  settingsStore.locale = "en";
   observers = [];
   desktopMatches = false;
   mediaListeners = new Set();
@@ -226,6 +228,15 @@ describe("dashboard loading state", () => {
       container.querySelectorAll(".fillup-list .skeleton-fillup"),
     ).toHaveLength(3);
     expect(container.querySelector(".chip-skeleton")).toBeNull();
+  });
+});
+
+describe("dashboard fill-up cards", () => {
+  it("formats absolute odometers with the selected locale and no unit", async () => {
+    settingsStore.locale = "de-DE";
+    const { container } = await renderPageWithCursor({ nextCursor: null });
+
+    expect(container.querySelector(".fillup-abs")?.textContent).toBe("10.002");
   });
 });
 

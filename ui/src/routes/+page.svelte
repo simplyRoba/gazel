@@ -617,7 +617,7 @@
                         )}{:else}&mdash;{/if}</span
                     >
                     <span class="fillup-abs mono"
-                      >{fillup.odometer.toLocaleString()}</span
+                      >{fillup.odometer.toLocaleString(settings.locale)}</span
                     >
                   </span>
                 </div>

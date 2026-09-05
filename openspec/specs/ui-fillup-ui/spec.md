@@ -238,7 +238,10 @@ The dashboard SHALL display fill-up cards for the selected vehicle below the chi
 #### Scenario: Fill-ups displayed as cards
 
 - **WHEN** the selected vehicle has fill-ups
-- **THEN** each fill-up SHALL be rendered as a card showing: date, odometer reading (formatted per settings), fuel amount (formatted per settings), cost (formatted per settings)
+- **THEN** each fill-up SHALL be rendered as a card showing: date, absolute odometer reading, fuel amount, and cost
+- **AND** the absolute odometer SHALL use the selected locale's number formatting without a unit suffix
+- **AND** the adjacent odometer difference SHALL use `formatDistance` with the selected locale and distance unit
+- **AND** date, fuel amount, and cost SHALL be formatted with the corresponding locale, unit, and currency settings
 - **AND** cards SHALL be sorted by date descending (most recent first)
 
 #### Scenario: Optional fields on cards
