@@ -8,9 +8,9 @@ Defines the global settings store, settings page UI, navigation, and app-level h
 
 The app SHALL maintain a global settings store (`settings.svelte.ts`) using Svelte 5 runes that holds the current user preferences and exposes them reactively.
 
-#### Scenario: Store initialization on app load
+#### Scenario: Store initialization on protected app load
 
-- **WHEN** the app loads and the root layout mounts
+- **WHEN** the protected app shell mounts
 - **THEN** the settings store SHALL call `GET /api/settings`
 - **AND** populate all preference fields from the server response
 - **AND** expose the settings reactively via `getSettings()`
@@ -103,13 +103,19 @@ The settings page SHALL be accessible from the app's main navigation.
 
 ### Requirement: Settings hydration on app init
 
-The root layout SHALL fetch settings once on initial load and seed the global store before child routes render.
+The root layout SHALL initialize settings once when the protected app shell mounts without blocking child-route rendering. Child components SHALL initially receive safe client-side defaults and update reactively when backend settings arrive.
 
-#### Scenario: Settings available before first route renders
+#### Scenario: Initial protected route render
 
-- **WHEN** the app starts
-- **THEN** the root layout SHALL call `initSettings()` during mount
-- **AND** child components SHALL be able to read settings reactively from the store
+- **WHEN** a protected route renders while settings initialization is pending
+- **THEN** child components SHALL remain available using the client-side defaults
+- **AND** the root layout SHALL call `initSettings()` during mount
+
+#### Scenario: Backend settings arrive
+
+- **WHEN** settings initialization succeeds
+- **THEN** the global store SHALL replace the defaults with the backend preferences
+- **AND** child components SHALL reactively update without a page reload
 
 ### Requirement: Data section on settings page
 
