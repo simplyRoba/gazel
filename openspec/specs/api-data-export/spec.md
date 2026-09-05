@@ -7,7 +7,7 @@ Defines the data export API endpoints for exporting vehicles and fill-ups as por
 ### Requirement: Export JSON schema
 
 The export document SHALL be a JSON object with the following top-level fields:
-- `version` (string): The application version (`CARGO_PKG_VERSION`) at build time.
+- `version` (string): The running application version.
 - `exported_at` (string): ISO 8601 / RFC 3339 UTC timestamp of when the export was generated.
 - `vehicles` (array): Array of vehicle objects, each embedding its fill-ups.
 

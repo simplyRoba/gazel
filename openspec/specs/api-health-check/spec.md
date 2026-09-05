@@ -12,7 +12,7 @@ The `GET /health` endpoint SHALL verify database connectivity and return the app
 - **WHEN** a `GET /health` request is received
 - **AND** the database is reachable
 - **THEN** the response status SHALL be `200 OK`
-- **AND** the response body SHALL be JSON with `{ "status": "ok", "version": "<cargo package version>" }`
+- **AND** the response body SHALL be JSON with `{ "status": "ok", "version": "<running application version>" }`
 
 #### Scenario: Database unreachable
 - **WHEN** a `GET /health` request is received
