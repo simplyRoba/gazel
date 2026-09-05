@@ -1,24 +1,28 @@
 ## Purpose
 
-Defines the backend API for reading and updating application-wide settings stored as a singleton row in the database.
+Defines the backend API for reading and updating persistent application-wide settings.
 
 ## Requirements
 
-### Requirement: Settings table with singleton row
+### Requirement: Persistent application-wide settings
 
-The database SHALL contain a `settings` table with exactly one row (`id = 1`), enforced by a `CHECK (id = 1)` constraint. The migration SHALL seed the row with default values.
+The application SHALL maintain one settings set shared across the application. A fresh installation SHALL use defined default values, and successful updates SHALL persist for future reads.
 
-#### Scenario: Fresh database after migration
+#### Scenario: Fresh installation defaults
 
-- **WHEN** the migration runs on a new database
-- **THEN** the `settings` table SHALL exist with columns: `id`, `unit_system`, `distance_unit`, `volume_unit`, `currency`, `color_mode`, `locale`
-- **AND** exactly one row SHALL exist with `id = 1`
-- **AND** default values SHALL be: `unit_system = 'metric'`, `distance_unit = 'km'`, `volume_unit = 'l'`, `currency = 'USD'`, `color_mode = 'system'`, `locale = 'en'`
+- **WHEN** settings are read on a fresh installation
+- **THEN** `unit_system` SHALL be `"metric"`
+- **AND** `distance_unit` SHALL be `"km"`
+- **AND** `volume_unit` SHALL be `"l"`
+- **AND** `currency` SHALL be `"USD"`
+- **AND** `color_mode` SHALL be `"system"`
+- **AND** `locale` SHALL be `"en"`
 
-#### Scenario: Singleton constraint prevents additional rows
+#### Scenario: Updated settings persist
 
-- **WHEN** an attempt is made to insert a second row into the `settings` table
-- **THEN** the database SHALL reject the insert with a constraint violation
+- **WHEN** a settings update succeeds
+- **AND** settings are read again later
+- **THEN** the updated values SHALL be returned
 
 ### Requirement: Read settings endpoint
 
