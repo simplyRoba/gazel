@@ -177,6 +177,11 @@ The root layout SHALL register touch event handlers on the window to implement t
 - **WHEN** a `touchstart` or `touchmove` event fires with more than one touch point
 - **THEN** the gesture SHALL be rejected or reset
 
+#### Scenario: Scrolled descendant rejection
+- **WHEN** a `touchstart` or `touchmove` originates inside an element whose target or ancestor has `scrollTop > 0`
+- **THEN** the pull-to-refresh gesture SHALL be rejected or reset
+- **AND** reaching the top during a rejected touch sequence SHALL NOT arm refresh until a new single-touch gesture starts
+
 #### Scenario: Touchmove tracks pull distance
 - **WHEN** a `touchmove` event fires during an active gesture
 - **THEN** the raw pull distance SHALL be calculated as `currentY - startY`

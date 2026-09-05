@@ -3,5 +3,7 @@
 </script>
 
 <Layout>
-  <p>Public login content</p>
+  <div data-testid="fixture-scroll-container">
+    <p>Public login content</p>
+  </div>
 </Layout>

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/svelte";
+import { cleanup, fireEvent, render, screen } from "@testing-library/svelte";
 import { SvelteURL } from "svelte/reactivity";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,18 @@ const storeSpies = vi.hoisted(() => ({
   initSettings: vi.fn(() => Promise.resolve()),
   loadVehicles: vi.fn(() => Promise.resolve()),
 }));
+
+function buildTouchEvent(
+  type: string,
+  yPositions: number[],
+  cancelable = false,
+): TouchEvent {
+  const event = new Event(type, { bubbles: true, cancelable }) as TouchEvent;
+  Object.defineProperty(event, "touches", {
+    value: yPositions.map((clientY) => ({ clientY })),
+  });
+  return event;
+}
 
 vi.stubGlobal("fetch", mockFetch);
 
@@ -117,5 +129,69 @@ describe("root layout public login branch", () => {
     expect(unhandledRejections).toEqual([]);
 
     window.removeEventListener("unhandledrejection", handleUnhandledRejection);
+  });
+
+  it("resets an active pull when a second touch starts", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches:
+          query === "(display-mode: standalone)" ||
+          query === "(pointer: coarse)",
+      })),
+    );
+    pageState.url = new SvelteURL("http://localhost/");
+
+    const { container } = render(LoginLayoutFixture);
+    await tick();
+    await tick();
+
+    await fireEvent(window, buildTouchEvent("touchstart", [100]));
+    await fireEvent(window, buildTouchEvent("touchmove", [160], true));
+    expect(container.querySelector(".pull-indicator")?.classList).toContain(
+      "visible",
+    );
+
+    await fireEvent(window, buildTouchEvent("touchstart", [160, 200]));
+    expect(container.querySelector(".pull-indicator")?.classList).not.toContain(
+      "visible",
+    );
+  });
+
+  it("requires touched scroll containers to be at the top", async () => {
+    vi.stubGlobal(
+      "matchMedia",
+      vi.fn((query: string) => ({
+        matches:
+          query === "(display-mode: standalone)" ||
+          query === "(pointer: coarse)",
+      })),
+    );
+    pageState.url = new SvelteURL("http://localhost/");
+
+    const { container } = render(LoginLayoutFixture);
+    await tick();
+    await tick();
+
+    const scrollContainer = screen.getByTestId("fixture-scroll-container");
+    const touchTarget = scrollContainer.querySelector("p")!;
+    const indicator = container.querySelector(".pull-indicator")!;
+
+    scrollContainer.scrollTop = 120;
+    await fireEvent(touchTarget, buildTouchEvent("touchstart", [100]));
+    await fireEvent(touchTarget, buildTouchEvent("touchmove", [160], true));
+    expect(indicator.classList).not.toContain("visible");
+
+    scrollContainer.scrollTop = 0;
+    await fireEvent(touchTarget, buildTouchEvent("touchmove", [170], true));
+    expect(indicator.classList).not.toContain("visible");
+
+    await fireEvent(touchTarget, buildTouchEvent("touchstart", [100]));
+    await fireEvent(touchTarget, buildTouchEvent("touchmove", [160], true));
+    expect(indicator.classList).toContain("visible");
+
+    scrollContainer.scrollTop = 10;
+    await fireEvent(touchTarget, buildTouchEvent("touchmove", [170], true));
+    expect(indicator.classList).not.toContain("visible");
   });
 });

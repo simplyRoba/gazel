@@ -148,15 +148,31 @@
     pullIndicatorState = "idle";
   }
 
+  function getPullScrollTop(target: EventTarget | null): number {
+    let scrollTop = Math.max(
+      window.scrollY,
+      document.documentElement.scrollTop,
+      document.body.scrollTop,
+    );
+    let element = target instanceof Element ? target : null;
+    while (element) {
+      scrollTop = Math.max(scrollTop, element.scrollTop);
+      element = element.parentElement;
+    }
+    return scrollTop;
+  }
+
   function handleTouchStart(e: TouchEvent): void {
-    if (e.touches.length !== 1) return;
+    if (e.touches.length !== 1) {
+      resetPullGesture();
+      return;
+    }
     if (
       !canStartPullToRefresh({
         standalone: canUsePullToRefresh,
         touchCapable: true,
         pathname: page.url.pathname,
-        scrollTop:
-          document.documentElement.scrollTop || document.body.scrollTop,
+        scrollTop: getPullScrollTop(e.target),
         overlayOpen: hasBlockingPullToRefreshOverlay(document),
       })
     )
@@ -177,7 +193,11 @@
 
   function handleTouchMove(e: TouchEvent): void {
     if (!gestureActive || touchStartY === null) return;
-    if (e.touches.length !== 1 || hasBlockingPullToRefreshOverlay(document)) {
+    if (
+      e.touches.length !== 1 ||
+      getPullScrollTop(e.target) > 0 ||
+      hasBlockingPullToRefreshOverlay(document)
+    ) {
       resetPullGesture();
       return;
     }
