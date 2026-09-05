@@ -313,7 +313,7 @@ Gazel SHALL accept any identity whose OIDC authentication validates and SHALL NO
 #### Scenario: No local identity management
 - **WHEN** built-in authentication is enabled
 - **THEN** Gazel SHALL NOT expose registration or password flows
-- **AND** SHALL NOT require a users or accounts table
+- **AND** SHALL NOT provision or persist local user or account records
 - **AND** SHALL NOT evaluate roles, groups, permissions, or other claims for authorization
 
 ### Requirement: External URLs and provider HTTP behavior are explicit
