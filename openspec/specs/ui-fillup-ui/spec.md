@@ -280,13 +280,20 @@ The dashboard SHALL display fill-up cards for the selected vehicle below the chi
 
 ### Requirement: Numeric input guarding and normalization
 
-Numeric fill-up inputs (odometer, fuel amount, price per unit, cost) SHALL guard against invalid characters during typing and normalize their displayed value on blur, using the user's locale. (Parsing of `.`/`,` decimals is specified under unit-formatting `parseDecimal`.)
+Numeric fill-up inputs (odometer, fuel amount, price per unit, cost) SHALL guard keyboard entry against invalid characters while allowing pasted or dropped formatted values, then normalize parseable content on blur using the user's locale. (Parsing of `.`/`,` decimals is specified under unit-formatting `parseDecimal`.)
 
-#### Scenario: Keypress guarding
+#### Scenario: Keyboard-entry guarding
 
 - **WHEN** a user types into a numeric fill-up input
 - **THEN** only characters that can form a valid number SHALL be accepted (digits, a single decimal separator, and a leading sign where applicable)
-- **AND** other characters SHALL be rejected so the field can never hold non-numeric garbage
+- **AND** other typed characters SHALL be rejected
+
+#### Scenario: Pasted or dropped values
+
+- **WHEN** content is pasted or dropped into a numeric input
+- **THEN** it SHALL be accepted so values containing grouping separators, currency symbols, or unit labels can be parsed
+- **AND** parseable content SHALL be normalized on blur
+- **AND** unparseable content SHALL remain available for correction and SHALL be rejected by form validation
 
 #### Scenario: On-blur normalization
 
