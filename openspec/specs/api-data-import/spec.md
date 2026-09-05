@@ -63,7 +63,6 @@ The import endpoint SHALL validate that the export document's version is compati
 - **WHEN** the export document does not contain a `version` field
 - **THEN** the response status SHALL be `400`
 - **AND** the response body SHALL contain `{ "code": "INVALID_REQUEST_BODY", "message": "..." }`
-- **NOTE** The `version` field is structurally required; a missing field is a deserialization error handled by the standard JSON body extractor
 
 ### Requirement: Import validation
 
@@ -75,7 +74,7 @@ The import endpoint SHALL validate all records before committing any changes.
 - **THEN** the response status SHALL be `400`
 - **AND** the response body SHALL contain `{ "code": "INVALID_REQUEST_BODY", "message": "..." }`
 - **AND** no data SHALL be modified
-- **NOTE** The `name` field is structurally required; a missing field is a schema deserialization error, while an empty `name` is an import validation error
+- **NOTE** A missing `name` violates the required document schema, while an empty `name` is an import validation error
 
 #### Scenario: Fill-up with invalid data
 
@@ -89,22 +88,20 @@ The import endpoint SHALL validate all records before committing any changes.
 - **WHEN** the request body is not valid JSON or does not match the export schema
 - **THEN** the response status SHALL be `400`
 - **AND** the response body SHALL contain `{ "code": "INVALID_REQUEST_BODY", "message": "..." }`
-- **NOTE** Consistent with all other endpoints -- the standard `JsonBody` extractor handles deserialization errors
 
 ### Requirement: Import atomicity
 
-All database changes during import SHALL occur within a single transaction.
+An import SHALL either apply all changes successfully or leave persisted data in its pre-import state.
 
-#### Scenario: Validation failure rolls back
+#### Scenario: Validation failure leaves data unchanged
 
-- **WHEN** import validation fails partway through processing
-- **THEN** the transaction SHALL be rolled back
-- **AND** the database SHALL remain in its pre-import state
+- **WHEN** any imported record fails validation
+- **THEN** persisted data SHALL remain in its pre-import state
 
-#### Scenario: Database error during insert rolls back
+#### Scenario: Persistence failure leaves data unchanged
 
-- **WHEN** a database error occurs while inserting imported records
-- **THEN** the transaction SHALL be rolled back
+- **WHEN** an error occurs while persisting imported records
+- **THEN** persisted data SHALL remain in its pre-import state
 - **AND** the response status SHALL be `500`
 - **AND** the response body SHALL follow the standard error shape
 
