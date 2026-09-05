@@ -162,7 +162,9 @@ The settings page SHALL provide an import flow with file selection, preview, and
 - **WHEN** the user reviews the preview and clicks "Confirm import"
 - **THEN** the UI SHALL send `POST /api/import` with the same file contents and selected mode
 - **AND** show a success notification with the import summary
-- **AND** refresh the vehicle and fill-up stores
+- **AND** clear the fill-up and stats caches
+- **AND** trigger a vehicle-store reload
+- **AND** fresh fill-ups and stats SHALL be loaded through normal vehicle activation when the dashboard becomes active
 
 #### Scenario: User cancels import
 
