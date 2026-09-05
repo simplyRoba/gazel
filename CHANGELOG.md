@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.4.4](https://github.com/simplyRoba/gazel/compare/v1.4.3...v1.4.4) (2026-09-05)
+
+
+### Documentation
+
+* **api:** decouple version source from Cargo ([2757d87](https://github.com/simplyRoba/gazel/commit/2757d8780093ebbd1a91f51b1bba6dfb480c981f))
+* **api:** specify error behavior ([429c415](https://github.com/simplyRoba/gazel/commit/429c41580d175eff812456e9dce4f5b8145b8bdf))
+* **auth:** clarify local identity guarantee ([7dd7769](https://github.com/simplyRoba/gazel/commit/7dd77691833995f7693a15dc62f036fe80d41871))
+* **auth:** specify JWKS refresh behavior ([56af2f0](https://github.com/simplyRoba/gazel/commit/56af2f01a7891e86de33484236a87bb1ea312438))
+* **charts:** specify visible behavior ([784752b](https://github.com/simplyRoba/gazel/commit/784752bcc16f8163b055b2978fed03d033b9b23a))
+* **config:** decouple logging backend ([1ecaee6](https://github.com/simplyRoba/gazel/commit/1ecaee6af59931a1677d7212d48e12ee082e653e))
+* **config:** remove testing implementation details ([ace90c8](https://github.com/simplyRoba/gazel/commit/ace90c8ec0e2d1c338b20fe1b70f7c819b982478))
+* **dashboard:** specify stats behavior ([e6972ae](https://github.com/simplyRoba/gazel/commit/e6972ae60dabf1c164df4c2210293f140c6f18c3))
+* **database:** focus persistence specification ([1e10fe1](https://github.com/simplyRoba/gazel/commit/1e10fe10b58f7696f4fd752db0fdf819d4c59205))
+* **fillups:** decouple settings storage ([2014657](https://github.com/simplyRoba/gazel/commit/201465746ad9675b898f36b8ca5a7e734448d0fd))
+* **fillups:** specify UI behavior ([7e92100](https://github.com/simplyRoba/gazel/commit/7e921004f25770ffd98d27467cc9dbe30c62be5d))
+* **import:** specify atomic behavior ([0d8cf92](https://github.com/simplyRoba/gazel/commit/0d8cf92b3e0a758187c33e6660da656a8d80fe4e))
+* **layout:** remove CSS implementation constraints ([4119521](https://github.com/simplyRoba/gazel/commit/4119521618b27fa6768ee62f55577aaa4505fcdb))
+* remove dependency automation spec ([1a3ccf5](https://github.com/simplyRoba/gazel/commit/1a3ccf566279b180e44ad559930fb6a169e31987))
+* **server:** specify HTTP access behavior ([a7de22b](https://github.com/simplyRoba/gazel/commit/a7de22bfc9436af16fe00dcd80e9537e8e6a06b9))
+* **settings:** specify persistence behavior ([ba4abe4](https://github.com/simplyRoba/gazel/commit/ba4abe44fa12167297c43a58181599715cf0e62c))
+* **ui:** specify API communication behavior ([5822ab5](https://github.com/simplyRoba/gazel/commit/5822ab5c40a43ffc882892995657e9e965df29e8))
+
 ## [1.4.3](https://github.com/simplyRoba/gazel/compare/v1.4.2...v1.4.3) (2026-09-05)
 
 
