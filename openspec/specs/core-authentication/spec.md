@@ -58,7 +58,7 @@ When authentication is enabled, Gazel MUST perform OpenID Connect Discovery from
 - **AND** Gazel SHALL NOT fall back to unauthenticated operation
 
 ### Requirement: Token endpoint client authentication follows discovery metadata
-Gazel MUST explicitly select a supported confidential-client authentication method from `token_endpoint_auth_methods_supported` because the OIDC client library does not apply that metadata automatically.
+Gazel MUST select a supported confidential-client authentication method from `token_endpoint_auth_methods_supported`.
 
 #### Scenario: Authentication methods omitted
 - **WHEN** discovery omits `token_endpoint_auth_methods_supported`
@@ -172,23 +172,25 @@ Gazel MUST accept only a serialized local protected UI target of at most 2,048 U
 - **AND** SHALL redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>`
 
 ### Requirement: Provider metadata is cached and JWKS refresh is targeted, deduplicated, and recoverable
-Gazel SHALL use startup-discovered authorization/token metadata for login and token exchange and MUST NOT repeat full discovery per callback. On an eligible key/signature failure, Gazel MUST coordinate targeted refresh by cached JWKS generation so concurrent callbacks cause at most one in-flight JWKS request. A failed refresh MUST retain the last usable keys, suppress another request for that generation during a 30-second process-monotonic cooldown, and permit a later eligible login to retry after the cooldown rather than requiring a Gazel restart.
+Gazel SHALL use startup-discovered authorization/token metadata for login and token exchange and MUST NOT repeat full discovery per callback. On an eligible key/signature failure, Gazel MUST deduplicate targeted refresh so callbacks that fail against the same previously retrieved keys cause at most one in-flight JWKS request. A failed refresh MUST retain the last usable keys, suppress another refresh attempt for 30 seconds, and permit a later eligible login to retry after the cooldown rather than requiring a Gazel restart.
 
 #### Scenario: Normal callback uses startup metadata
 - **WHEN** a callback receives an ID token verifiable with the cached JWKS
 - **THEN** Gazel SHALL exchange and verify it without repeating provider discovery or JWKS retrieval
 
 #### Scenario: First callback observes stale signing keys
-- **WHEN** otherwise-valid verification reports no matching key or signature-verification failure for cached generation N
-- **AND** no newer generation or active failed-refresh cooldown exists after acquiring the refresh lock
-- **THEN** Gazel SHALL fetch only the configured JWKS once through the guarded backend client
-- **AND** replace the cache as generation N+1 on successful retrieval
-- **AND** retry ID-token verification exactly once
+- **WHEN** otherwise-valid verification reports no matching key or a signature-verification failure for previously retrieved keys
+- **AND** no refresh has already succeeded or is in progress for those keys
+- **AND** no failed-refresh cooldown is active
+- **THEN** Gazel SHALL fetch only the configured JWKS
+- **AND** use the refreshed keys and retry ID-token verification exactly once when retrieval succeeds
 
-#### Scenario: Concurrent callback waits for refresh
-- **WHEN** another callback fails against generation N and finds generation N+1 after acquiring the refresh lock
-- **THEN** it SHALL retry once with generation N+1 without issuing another JWKS request
-- **AND** at most one JWKS request SHALL occur for that in-flight refresh attempt against generation N
+#### Scenario: Concurrent callback shares a refresh
+- **WHEN** another callback encounters an eligible verification failure against the same previously retrieved keys while a refresh is in progress or has succeeded
+- **THEN** it SHALL share the refresh result without issuing another JWKS request
+- **AND** retry verification once if the refresh returned usable keys
+- **AND** follow the failed-refresh behavior if the refresh did not return usable keys
+- **AND** at most one JWKS request SHALL occur for the shared refresh attempt
 
 #### Scenario: Non-signature claim validation fails
 - **WHEN** ID-token verification fails for issuer, audience, expiration, nonce, or another non-signature claim
@@ -202,23 +204,23 @@ Gazel SHALL use startup-discovered authorization/token metadata for login and to
 
 #### Scenario: Targeted JWKS refresh is unavailable
 - **WHEN** an allowed targeted JWKS refresh cannot retrieve usable keys
-- **THEN** Gazel SHALL retain the last usable client and cached generation
-- **AND** record a 30-second retry cooldown for that generation
+- **THEN** Gazel SHALL retain the last usable provider metadata and keys
+- **AND** start a 30-second retry cooldown
 - **AND** redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>`
 - **AND** SHALL NOT retry token exchange or perform full discovery
 
 #### Scenario: Failed refresh cooldown deduplicates subsequent callbacks
-- **WHEN** a JWKS refresh has failed for generation N
-- **AND** another callback reaches the refresh lock before that generation's cooldown expires
+- **WHEN** a JWKS refresh has failed
+- **AND** another callback encounters an eligible verification failure before the cooldown expires
 - **THEN** Gazel SHALL NOT issue another JWKS request
 - **AND** SHALL redirect to `/login?error=provider_unavailable&return_to=<encoded-safe-local-target>`
 
 #### Scenario: Provider recovery after cooldown
-- **WHEN** a targeted JWKS refresh for generation N failed
+- **WHEN** a targeted JWKS refresh failed
 - **AND** the 30-second cooldown has expired
 - **AND** the provider now returns usable keys for a later login's eligible key/signature failure
 - **THEN** Gazel SHALL make one new targeted JWKS request without repeating discovery
-- **AND** replace the cached keys as generation N+1
+- **AND** use the refreshed keys
 - **AND** retry that login's ID-token verification once
 - **AND** allow the login to succeed without restarting Gazel
 
