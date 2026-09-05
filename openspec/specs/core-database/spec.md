@@ -1,18 +1,16 @@
 ## Purpose
 
-SQLite database layer: a connection pool with WAL mode, automatic database-file creation, migrations run on startup, and a bootstrap migration.
+SQLite persistence with WAL mode, automatic database-file creation, and startup schema initialization and upgrades.
 
 ## Requirements
 
-### Requirement: SQLite connection pool with WAL mode
+### Requirement: SQLite persistence uses WAL mode
 
-The application SHALL create a SQLite connection pool configured with Write-Ahead Logging and appropriate settings for a single-user workload.
+The application SHALL use SQLite with Write-Ahead Logging as its persistence architecture.
 
-#### Scenario: Pool configuration
-- **WHEN** the database pool is created
+#### Scenario: Database connection
+- **WHEN** the application connects to its SQLite database
 - **THEN** the journal mode SHALL be set to WAL
-- **AND** the busy timeout SHALL be set to 5 seconds
-- **AND** the maximum connections SHALL be set to 5
 
 ### Requirement: Database file auto-creation
 
@@ -26,30 +24,22 @@ The application SHALL create the SQLite database file and any missing parent dir
 #### Scenario: In-memory database path
 - **WHEN** the database path is `:memory:`
 - **THEN** the application SHALL NOT attempt to create parent directories
-- **AND** the pool SHALL use an in-memory database
+- **AND** the application SHALL use an in-memory SQLite database
 
-### Requirement: Migrations run on startup
+### Requirement: Database schema is initialized and upgraded on startup
 
-The application SHALL execute all pending SQLite migrations automatically when the database pool is created.
+Before serving traffic, the application SHALL initialize a fresh SQLite database or automatically upgrade a supported older schema to the current schema. Schema upgrades SHALL preserve existing application data.
 
 #### Scenario: Fresh database
-- **WHEN** the application connects to a database with no migration history
-- **THEN** all migrations SHALL be applied in order
+- **WHEN** the application starts with a new empty database
+- **THEN** the current schema SHALL be initialized before startup completes
 
-#### Scenario: Partially migrated database
-- **WHEN** the application connects to a database with some migrations already applied
-- **THEN** only the pending migrations SHALL be applied
+#### Scenario: Supported older database
+- **WHEN** the application starts with a supported older database schema
+- **THEN** the schema SHALL be upgraded to the current version before traffic is served
+- **AND** existing application data SHALL be preserved
 
-#### Scenario: Fully migrated database
-- **WHEN** the application connects to a database with all migrations already applied
-- **THEN** no migrations SHALL be applied
+#### Scenario: Current database
+- **WHEN** the application starts with the current database schema
+- **THEN** no schema changes SHALL be required
 - **AND** startup SHALL proceed normally
-
-### Requirement: Bootstrap migration
-
-An initial empty migration SHALL exist to bootstrap the migration tracking table.
-
-#### Scenario: Initial migration exists
-- **WHEN** the migrations directory is inspected
-- **THEN** a timestamp-prefixed initial migration file SHALL exist
-- **AND** the migration file SHALL contain no schema changes
