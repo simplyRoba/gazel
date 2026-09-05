@@ -1,6 +1,6 @@
 ## Purpose
 
-Application configuration: environment-variable-based configuration with a testable abstraction.
+Application configuration through environment variables, with defined defaults and validation behavior.
 
 ## Requirements
 
@@ -29,19 +29,6 @@ The application SHALL read configuration from environment variables prefixed wit
 #### Scenario: Invalid port value
 - **WHEN** `GAZEL_PORT` is set to a non-numeric value
 - **THEN** the application SHALL fall back to the default port `4110`
-
-### Requirement: Testable configuration abstraction
-
-Configuration reading SHALL be abstracted behind a `ConfigSource` trait, allowing tests to provide configuration without modifying real environment variables.
-
-#### Scenario: Production configuration source
-- **WHEN** the application starts in production
-- **THEN** the `EnvConfigSource` SHALL read values from `std::env::var`
-
-#### Scenario: Test configuration source
-- **WHEN** a test needs to verify configuration behavior
-- **THEN** a mock `ConfigSource` backed by a `HashMap` SHALL be usable
-- **AND** the configuration parser SHALL produce identical results regardless of the source implementation
 
 ### Requirement: Authentication enablement is explicit
 Built-in authentication SHALL be controlled by `GAZEL_AUTH_ENABLED`, which SHALL default to `false` when absent and SHALL accept only explicit boolean values.
