@@ -69,7 +69,7 @@ The translation system SHALL reactively update all translated strings when the a
 
 ### Requirement: All UI strings use translation keys
 
-All user-visible strings in Svelte components, pages, and stores SHALL use the `t()` function instead of hardcoded English text.
+All user-visible linguistic strings in Svelte components, pages, and stores SHALL use the `t()` function instead of hardcoded English text. Language-neutral metadata such as version numbers, repository URLs, license identifiers, years, owner names, and symbol-based legal notices SHALL NOT require translation keys.
 
 #### Scenario: Navigation labels
 
@@ -90,6 +90,12 @@ All user-visible strings in Svelte components, pages, and stores SHALL use the `
 
 - **WHEN** a toast notification is shown
 - **THEN** the message SHALL be rendered via `t()` calls or `resolveError()`
+
+#### Scenario: Language-neutral metadata
+
+- **WHEN** metadata is displayed without linguistic text, such as `© 2026 simplyRoba.`
+- **THEN** the value MAY be rendered directly
+- **AND** its accompanying descriptive label SHALL use `t()`
 
 ### Requirement: Error message resolution
 
