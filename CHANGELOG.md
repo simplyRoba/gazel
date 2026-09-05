@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.4.3](https://github.com/simplyRoba/gazel/compare/v1.4.2...v1.4.3) (2026-09-05)
+
+
+### Bug Fixes
+
+* **fillups:** clear stale errors on continuation ([e8cc73d](https://github.com/simplyRoba/gazel/commit/e8cc73d7720f5dfe2b7cd35e7016211e0dc2bd60))
+* **fillups:** format odometers with selected locale ([d6b9eaf](https://github.com/simplyRoba/gazel/commit/d6b9eafd70fc9568d1f2870ee1e223c26a63056e))
+* **i18n:** localize settings and stats errors ([9dd84cc](https://github.com/simplyRoba/gazel/commit/9dd84cc28725a8cfb597ea23dedff62fd8765ab4))
+* **i18n:** update modal default label reactively ([794c299](https://github.com/simplyRoba/gazel/commit/794c299d640bd514ca85501f84d9fd6b5f27961b))
+* **pwa:** block refresh in scrolled containers ([0e6c2ef](https://github.com/simplyRoba/gazel/commit/0e6c2ef89b1817a9f80a5c6b3055913d3b37697f))
+* **settings:** use language-neutral copyright notice ([6de0010](https://github.com/simplyRoba/gazel/commit/6de0010e7597cee483cb5d59bd45840609adf658))
+
+
+### Documentation
+
+* **dashboard:** align responsive chart layout ([0d516e5](https://github.com/simplyRoba/gazel/commit/0d516e581311f636ed6a3baee77e4add67b14a91))
+* **dashboard:** define insufficient chart behavior ([8ad6ad7](https://github.com/simplyRoba/gazel/commit/8ad6ad755fd7e8c0400ad637537a8d3f6b7038b3))
+* **fillups:** clarify pasted numeric input handling ([8f0f967](https://github.com/simplyRoba/gazel/commit/8f0f96713cf9ca28fa3ee2c2b0b587f498028623))
+* **fillups:** define trip odometer availability ([70452cb](https://github.com/simplyRoba/gazel/commit/70452cbc3b62d0ec38bcd912283ea73b66d1e91b))
+* **layout:** assign gutters to app shell ([7d24e25](https://github.com/simplyRoba/gazel/commit/7d24e25fa8aaadc541f9cf7ae7dddafd40e85326))
+* **settings:** define lazy post-import refresh ([de53e76](https://github.com/simplyRoba/gazel/commit/de53e76515111b2d5253df4981969e94a3fc9aa8))
+* **settings:** define non-blocking hydration ([bea5a71](https://github.com/simplyRoba/gazel/commit/bea5a7120e5c9f28f4df5820b0ae103285a46727))
+
 ## [1.4.2](https://github.com/simplyRoba/gazel/compare/v1.4.1...v1.4.2) (2026-09-02)
 
 
