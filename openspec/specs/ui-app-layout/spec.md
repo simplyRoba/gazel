@@ -1,11 +1,11 @@
 ## Purpose
 
-Application shell layout: root layout structure, responsive sidebar navigation with items and a fill-up CTA, logo display, content width tokens, safe-area handling, and global CSS reset and base styles.
+Application shell layout: root structure, responsive navigation with a fill-up CTA, logo display, readable content widths, responsive gutters, and safe-area handling.
 
 ## Requirements
 
 ### Requirement: Root layout structure
-The root layout SHALL render the protected application shell for application routes and a standalone public surface for `/login`. Protected application content SHALL include navigation, a main content region, and a pull-to-refresh indicator; the login route SHALL render without protected shell chrome or hydration. For protected application routes, the pull-to-refresh indicator SHALL be fixed at the top of the viewport, hidden by default, and visible during pull-to-refresh gestures.
+The root layout SHALL render the protected application shell for application routes and a standalone public surface for `/login`. Protected application content SHALL include navigation, a main content region, and a pull-to-refresh indicator; the login route SHALL render without protected shell chrome. For protected application routes, the pull-to-refresh indicator SHALL be fixed at the top of the viewport, hidden by default, and visible during pull-to-refresh gestures.
 
 #### Scenario: Layout renders navigation and content
 - **WHEN** an authenticated application route other than `/login` is loaded
@@ -84,53 +84,43 @@ The app logo SHALL be displayed in the sidebar on tablet and desktop viewports.
 - **WHEN** the viewport is 769px or greater
 - **THEN** the logo SHALL appear at the top of the sidebar above the CTA button
 
-### Requirement: Content width tokens
+### Requirement: Readable page content widths
 
-The layout SHALL define three content width CSS custom properties that constrain page content to readable widths.
+The layout SHALL support narrow, default, and wide page-content variants with responsive maximum widths.
 
 #### Scenario: Default content widths
 - **WHEN** the viewport is less than 1280px
-- **THEN** `--content-width-narrow` SHALL be 640px
-- **AND** `--content-width-default` SHALL be 800px
-- **AND** `--content-width-wide` SHALL be 1200px
+- **THEN** narrow page content SHALL have a maximum width of 640px
+- **AND** default page content SHALL have a maximum width of 800px
+- **AND** wide page content SHALL have a maximum width of 1200px
 
 #### Scenario: Widescreen content widths
 - **WHEN** the viewport is 1280px or greater
-- **THEN** `--content-width-narrow` SHALL be 720px
-- **AND** `--content-width-default` SHALL be 960px
-- **AND** `--content-width-wide` SHALL be 1400px
+- **THEN** narrow page content SHALL have a maximum width of 720px
+- **AND** default page content SHALL have a maximum width of 960px
+- **AND** wide page content SHALL have a maximum width of 1400px
 
 ### Requirement: Responsive content gutters
 
-The root layout's content region SHALL provide consistent responsive page padding before individual page containers constrain and center their content.
+Page content SHALL have consistent responsive horizontal gutters.
 
 #### Scenario: Mobile content gutter
 - **WHEN** the viewport is below 769px
-- **THEN** the content region SHALL use `var(--space-4)` padding
+- **THEN** page content SHALL have a 16px gutter on each side
 
 #### Scenario: Tablet content gutter
 - **WHEN** the viewport is at least 769px and below 1280px
-- **THEN** the content region SHALL use `var(--space-6)` padding
+- **THEN** page content SHALL have a 24px gutter on each side
 
 #### Scenario: Widescreen content gutter
 - **WHEN** the viewport is at least 1280px
-- **THEN** the content region SHALL use `var(--space-8)` padding
+- **THEN** page content SHALL have a 32px gutter on each side
 
 ### Requirement: Safe area handling
 
-The layout SHALL account for device safe areas (notch, home indicator) using `env(safe-area-inset-*)` values.
+The layout SHALL keep navigation and page content clear of device safe areas such as notches and home indicators.
 
 #### Scenario: Bottom safe area on mobile
 - **WHEN** the device has a bottom safe area inset (e.g., iPhone home indicator)
 - **THEN** the bottom tab bar height SHALL include the safe area inset
 - **AND** the content bottom padding SHALL account for the total tab bar height including the safe area
-
-### Requirement: Global CSS reset and base styles
-
-The layout SHALL import a CSS reset and apply base typographic styles using the design system tokens.
-
-#### Scenario: Base styles applied
-- **WHEN** the app loads
-- **THEN** `box-sizing: border-box` SHALL be applied to all elements
-- **AND** the body SHALL use `--font-family` for font, `--color-text` for color, and `--color-bg` for background
-- **AND** default margins and padding SHALL be reset to zero
