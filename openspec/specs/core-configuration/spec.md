@@ -24,7 +24,7 @@ The application SHALL read configuration from environment variables prefixed wit
 
 #### Scenario: Custom log level
 - **WHEN** `GAZEL_LOG_LEVEL` is set to `debug`
-- **THEN** the tracing subscriber SHALL use the `debug` level filter
+- **THEN** the application's logging threshold SHALL be `debug`
 
 #### Scenario: Invalid port value
 - **WHEN** `GAZEL_PORT` is set to a non-numeric value
