@@ -52,6 +52,7 @@
   import { clearCache as clearFillupCache } from "$lib/stores/fillups.svelte";
   import { clearCache as clearStatsCache } from "$lib/stores/stats.svelte";
   import { t } from "$lib/i18n";
+  import { resolveError } from "$lib/i18n/errors";
 
   let appInfo = $state<AppInfo | null>(null);
 
@@ -158,7 +159,9 @@
       });
     } catch (e) {
       const msg =
-        e instanceof ApiError ? e.message : t("settings.export.failed");
+        e instanceof ApiError
+          ? resolveError(e, t)
+          : t("settings.export.failed");
       pushNotification({ variant: "error", message: msg });
     } finally {
       exporting = false;
@@ -171,7 +174,9 @@
       await exportVehicle(id);
     } catch (e) {
       const msg =
-        e instanceof ApiError ? e.message : t("settings.export.failed");
+        e instanceof ApiError
+          ? resolveError(e, t)
+          : t("settings.export.failed");
       pushNotification({ variant: "error", message: msg });
     } finally {
       exportingVehicleId = null;
@@ -199,7 +204,7 @@
       importPreview = result;
     } catch (e) {
       if (e instanceof ApiError) {
-        importError = e.message;
+        importError = resolveError(e, t);
       } else if (e instanceof SyntaxError) {
         importError = t("settings.import.invalidJson");
       } else {
@@ -224,7 +229,7 @@
       } catch (e) {
         importError =
           e instanceof ApiError
-            ? e.message
+            ? resolveError(e, t)
             : t("settings.import.previewFailed");
         importPreview = null;
       } finally {
@@ -282,7 +287,9 @@
       loadVehicles();
     } catch (e) {
       importError =
-        e instanceof ApiError ? e.message : t("settings.import.importFailed");
+        e instanceof ApiError
+          ? resolveError(e, t)
+          : t("settings.import.importFailed");
     } finally {
       importing = false;
     }

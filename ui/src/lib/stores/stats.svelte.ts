@@ -2,6 +2,8 @@ import { SvelteMap } from "svelte/reactivity";
 
 import type { VehicleStats, SegmentHistory } from "$lib/api";
 import * as api from "$lib/api";
+import { t } from "$lib/i18n";
+import { resolveError } from "$lib/i18n/errors";
 import { pushNotification } from "$lib/stores/notifications.svelte";
 
 // ── State ────────────────────────────────────────────────
@@ -13,8 +15,8 @@ let error = $state<string | null>(null);
 
 // ── Helpers ──────────────────────────────────────────────
 
-function setError(e: unknown, fallback: string): void {
-  const msg = e instanceof api.ApiError ? e.message : fallback;
+function setError(e: unknown, fallbackKey: string): void {
+  const msg = e instanceof api.ApiError ? resolveError(e, t) : t(fallbackKey);
   error = msg;
   pushNotification({ variant: "error", message: msg });
 }
@@ -50,7 +52,7 @@ export async function loadStats(vehicleId: number): Promise<void> {
     statsCache.set(vehicleId, stats);
     historyCache.set(vehicleId, history);
   } catch (e) {
-    setError(e, "Failed to load stats");
+    setError(e, "store.stats.loadFailed");
   } finally {
     loading = false;
   }
@@ -62,7 +64,7 @@ export async function loadAllStats(vehicleIds: number[]): Promise<void> {
   try {
     await Promise.all(vehicleIds.map((id) => loadSingle(id)));
   } catch (e) {
-    setError(e, "Failed to load fleet stats");
+    setError(e, "store.stats.loadAllFailed");
   } finally {
     loading = false;
   }
@@ -87,6 +89,6 @@ export async function invalidateStats(vehicleId: number): Promise<void> {
   statsCache.delete(vehicleId);
   historyCache.delete(vehicleId);
   await loadSingle(vehicleId).catch((e) => {
-    setError(e, "Failed to refresh stats");
+    setError(e, "store.stats.refreshFailed");
   });
 }

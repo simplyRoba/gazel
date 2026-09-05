@@ -99,10 +99,10 @@ describe("stats store", () => {
 
     it("sets error on failure", async () => {
       vi.mocked(api.fetchVehicleStats).mockRejectedValue(
-        new ApiError(404, "VEHICLE_NOT_FOUND", "Vehicle not found."),
+        new ApiError(404, "VEHICLE_NOT_FOUND", "Raw backend message"),
       );
       vi.mocked(api.fetchVehicleStatsHistory).mockRejectedValue(
-        new ApiError(404, "VEHICLE_NOT_FOUND", "Vehicle not found."),
+        new ApiError(404, "VEHICLE_NOT_FOUND", "Raw backend message"),
       );
 
       await store.loadStats(999);
@@ -174,7 +174,7 @@ describe("stats store", () => {
         new ApiError(500, "INTERNAL_ERROR", "First error"),
       );
       await store.loadStats(10);
-      expect(store.getError()).toBe("First error");
+      expect(store.getError()).toBe("An unexpected error occurred.");
 
       vi.mocked(api.fetchVehicleStats).mockResolvedValue(mockStats);
       vi.mocked(api.fetchVehicleStatsHistory).mockResolvedValue(mockHistory);
@@ -190,7 +190,7 @@ describe("stats store", () => {
         new ApiError(500, "INTERNAL_ERROR", "First error"),
       );
       await store.loadStats(10);
-      expect(store.getError()).toBe("First error");
+      expect(store.getError()).toBe("An unexpected error occurred.");
 
       vi.mocked(api.fetchVehicleStats).mockResolvedValue(mockStats);
       vi.mocked(api.fetchVehicleStatsHistory).mockResolvedValue(mockHistory);
