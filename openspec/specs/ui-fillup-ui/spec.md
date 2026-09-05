@@ -302,7 +302,7 @@ Numeric fill-up inputs (odometer, fuel amount, price per unit, cost) SHALL guard
 
 ### Requirement: Fill-up form modal
 
-The fill-up form SHALL open as a modal dialog. Creating a fill-up SHALL use the Quick Fill fast-lane surface; editing a fill-up SHALL use the detailed form. The total/trip odometer mode toggle SHALL be available in both.
+The fill-up form SHALL open as a modal dialog. Creating a fill-up SHALL use the Quick Fill fast-lane surface; editing a fill-up SHALL use the detailed form. Trip-odometer entry SHALL be available only when creating a fill-up with an existing odometer baseline.
 
 #### Scenario: Create mode
 
@@ -312,6 +312,18 @@ The fill-up form SHALL open as a modal dialog. Creating a fill-up SHALL use the 
 - **AND** `is_full_tank` SHALL default to `true`
 - **AND** `is_missed` SHALL default to `false`
 - **AND** the primary action SHALL save the fill-up
+
+#### Scenario: Trip-odometer mode available
+
+- **WHEN** the modal opens to create a fill-up and the vehicle has at least one prior fill-up
+- **THEN** the total/trip odometer mode toggle SHALL be available
+- **AND** trip mode SHALL add the entered distance to the previous absolute odometer
+
+#### Scenario: Total-odometer mode required
+
+- **WHEN** the modal opens for a vehicle without prior fill-ups or opens in edit mode
+- **THEN** the total/trip toggle SHALL NOT be displayed
+- **AND** the odometer field SHALL use total-odometer mode
 
 #### Scenario: Edit mode
 
