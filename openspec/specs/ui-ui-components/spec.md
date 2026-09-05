@@ -6,7 +6,7 @@ Shared UI components: PageContainer and EmptyState.
 
 ### Requirement: PageContainer component
 
-A reusable `PageContainer` component SHALL constrain page content to a maximum width and apply consistent horizontal padding and centering.
+A reusable `PageContainer` component SHALL constrain page content to a maximum width and center it within the root layout's padded content region.
 
 #### Scenario: Default width
 - **WHEN** `PageContainer` is used without a `width` prop

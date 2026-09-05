@@ -100,6 +100,22 @@ The layout SHALL define three content width CSS custom properties that constrain
 - **AND** `--content-width-default` SHALL be 960px
 - **AND** `--content-width-wide` SHALL be 1400px
 
+### Requirement: Responsive content gutters
+
+The root layout's content region SHALL provide consistent responsive page padding before individual page containers constrain and center their content.
+
+#### Scenario: Mobile content gutter
+- **WHEN** the viewport is below 769px
+- **THEN** the content region SHALL use `var(--space-4)` padding
+
+#### Scenario: Tablet content gutter
+- **WHEN** the viewport is at least 769px and below 1280px
+- **THEN** the content region SHALL use `var(--space-6)` padding
+
+#### Scenario: Widescreen content gutter
+- **WHEN** the viewport is at least 1280px
+- **THEN** the content region SHALL use `var(--space-8)` padding
+
 ### Requirement: Safe area handling
 
 The layout SHALL account for device safe areas (notch, home indicator) using `env(safe-area-inset-*)` values.
