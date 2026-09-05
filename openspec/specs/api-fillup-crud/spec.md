@@ -261,17 +261,17 @@ The API SHALL apply updated default values for optional boolean fields.
 
 ### Requirement: Auto-populated fuel_unit and currency
 
-The API SHALL read `fuel_unit` and `currency` from the application settings table and apply them to every fill-up on create and update. Values supplied for these fields in the request body SHALL be ignored and SHALL NOT override the settings values.
+The API SHALL read `fuel_unit` and `currency` from the current application settings and apply them to every fill-up on create and update. Values supplied for these fields in the request body SHALL be ignored and SHALL NOT override the settings values.
 
 #### Scenario: fuel_unit from settings
 
 - **WHEN** a fill-up is created or updated
-- **THEN** `fuel_unit` SHALL be set to the current `volume_unit` value from the settings table (e.g., `"l"` or `"gal"`)
+- **THEN** `fuel_unit` SHALL be set to the current application `volume_unit` setting (e.g., `"l"` or `"gal"`)
 
 #### Scenario: currency from settings
 
 - **WHEN** a fill-up is created or updated
-- **THEN** `currency` SHALL be set to the current `currency` value from the settings table (e.g., `"USD"` or `"EUR"`)
+- **THEN** `currency` SHALL be set to the current application `currency` setting (e.g., `"USD"` or `"EUR"`)
 
 #### Scenario: Request values do not override settings
 
