@@ -72,6 +72,7 @@
       fill="none"
       {stroke}
       stroke-width={strokeWidth}
+      stroke-linecap="round"
       stroke-linejoin="round"
       vector-effect="non-scaling-stroke"
     />
