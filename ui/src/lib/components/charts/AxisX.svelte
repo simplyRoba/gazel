@@ -68,6 +68,7 @@
       {@const x = ($xScale as (v: string) => number)(tick)}
       <g transform="translate({x + bw / 2}, {$height})">
         {#if i % step === 0}
+          <line y1={0} y2={4} stroke="var(--color-border-subtle)" />
           <text
             y={16}
             text-anchor="middle"
