@@ -1,173 +1,108 @@
 ## Purpose
 
-Defines the internationalization (i18n) system for the UI, including translation file structure, lookup functions, reactive locale binding, and error message resolution.
+Defines English and German localization behavior, including immediate locale changes, interpolation, fallback handling, localized errors, and translation completeness.
 
 ## Requirements
 
-### Requirement: Translation file structure
+### Requirement: Supported locales
 
-The app SHALL store translations as static JSON files in `ui/src/lib/i18n/`, one file per supported locale (`en.json`, `de.json`). Each file SHALL contain a flat object mapping dot-separated keys to translated strings.
+The application SHALL provide English (`en`) and German (`de`) translations for all user-visible linguistic text.
 
-#### Scenario: English translation file exists
+#### Scenario: English locale
+- **WHEN** English is active
+- **THEN** user-visible linguistic text SHALL be displayed in English
 
-- **WHEN** the app is built
-- **THEN** `ui/src/lib/i18n/en.json` SHALL exist with all translation keys
+#### Scenario: German locale
+- **WHEN** German is active
+- **THEN** user-visible linguistic text SHALL be displayed in German
 
-#### Scenario: German translation file exists
+#### Scenario: Translation completeness
+- **WHEN** the application is released
+- **THEN** every user-visible linguistic message SHALL be available in both supported locales
 
-- **WHEN** the app is built
-- **THEN** `ui/src/lib/i18n/de.json` SHALL exist with all translation keys matching those in `en.json`
+### Requirement: Translation lookup behavior
 
-#### Scenario: Translation key format
+Localized messages SHALL support parameter interpolation and deterministic fallback behavior.
 
-- **WHEN** a translation key is defined
-- **THEN** it SHALL use dot-separated segments describing the component and purpose (e.g., `nav.dashboard`, `fillup.form.date`, `error.VEHICLE_NOT_FOUND`)
+#### Scenario: Parameterized message
+- **WHEN** a localized message contains a named parameter such as `{count}`
+- **THEN** the displayed message SHALL replace it with the supplied value
 
-### Requirement: Translation lookup function
+#### Scenario: German message is unavailable
+- **WHEN** a message is unavailable in German
+- **THEN** its English translation SHALL be displayed
 
-The app SHALL provide a `t(key, params?)` function that looks up a translation key for the active locale and returns the translated string.
+#### Scenario: Message is unavailable in every locale
+- **WHEN** a translation identifier has no message in any supported locale
+- **THEN** the identifier itself SHALL be displayed as the final fallback
 
-#### Scenario: Simple key lookup
+### Requirement: Locale changes apply immediately
 
-- **WHEN** `t('nav.dashboard')` is called with locale `en`
-- **THEN** the result SHALL be `"Dashboard"`
+The active locale SHALL follow the current application locale setting, and changing it SHALL update displayed translations without reloading the page.
 
-#### Scenario: Key lookup in German
+#### Scenario: Locale changes
+- **WHEN** the user changes the locale from English to German
+- **THEN** displayed linguistic text SHALL update to German without a page reload
 
-- **WHEN** `t('nav.dashboard')` is called with locale `de`
-- **THEN** the result SHALL be `"Dashboard"` (or the German translation)
+#### Scenario: Application starts
+- **WHEN** the application initializes
+- **THEN** displayed linguistic text SHALL use the current application locale setting
 
-#### Scenario: Parameterized string
+### Requirement: User-visible text is localized
 
-- **WHEN** `t('import.summary.vehicles', { count: 3 })` is called
-- **THEN** the result SHALL replace `{count}` with `3` in the translated string
+All user-visible linguistic text SHALL use the active locale. Language-neutral metadata such as version numbers, repository URLs, license identifiers, years, owner names, and symbol-based legal notices SHALL NOT require translation.
 
-#### Scenario: Missing key falls back to English
+#### Scenario: Navigation and forms
+- **WHEN** navigation, labels, placeholders, or validation messages are displayed
+- **THEN** their linguistic text SHALL use the active locale
 
-- **WHEN** `t('some.key')` is called with locale `de` and the key is missing from `de.json`
-- **THEN** the result SHALL return the value from `en.json`
-
-#### Scenario: Missing key in all locales
-
-- **WHEN** `t('nonexistent.key')` is called and the key does not exist in any locale
-- **THEN** the result SHALL return the key itself (e.g., `"nonexistent.key"`)
-
-### Requirement: Reactive locale binding
-
-The translation system SHALL reactively update all translated strings when the active locale changes.
-
-#### Scenario: Locale change triggers re-render
-
-- **WHEN** the user switches from `en` to `de` in settings
-- **THEN** all components using `t()` SHALL re-render with German strings without a page reload
-
-#### Scenario: Locale is driven by settings store
-
-- **WHEN** the app initializes
-- **THEN** the active locale SHALL be set from `settings.locale`
-- **AND** the `t()` function SHALL use this locale for all lookups
-
-### Requirement: All UI strings use translation keys
-
-All user-visible linguistic strings in Svelte components, pages, and stores SHALL use the `t()` function instead of hardcoded English text. Language-neutral metadata such as version numbers, repository URLs, license identifiers, years, owner names, and symbol-based legal notices SHALL NOT require translation keys.
-
-#### Scenario: Navigation labels
-
-- **WHEN** the app shell renders navigation items
-- **THEN** the labels SHALL be rendered via `t('nav.dashboard')`, `t('nav.settings')`, etc.
-
-#### Scenario: Form labels and validation messages
-
-- **WHEN** a form renders labels, placeholders, and validation errors
-- **THEN** all text SHALL be rendered via `t()` calls with appropriate keys
-
-#### Scenario: Empty states
-
-- **WHEN** an empty state component renders
-- **THEN** the title and description SHALL be rendered via `t()` calls
-
-#### Scenario: Toast notifications
-
-- **WHEN** a toast notification is shown
-- **THEN** the message SHALL be rendered via `t()` calls or `resolveError()`
+#### Scenario: Empty states and notifications
+- **WHEN** an empty state or notification is displayed
+- **THEN** its linguistic text SHALL use the active locale
 
 #### Scenario: Language-neutral metadata
-
-- **WHEN** metadata is displayed without linguistic text, such as `© 2026 simplyRoba.`
+- **WHEN** language-neutral metadata such as `© 2026 simplyRoba.` is displayed
 - **THEN** the value MAY be rendered directly
-- **AND** its accompanying descriptive label SHALL use `t()`
+- **AND** any accompanying descriptive label SHALL use the active locale
 
-### Requirement: Error message resolution
+### Requirement: Error messages are localized
 
-The app SHALL provide a `resolveError(error, t)` function in `ui/src/lib/i18n/errors.ts` that maps `ApiError.code` values to localized messages via translation keys.
+Known API error codes SHALL produce localized user-facing messages. Unknown codes SHALL use the safe fallback message returned by the API.
 
 #### Scenario: Known error code
+- **WHEN** an API operation fails with a code that has a message in the active locale
+- **THEN** the localized message SHALL be displayed in error states and notifications
 
-- **WHEN** `resolveError(error, t)` is called with `error.code === 'VEHICLE_NOT_FOUND'`
-- **THEN** the result SHALL be `t('error.VEHICLE_NOT_FOUND')`
+#### Scenario: Unknown error code
+- **WHEN** an API operation fails with a code that has no localized message in any supported locale
+- **THEN** the API response's fallback message SHALL be displayed
 
-#### Scenario: Unknown error code with message
+#### Scenario: API error translation completeness
+- **WHEN** the application uses an API error code
+- **THEN** that code SHALL have a localized message in every supported locale
 
-- **WHEN** `resolveError(error, t)` is called with an error code that has no translation key
-- **THEN** the result SHALL fall back to `error.message`
+### Requirement: Pull-to-refresh text is localized
 
-#### Scenario: Store error handling uses resolveError
+Every supported locale SHALL provide messages for the pulling, release-to-refresh, and refreshing states.
 
-- **WHEN** a store catches an `ApiError`
-- **THEN** it SHALL pass the error through `resolveError()` to get the user-facing message
-- **AND** the localized message SHALL be used for toast notifications and error state
+#### Scenario: English pull-to-refresh states
+- **WHEN** English is active
+- **THEN** the states SHALL display `Pull to refresh`, `Release to refresh`, and `Refreshing...` respectively
 
-### Requirement: Translation completeness test
+#### Scenario: German pull-to-refresh states
+- **WHEN** German is active
+- **THEN** each pull-to-refresh state SHALL display its German translation
 
-A vitest test SHALL verify that all translation files contain the same set of keys.
+### Requirement: Authentication text is localized
 
-#### Scenario: All keys present in German
+Every supported locale SHALL provide messages for the public login page, stable login states, authentication-required errors, and settings logout controls.
 
-- **WHEN** the translation completeness test runs
-- **THEN** every key in `en.json` SHALL also exist in `de.json`
+#### Scenario: Public login and settings authentication text
+- **WHEN** login or settings authentication controls are displayed
+- **THEN** their titles, descriptions, actions, failure states, and signed-out state SHALL use the active locale
+- **AND** the provider-specific login action SHALL interpolate the configured provider name into its localized text
 
-#### Scenario: No extra keys in non-primary locales
-
-- **WHEN** the translation completeness test runs
-- **THEN** `de.json` SHALL NOT contain keys that are absent from `en.json`
-
-#### Scenario: Test fails on missing key
-
-- **WHEN** a developer adds a new key to `en.json` without adding it to `de.json`
-- **THEN** the completeness test SHALL fail with a message indicating the missing key
-
-### Requirement: Pull-to-refresh translation keys
-
-The translation files SHALL include keys for pull-to-refresh indicator labels.
-
-#### Scenario: English pull-to-refresh keys
-
-- **WHEN** `en.json` is loaded
-- **THEN** it SHALL contain `"pullToRefresh.pulling"` with value `"Pull to refresh"`
-- **AND** it SHALL contain `"pullToRefresh.release"` with value `"Release to refresh"`
-- **AND** it SHALL contain `"pullToRefresh.refreshing"` with value `"Refreshing..."`
-
-#### Scenario: German pull-to-refresh keys
-
-- **WHEN** `de.json` is loaded
-- **THEN** it SHALL contain `"pullToRefresh.pulling"` with the German translation
-- **AND** it SHALL contain `"pullToRefresh.release"` with the German translation
-- **AND** it SHALL contain `"pullToRefresh.refreshing"` with the German translation
-
-### Requirement: Authentication translations
-Every supported locale SHALL provide translations for the public login page, stable login states, authentication-required API error, and settings logout UI.
-
-#### Scenario: English authentication keys
-- **WHEN** `en.json` is loaded
-- **THEN** it SHALL contain English values for `login.title`, `login.authenticationRequired`, `login.continueWith`, `login.error.authenticationFailed`, `login.error.providerUnavailable`, `login.error.configUnavailable`, and `login.loggedOut`
-- **AND** SHALL contain `error.AUTHENTICATION_REQUIRED` with value `Authentication is required.`
-- **AND** SHALL contain English values for `settings.authentication`, `settings.authentication.description`, and `settings.authentication.signOut`
-
-#### Scenario: German authentication keys
-- **WHEN** `de.json` is loaded
-- **THEN** it SHALL contain equivalent German values for every new login and settings authentication key
-- **AND** `login.continueWith` SHALL preserve its `{provider}` placeholder
-
-#### Scenario: Translation parity remains complete
-- **WHEN** the translation completeness test runs
-- **THEN** every new authentication key SHALL exist in both locale files
+#### Scenario: Authentication-required API error
+- **WHEN** an authentication-required API error is shown in English
+- **THEN** its message SHALL be `Authentication is required.`
+- **AND** German SHALL provide the equivalent localized message
