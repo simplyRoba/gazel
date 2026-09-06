@@ -230,20 +230,12 @@ fn validate_fuel_amount(amount: f64) -> Result<(), ApiError> {
 async fn validate_odometer(
     pool: &SqlitePool,
     vehicle_id: i64,
+    date: &str,
     odometer: f64,
     exclude_id: Option<i64>,
 ) -> Result<(), ApiError> {
     if let Some(eid) = exclude_id {
-        // Find the date of the fill-up being edited.
-        let date: String =
-            sqlx::query_scalar("SELECT date FROM fillups WHERE id = ? AND vehicle_id = ?")
-                .bind(eid)
-                .bind(vehicle_id)
-                .fetch_one(pool)
-                .await
-                .map_err(db_error)?;
-
-        // Previous fill-up: the one right before this one chronologically.
+        // Previous fill-up: the one right before the updated chronological position.
         let prev: Option<f64> = sqlx::query_scalar(
             "SELECT odometer FROM fillups \
              WHERE vehicle_id = ? AND id != ? AND (date < ? OR (date = ? AND id < ?)) \
@@ -251,8 +243,8 @@ async fn validate_odometer(
         )
         .bind(vehicle_id)
         .bind(eid)
-        .bind(&date)
-        .bind(&date)
+        .bind(date)
+        .bind(date)
         .bind(eid)
         .fetch_optional(pool)
         .await
@@ -272,8 +264,8 @@ async fn validate_odometer(
         )
         .bind(vehicle_id)
         .bind(eid)
-        .bind(&date)
-        .bind(&date)
+        .bind(date)
+        .bind(date)
         .bind(eid)
         .fetch_optional(pool)
         .await
@@ -460,7 +452,7 @@ pub async fn create(
     let odometer = body
         .odometer
         .ok_or(ApiError::Validation("FILLUP_ODOMETER_REQUIRED"))?;
-    validate_odometer(&pool, vehicle_id, odometer, None).await?;
+    validate_odometer(&pool, vehicle_id, &date, odometer, None).await?;
 
     let cost = body
         .cost
@@ -534,7 +526,7 @@ pub async fn update(
     validate_fillup_date(&body.date)?;
     let date = body.date.trim().to_string();
     validate_fuel_amount(body.fuel_amount)?;
-    validate_odometer(&pool, vehicle_id, body.odometer, Some(id)).await?;
+    validate_odometer(&pool, vehicle_id, &date, body.odometer, Some(id)).await?;
     validate_cost(body.cost)?;
 
     let (fuel_unit, currency) = read_settings(&pool).await?;

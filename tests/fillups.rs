@@ -744,6 +744,42 @@ async fn update_odometer_below_other_fillup_rejected() {
 }
 
 #[tokio::test]
+async fn update_date_revalidates_odometer_at_new_position() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let first = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+    )
+    .await;
+    let first = common::body_json(first).await;
+    let first_id = first["id"].as_i64().unwrap();
+
+    create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-02-01","fuel_amount":30.0,"odometer":11000,"cost":50.0}"#,
+    )
+    .await;
+
+    let resp = app
+        .clone()
+        .oneshot(common::json_request(
+            "PUT",
+            &format!("/api/vehicles/{vid}/fillups/{first_id}"),
+            Some(r#"{"date":"2026-03-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#),
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "FILLUP_INVALID_ODOMETER");
+}
+
+#[tokio::test]
 async fn update_negative_cost_rejected() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
