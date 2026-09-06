@@ -54,6 +54,16 @@
     hoveredIndex = nearest;
   }
 
+  function handleTouch(event: TouchEvent) {
+    const touch = event.touches[0];
+    if (!touch) return;
+    handleMouseMove({
+      currentTarget: event.currentTarget,
+      clientX: touch.clientX,
+      clientY: touch.clientY,
+    } as unknown as MouseEvent);
+  }
+
   function handleMouseLeave() {
     hoveredIndex = null;
   }
@@ -69,14 +79,8 @@
   fill="transparent"
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
-  ontouchmove={(e) => {
-    const touch = e.touches[0];
-    handleMouseMove({
-      currentTarget: e.currentTarget,
-      clientX: touch.clientX,
-      clientY: touch.clientY,
-    } as unknown as MouseEvent);
-  }}
+  ontouchstart={handleTouch}
+  ontouchmove={handleTouch}
   ontouchend={handleMouseLeave}
 />
 
