@@ -53,6 +53,10 @@ const ERROR_MESSAGES: &[(&str, &str)] = &[
     ),
     ("FILLUP_NOT_FOUND", "Fill-up not found."),
     ("FILLUP_DATE_REQUIRED", "Fill-up date is required."),
+    (
+        "FILLUP_INVALID_DATE",
+        "Fill-up date must be a valid date in YYYY-MM-DD format.",
+    ),
     ("FILLUP_FUEL_AMOUNT_REQUIRED", "Fuel amount is required."),
     (
         "FILLUP_INVALID_FUEL_AMOUNT",
