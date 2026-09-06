@@ -122,6 +122,6 @@ Quick Fill SHALL apply the same client-side validation rules and smart missed-fi
 #### Scenario: Successful save
 
 - **WHEN** the user saves a valid Quick Fill entry
-- **THEN** the fill-up SHALL be created via the fill-up store
+- **THEN** the fill-up SHALL be created successfully
 - **AND** the screen SHALL close
 - **AND** the new fill-up SHALL appear in the dashboard card list
