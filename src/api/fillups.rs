@@ -199,7 +199,7 @@ fn encode_cursor(cursor: &FillupCursor) -> Result<String, ApiError> {
 ///
 /// Returns `ApiError::Validation` if the date is empty or is not a valid
 /// calendar date in `YYYY-MM-DD` format.
-fn validate_fillup_date(date: &str) -> Result<(), ApiError> {
+pub(crate) fn validate_fillup_date(date: &str) -> Result<(), ApiError> {
     let date = date.trim();
     if date.is_empty() {
         return Err(ApiError::Validation("FILLUP_DATE_REQUIRED"));
@@ -213,7 +213,7 @@ fn validate_fillup_date(date: &str) -> Result<(), ApiError> {
 /// # Errors
 ///
 /// Returns `ApiError::Validation` if the fuel amount is not positive.
-fn validate_fuel_amount(amount: f64) -> Result<(), ApiError> {
+pub(crate) fn validate_fuel_amount(amount: f64) -> Result<(), ApiError> {
     if amount <= 0.0 {
         return Err(ApiError::Validation("FILLUP_INVALID_FUEL_AMOUNT"));
     }
@@ -304,7 +304,7 @@ async fn validate_odometer(
 /// # Errors
 ///
 /// Returns `ApiError::Validation` if the cost is negative.
-fn validate_cost(cost: f64) -> Result<(), ApiError> {
+pub(crate) fn validate_cost(cost: f64) -> Result<(), ApiError> {
     if cost < 0.0 {
         return Err(ApiError::Validation("FILLUP_INVALID_COST"));
     }

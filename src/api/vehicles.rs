@@ -69,7 +69,7 @@ const VALID_FUEL_TYPES: &[&str] = &[
 /// # Errors
 ///
 /// Returns `ApiError::Validation` if the name is empty or whitespace-only.
-fn validate_vehicle_name(name: &str) -> Result<(), ApiError> {
+pub(crate) fn validate_vehicle_name(name: &str) -> Result<(), ApiError> {
     if name.trim().is_empty() {
         return Err(ApiError::Validation("VEHICLE_NAME_REQUIRED"));
     }
@@ -79,7 +79,7 @@ fn validate_vehicle_name(name: &str) -> Result<(), ApiError> {
 /// # Errors
 ///
 /// Returns `ApiError::Validation` if the fuel type is not in the allowed set.
-fn validate_fuel_type(fuel_type: &str) -> Result<(), ApiError> {
+pub(crate) fn validate_fuel_type(fuel_type: &str) -> Result<(), ApiError> {
     if !VALID_FUEL_TYPES.contains(&fuel_type) {
         return Err(ApiError::Validation("VEHICLE_INVALID_FUEL_TYPE"));
     }
@@ -89,7 +89,7 @@ fn validate_fuel_type(fuel_type: &str) -> Result<(), ApiError> {
 /// # Errors
 ///
 /// Returns `ApiError::Validation` if the year is outside 1900-2100.
-fn validate_year(year: Option<i64>) -> Result<(), ApiError> {
+pub(crate) fn validate_year(year: Option<i64>) -> Result<(), ApiError> {
     if let Some(y) = year
         && !(1900..=2100).contains(&y)
     {

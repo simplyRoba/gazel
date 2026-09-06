@@ -7,6 +7,8 @@ use tracing::info;
 
 use super::error::{ApiError, JsonBody};
 use super::export::{ExportData, ExportFillup, ExportVehicle};
+use super::fillups::{validate_cost, validate_fillup_date, validate_fuel_amount};
+use super::vehicles::{validate_fuel_type, validate_vehicle_name, validate_year};
 
 // ── Query parameters ────────────────────────────────────
 
@@ -106,26 +108,43 @@ fn validate_import(data: &ExportData) -> Result<(), ApiError> {
 }
 
 fn validate_vehicle(vehicle: &ExportVehicle) -> Result<(), ApiError> {
-    if vehicle.name.trim().is_empty() {
-        return Err(ApiError::Validation("IMPORT_VALIDATION_ERROR"));
+    map_import_validation(validate_vehicle_name(&vehicle.name))?;
+    map_import_validation(validate_fuel_type(&vehicle.fuel_type))?;
+    map_import_validation(validate_year(vehicle.year))?;
+
+    let mut chronological: Vec<_> = vehicle.fillups.iter().enumerate().collect();
+    chronological.sort_by(|(left_index, left), (right_index, right)| {
+        left.date
+            .trim()
+            .cmp(right.date.trim())
+            .then(left_index.cmp(right_index))
+    });
+    if chronological
+        .windows(2)
+        .any(|pair| pair[1].1.odometer < pair[0].1.odometer)
+    {
+        return Err(import_validation_error());
     }
+
     Ok(())
 }
 
 fn validate_fillup(fillup: &ExportFillup) -> Result<(), ApiError> {
+    map_import_validation(validate_fillup_date(&fillup.date))?;
+    map_import_validation(validate_fuel_amount(fillup.fuel_amount))?;
+    map_import_validation(validate_cost(fillup.cost))?;
     if fillup.odometer < 0.0 {
-        return Err(ApiError::Validation("IMPORT_VALIDATION_ERROR"));
-    }
-    if fillup.cost < 0.0 {
-        return Err(ApiError::Validation("IMPORT_VALIDATION_ERROR"));
-    }
-    if fillup.fuel_amount < 0.0 {
-        return Err(ApiError::Validation("IMPORT_VALIDATION_ERROR"));
-    }
-    if fillup.date.trim().is_empty() {
-        return Err(ApiError::Validation("IMPORT_VALIDATION_ERROR"));
+        return Err(import_validation_error());
     }
     Ok(())
+}
+
+fn map_import_validation(result: Result<(), ApiError>) -> Result<(), ApiError> {
+    result.map_err(|_| import_validation_error())
+}
+
+const fn import_validation_error() -> ApiError {
+    ApiError::Validation("IMPORT_VALIDATION_ERROR")
 }
 
 // ── Replace mode ────────────────────────────────────────

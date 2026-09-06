@@ -428,6 +428,72 @@ async fn import_negative_odometer() {
 }
 
 #[tokio::test]
+async fn import_invalid_vehicle_fields() {
+    let app = common::test_app().await;
+
+    for (field, value) in [
+        ("fuel_type", serde_json::json!("steam")),
+        ("year", serde_json::json!(1800)),
+    ] {
+        let mut body: serde_json::Value = serde_json::from_str(&valid_export_json()).unwrap();
+        body["vehicles"][0][field] = value;
+        let body = body.to_string();
+
+        let resp = app
+            .clone()
+            .oneshot(common::json_request("POST", "/api/import", Some(&body)))
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let json = common::body_json(resp).await;
+        assert_eq!(json["code"], "IMPORT_VALIDATION_ERROR");
+    }
+}
+
+#[tokio::test]
+async fn import_invalid_fillup_fields() {
+    let app = common::test_app().await;
+
+    for (field, value) in [
+        ("fuel_amount", serde_json::json!(0)),
+        ("cost", serde_json::json!(-1)),
+        ("date", serde_json::json!("2026-02-30")),
+    ] {
+        let mut body: serde_json::Value = serde_json::from_str(&valid_export_json()).unwrap();
+        body["vehicles"][0]["fillups"][0][field] = value;
+        let body = body.to_string();
+
+        let resp = app
+            .clone()
+            .oneshot(common::json_request("POST", "/api/import", Some(&body)))
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+        let json = common::body_json(resp).await;
+        assert_eq!(json["code"], "IMPORT_VALIDATION_ERROR");
+    }
+}
+
+#[tokio::test]
+async fn import_decreasing_odometer_history() {
+    let app = common::test_app().await;
+    let mut body: serde_json::Value = serde_json::from_str(&valid_export_json()).unwrap();
+    body["vehicles"][0]["fillups"][1]["odometer"] = serde_json::json!(9000);
+    let body = body.to_string();
+
+    let resp = app
+        .oneshot(common::json_request("POST", "/api/import", Some(&body)))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "IMPORT_VALIDATION_ERROR");
+}
+
+#[tokio::test]
 async fn import_invalid_mode() {
     let app = common::test_app().await;
 

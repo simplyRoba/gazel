@@ -72,7 +72,7 @@ The import endpoint SHALL validate that the export document's version is compati
 
 ### Requirement: Import validation
 
-The import endpoint SHALL validate all records before committing any changes.
+The import endpoint SHALL validate all records against the same vehicle and fill-up domain rules used by normal API operations before committing any changes.
 
 #### Scenario: Vehicle with missing name field
 
@@ -82,9 +82,23 @@ The import endpoint SHALL validate all records before committing any changes.
 - **AND** no data SHALL be modified
 - **NOTE** A missing `name` violates the required document schema, while an empty `name` is an import validation error
 
-#### Scenario: Fill-up with invalid data
+#### Scenario: Vehicle with invalid domain data
 
-- **WHEN** the import document contains a fill-up with a negative odometer value
+- **WHEN** the import document contains a vehicle with an unsupported fuel type or a year outside 1900–2100
+- **THEN** the response status SHALL be `422`
+- **AND** the response body SHALL contain `{ "code": "IMPORT_VALIDATION_ERROR", "message": "..." }`
+- **AND** no data SHALL be modified
+
+#### Scenario: Fill-up with invalid field data
+
+- **WHEN** the import document contains a fill-up with a negative odometer, non-positive fuel amount, negative cost, or malformed or impossible date
+- **THEN** the response status SHALL be `422`
+- **AND** the response body SHALL contain `{ "code": "IMPORT_VALIDATION_ERROR", "message": "..." }`
+- **AND** no data SHALL be modified
+
+#### Scenario: Fill-ups with decreasing odometers
+
+- **WHEN** an imported vehicle's fill-ups contain odometer readings that decrease in chronological order
 - **THEN** the response status SHALL be `422`
 - **AND** the response body SHALL contain `{ "code": "IMPORT_VALIDATION_ERROR", "message": "..." }`
 - **AND** no data SHALL be modified
