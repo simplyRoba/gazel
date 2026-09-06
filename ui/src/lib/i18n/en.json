@@ -20,6 +20,7 @@
   "dashboard.empty.title": "No vehicles yet",
   "dashboard.empty.description": "Add your first vehicle to start tracking fill-ups and fuel efficiency.",
   "dashboard.empty.action": "Add vehicle",
+  "dashboard.stats.refreshing": "Refreshing statistics...",
   "dashboard.summary.totalDistance": "Total distance",
   "dashboard.summary.avgEfficiency": "Avg. efficiency",
   "dashboard.summary.totalSpent": "Total spent",

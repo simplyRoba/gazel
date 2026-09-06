@@ -64,6 +64,9 @@
   const vehicles = $derived(getVehicles());
 
   const fleetSummary = $derived(computeFleetSummary(vehicles, getVehicleStats));
+  const hasLoadedStats = $derived(
+    vehicles.some((vehicle) => getVehicleStats(vehicle.id) !== undefined),
+  );
 
   // ── Per-vehicle stats for active vehicle ───────────────
 
@@ -330,8 +333,14 @@
       {/snippet}
     </EmptyState>
   {:else}
+    {#if getStatsLoading() && hasLoadedStats}
+      <p class="stats-refresh-status" role="status">
+        {t("dashboard.stats.refreshing")}
+      </p>
+    {/if}
+
     <!-- Summary cards (always shown — single vehicle or aggregated) -->
-    {#if getStatsLoading() && !fleetSummary}
+    {#if getStatsLoading() && !hasLoadedStats}
       <div class="summary-grid" data-testid="summary-cards-loading">
         {#each Array(4) as _, i (i)}
           <div class="card skeleton-summary">
@@ -724,6 +733,13 @@
 {/if}
 
 <style>
+  .stats-refresh-status {
+    margin: 0 0 var(--space-2);
+    color: var(--color-text-secondary);
+    font-size: var(--font-sm);
+    text-align: right;
+  }
+
   /* ── Summary cards grid ─────────────────────────────── */
   .summary-grid {
     display: grid;

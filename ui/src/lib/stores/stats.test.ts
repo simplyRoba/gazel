@@ -64,6 +64,14 @@ const mockHistory: SegmentHistory[] = [
   },
 ];
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
 describe("stats store", () => {
   let store: typeof import("./stats.svelte");
 
@@ -146,22 +154,50 @@ describe("stats store", () => {
   });
 
   describe("invalidateStats", () => {
-    it("clears cache and refetches", async () => {
-      // First populate cache
+    it("retains cached data and exposes loading while refreshing", async () => {
       vi.mocked(api.fetchVehicleStats).mockResolvedValue(mockStats);
       vi.mocked(api.fetchVehicleStatsHistory).mockResolvedValue(mockHistory);
       await store.loadStats(10);
-      expect(store.getVehicleStats(10)).toEqual(mockStats);
 
-      // Now invalidate
+      const statsRequest = deferred<VehicleStats>();
+      const historyRequest = deferred<SegmentHistory[]>();
+      vi.mocked(api.fetchVehicleStats).mockReturnValue(statsRequest.promise);
+      vi.mocked(api.fetchVehicleStatsHistory).mockReturnValue(
+        historyRequest.promise,
+      );
+
+      const refresh = store.invalidateStats(10);
+
+      expect(store.getLoading()).toBe(true);
+      expect(store.getVehicleStats(10)).toEqual(mockStats);
+      expect(store.getVehicleHistory(10)).toEqual(mockHistory);
+
       const updatedStats = { ...mockStats, total_cost: 999 };
-      vi.mocked(api.fetchVehicleStats).mockResolvedValue(updatedStats);
-      vi.mocked(api.fetchVehicleStatsHistory).mockResolvedValue([]);
+      statsRequest.resolve(updatedStats);
+      historyRequest.resolve([]);
+      await refresh;
+
+      expect(store.getLoading()).toBe(false);
+      expect(store.getVehicleStats(10)).toEqual(updatedStats);
+      expect(store.getVehicleHistory(10)).toEqual([]);
+    });
+
+    it("retains cached data when refreshing fails", async () => {
+      vi.mocked(api.fetchVehicleStats).mockResolvedValue(mockStats);
+      vi.mocked(api.fetchVehicleStatsHistory).mockResolvedValue(mockHistory);
+      await store.loadStats(10);
+
+      vi.mocked(api.fetchVehicleStats).mockRejectedValue(new Error("Network"));
+      vi.mocked(api.fetchVehicleStatsHistory).mockRejectedValue(
+        new Error("Network"),
+      );
 
       await store.invalidateStats(10);
 
-      expect(store.getVehicleStats(10)).toEqual(updatedStats);
-      expect(store.getVehicleHistory(10)).toEqual([]);
+      expect(store.getLoading()).toBe(false);
+      expect(store.getVehicleStats(10)).toEqual(mockStats);
+      expect(store.getVehicleHistory(10)).toEqual(mockHistory);
+      expect(store.getError()).toBe("Failed to refresh stats");
     });
   });
 

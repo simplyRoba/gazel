@@ -86,9 +86,12 @@ export function clearCache(): void {
 
 export async function invalidateStats(vehicleId: number): Promise<void> {
   error = null;
-  statsCache.delete(vehicleId);
-  historyCache.delete(vehicleId);
-  await loadSingle(vehicleId).catch((e) => {
+  loading = true;
+  try {
+    await loadSingle(vehicleId);
+  } catch (e) {
     setError(e, "store.stats.refreshFailed");
-  });
+  } finally {
+    loading = false;
+  }
 }

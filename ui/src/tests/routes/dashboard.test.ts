@@ -7,7 +7,7 @@ import {
 } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Fillup, FillupPage, Vehicle } from "$lib/api";
+import type { Fillup, FillupPage, Vehicle, VehicleStats } from "$lib/api";
 
 const apiSpies = vi.hoisted(() => ({
   fetchFillups: vi.fn(),
@@ -18,6 +18,8 @@ const vehicleStore = vi.hoisted(() => ({
   loadVehicles: vi.fn(() => Promise.resolve()),
 }));
 const statsStore = vi.hoisted(() => ({
+  loading: false,
+  stats: undefined as VehicleStats | undefined,
   loadAllStats: vi.fn(),
   invalidateStats: vi.fn(),
 }));
@@ -35,9 +37,9 @@ vi.mock("$lib/stores/vehicles.svelte", () => ({
 }));
 
 vi.mock("$lib/stores/stats.svelte", () => ({
-  getVehicleStats: () => undefined,
+  getVehicleStats: () => statsStore.stats,
   getVehicleHistory: () => [],
-  getLoading: () => false,
+  getLoading: () => statsStore.loading,
   loadAllStats: statsStore.loadAllStats,
   invalidateStats: statsStore.invalidateStats,
 }));
@@ -152,6 +154,8 @@ beforeEach(() => {
   fillupStore.clearCache();
   vehicleStore.vehicles = [vehicle(1, "First"), vehicle(2, "Second")];
   vehicleStore.loading = false;
+  statsStore.loading = false;
+  statsStore.stats = undefined;
   settingsStore.locale = "en";
   observers = [];
   desktopMatches = false;
@@ -228,6 +232,30 @@ describe("dashboard loading state", () => {
       container.querySelectorAll(".fillup-list .skeleton-fillup"),
     ).toHaveLength(3);
     expect(container.querySelector(".chip-skeleton")).toBeNull();
+  });
+});
+
+describe("dashboard statistics refresh", () => {
+  it("keeps statistics visible with a non-blocking refresh status", async () => {
+    statsStore.loading = true;
+    statsStore.stats = {
+      total_distance: 1500,
+      total_fuel: 120,
+      total_cost: 250,
+      fill_up_count: 5,
+      average_efficiency: 12.5,
+      average_cost_per_distance: 0.17,
+      distance_unit: "km",
+      volume_unit: "l",
+      currency: "EUR",
+    };
+
+    await renderPageWithCursor({ nextCursor: null });
+
+    expect(screen.getByRole("status").textContent).toContain(
+      "Refreshing statistics...",
+    );
+    expect(screen.getByTestId("summary-cards")).toBeTruthy();
   });
 });
 

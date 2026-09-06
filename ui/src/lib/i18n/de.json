@@ -20,6 +20,7 @@
   "dashboard.empty.title": "Noch keine Fahrzeuge",
   "dashboard.empty.description": "Füge dein erstes Fahrzeug hinzu, um Tankfüllungen und Kraftstoffeffizienz zu verfolgen.",
   "dashboard.empty.action": "Fahrzeug hinzufügen",
+  "dashboard.stats.refreshing": "Statistiken werden aktualisiert...",
   "dashboard.summary.totalDistance": "Gesamtstrecke",
   "dashboard.summary.avgEfficiency": "Durchschn. Effizienz",
   "dashboard.summary.totalSpent": "Gesamtausgaben",
