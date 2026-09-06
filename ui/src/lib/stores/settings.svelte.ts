@@ -8,7 +8,7 @@ const DEFAULTS: Settings = {
   unit_system: "metric",
   distance_unit: "km",
   volume_unit: "l",
-  currency: "USD",
+  currency: "EUR",
   color_mode: "system",
   locale: "en",
 };

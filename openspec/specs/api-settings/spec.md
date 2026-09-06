@@ -14,7 +14,7 @@ The application SHALL maintain one settings set shared across the application. A
 - **THEN** `unit_system` SHALL be `"metric"`
 - **AND** `distance_unit` SHALL be `"km"`
 - **AND** `volume_unit` SHALL be `"l"`
-- **AND** `currency` SHALL be `"USD"`
+- **AND** `currency` SHALL be `"EUR"`
 - **AND** `color_mode` SHALL be `"system"`
 - **AND** `locale` SHALL be `"en"`
 

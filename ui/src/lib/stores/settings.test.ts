@@ -5,7 +5,7 @@ const DEFAULTS: Settings = {
   unit_system: "metric",
   distance_unit: "km",
   volume_unit: "l",
-  currency: "USD",
+  currency: "EUR",
   color_mode: "system",
   locale: "en",
 };
@@ -52,12 +52,12 @@ describe("settings store", () => {
   });
 
   it("initializes with fetched settings", async () => {
-    const serverSettings: Settings = { ...DEFAULTS, currency: "EUR" };
+    const serverSettings: Settings = { ...DEFAULTS, currency: "USD" };
     mockFetchSettings.mockResolvedValue(serverSettings);
 
     const { initSettings, getSettings } = await import("./settings.svelte.ts");
     await initSettings();
-    expect(getSettings().currency).toBe("EUR");
+    expect(getSettings().currency).toBe("USD");
   });
 
   it("falls back to defaults when API fails", async () => {
@@ -92,8 +92,8 @@ describe("settings store", () => {
       await import("./settings.svelte.ts");
     await initSettings();
 
-    const result = await updateSettingsStore({ currency: "EUR" });
+    const result = await updateSettingsStore({ currency: "USD" });
     expect(result).toBe(false);
-    expect(getSettings().currency).toBe("USD");
+    expect(getSettings().currency).toBe("EUR");
   });
 });

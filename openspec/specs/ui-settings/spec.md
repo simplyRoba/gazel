@@ -27,7 +27,7 @@ Current unit system, distance unit, volume unit, currency, color mode, and local
 #### Scenario: Initial settings request fails
 
 - **WHEN** current preferences cannot be loaded during initialization
-- **THEN** the application SHALL remain functional using defaults of `metric`, `km`, `l`, `USD`, `system`, and `en`
+- **THEN** the application SHALL remain functional using defaults of `metric`, `km`, `l`, `EUR`, `system`, and `en`
 
 ### Requirement: Settings page
 
@@ -103,7 +103,7 @@ At the start of each protected application session, current preferences SHALL be
 #### Scenario: Preferences are loading
 
 - **WHEN** a protected route renders while preference loading is pending
-- **THEN** the route SHALL remain usable with defaults of `metric`, `km`, `l`, `USD`, `system`, and `en`
+- **THEN** the route SHALL remain usable with defaults of `metric`, `km`, `l`, `EUR`, `system`, and `en`
 
 #### Scenario: Saved preferences arrive
 
