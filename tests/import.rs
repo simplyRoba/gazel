@@ -263,6 +263,53 @@ async fn import_patch_version_difference_allowed() {
     assert_eq!(resp.status(), StatusCode::OK);
 }
 
+#[tokio::test]
+async fn import_prerelease_and_build_version_difference_allowed() {
+    let app = common::test_app().await;
+
+    let parts: Vec<&str> = env!("CARGO_PKG_VERSION").split('.').collect();
+    let major = parts[0];
+    let minor = parts[1];
+    let body = format!(
+        r#"{{
+            "version": "{major}.{minor}.99-rc.1+portable",
+            "exported_at": "2026-01-01T00:00:00Z",
+            "vehicles": []
+        }}"#
+    );
+
+    let resp = app
+        .oneshot(common::json_request("POST", "/api/import", Some(&body)))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test]
+async fn import_malformed_version_is_invalid_request_body() {
+    let app = common::test_app().await;
+
+    let parts: Vec<&str> = env!("CARGO_PKG_VERSION").split('.').collect();
+    let body = format!(
+        r#"{{
+            "version": "{}.{}.not-semver",
+            "exported_at": "2026-01-01T00:00:00Z",
+            "vehicles": []
+        }}"#,
+        parts[0], parts[1]
+    );
+
+    let resp = app
+        .oneshot(common::json_request("POST", "/api/import", Some(&body)))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::BAD_REQUEST);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "INVALID_REQUEST_BODY");
+}
+
 // ── Validation errors ───────────────────────────────────
 
 #[tokio::test]

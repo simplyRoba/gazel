@@ -1,5 +1,6 @@
 use axum::Json;
 use axum::extract::State;
+use semver::Version;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tracing::info;
@@ -70,17 +71,19 @@ pub enum ImportResponse {
 ///
 /// # Errors
 ///
-/// Returns `ApiError::Validation` if the version is missing or incompatible.
+/// Returns `ApiError::BadRequest` if the version is malformed, or
+/// `ApiError::Validation` if it is incompatible.
 fn check_version(archive_version: &str) -> Result<(), ApiError> {
-    let server_version = env!("CARGO_PKG_VERSION");
-    let server_parts: Vec<&str> = server_version.split('.').collect();
-    let archive_parts: Vec<&str> = archive_version.split('.').collect();
+    let archive_version = Version::parse(archive_version)
+        .map_err(|_| ApiError::BadRequest("INVALID_REQUEST_BODY"))?;
+    let server_version = Version::parse(env!("CARGO_PKG_VERSION")).map_err(|error| {
+        tracing::error!(%error, "Running application version is not valid SemVer");
+        ApiError::InternalError("INTERNAL_ERROR")
+    })?;
 
-    if server_parts.len() < 2 || archive_parts.len() < 2 {
-        return Err(ApiError::Validation("IMPORT_VERSION_MISMATCH"));
-    }
-
-    if server_parts[0] != archive_parts[0] || server_parts[1] != archive_parts[1] {
+    if server_version.major != archive_version.major
+        || server_version.minor != archive_version.minor
+    {
         return Err(ApiError::Validation("IMPORT_VERSION_MISMATCH"));
     }
 

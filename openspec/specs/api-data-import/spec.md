@@ -43,8 +43,8 @@ The import endpoint SHALL validate that the export document's version is compati
 
 #### Scenario: Matching major.minor version
 
-- **WHEN** the export document's `version` field has the same major and minor version as the running server
-- **THEN** the import SHALL proceed regardless of patch version differences
+- **WHEN** the export document's `version` field is valid SemVer with the same major and minor version as the running server
+- **THEN** the import SHALL proceed regardless of patch, prerelease, or build-metadata differences
 
 #### Scenario: Mismatched major version
 
@@ -61,6 +61,12 @@ The import endpoint SHALL validate that the export document's version is compati
 #### Scenario: Missing version field
 
 - **WHEN** the export document does not contain a `version` field
+- **THEN** the response status SHALL be `400`
+- **AND** the response body SHALL contain `{ "code": "INVALID_REQUEST_BODY", "message": "..." }`
+
+#### Scenario: Malformed version field
+
+- **WHEN** the export document's `version` field is not valid SemVer
 - **THEN** the response status SHALL be `400`
 - **AND** the response body SHALL contain `{ "code": "INVALID_REQUEST_BODY", "message": "..." }`
 
