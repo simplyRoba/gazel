@@ -50,6 +50,7 @@ export function toEfficiencyData(
 ): TimeSeriesPoint[] {
   return segments
     .filter((s) => s.is_valid)
+    .sort((left, right) => left.end_date.localeCompare(right.end_date))
     .map((s) => ({
       date: new Date(s.end_date),
       value: s.efficiency,

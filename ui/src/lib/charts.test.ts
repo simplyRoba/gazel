@@ -58,6 +58,16 @@ describe("toEfficiencyData", () => {
     expect(result[1].value).toBe(14.0);
   });
 
+  it("orders points chronologically across combined histories", () => {
+    const result = toEfficiencyData([
+      makeSegment({ end_date: "2025-03-15", efficiency: 14 }),
+      makeSegment({ end_date: "2025-01-15", efficiency: 12 }),
+      makeSegment({ end_date: "2025-02-15", efficiency: 13 }),
+    ]);
+
+    expect(result.map((point) => point.value)).toEqual([12, 13, 14]);
+  });
+
   it("parses end_date into Date objects correctly", () => {
     const result = toEfficiencyData([makeSegment({ end_date: "2025-06-20" })]);
     expect(result[0].date.getFullYear()).toBe(2025);
