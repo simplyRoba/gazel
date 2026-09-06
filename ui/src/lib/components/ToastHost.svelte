@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from "svelte";
+  import { onDestroy, untrack } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { X } from "lucide-svelte";
   import { t } from "$lib/i18n";
@@ -11,26 +11,38 @@
 
   const AUTO_DISMISS_MS = 3500;
 
-  let timers = new SvelteMap<string, ReturnType<typeof setTimeout>>();
+  interface ActiveTimer {
+    handle: ReturnType<typeof setTimeout>;
+    startedAt: number;
+  }
+
+  const timers = new SvelteMap<string, ActiveTimer>();
+  const remainingTimes = new SvelteMap<string, number>();
 
   function startDismiss(n: Notification) {
-    if (n.variant === "error") return;
-    if (timers.has(n.id)) return;
-    timers.set(
-      n.id,
-      setTimeout(() => {
+    if (n.variant === "error" || timers.has(n.id)) return;
+    const remaining = remainingTimes.get(n.id) ?? AUTO_DISMISS_MS;
+    timers.set(n.id, {
+      startedAt: Date.now(),
+      handle: setTimeout(() => {
         dismissNotification(n.id);
         timers.delete(n.id);
-      }, AUTO_DISMISS_MS),
-    );
+        remainingTimes.delete(n.id);
+      }, remaining),
+    });
   }
 
   function pauseDismiss(id: string) {
     const timer = timers.get(id);
-    if (timer) {
-      clearTimeout(timer);
-      timers.delete(id);
-    }
+    if (!timer) return;
+
+    clearTimeout(timer.handle);
+    timers.delete(id);
+    const previousRemaining = remainingTimes.get(id) ?? AUTO_DISMISS_MS;
+    remainingTimes.set(
+      id,
+      Math.max(0, previousRemaining - (Date.now() - timer.startedAt)),
+    );
   }
 
   function resumeDismiss(n: Notification) {
@@ -42,13 +54,13 @@
   $effect(() => {
     const visible = getVisibleNotifications();
     for (const n of visible) {
-      startDismiss(n);
+      untrack(() => startDismiss(n));
     }
   });
 
   onDestroy(() => {
     for (const timer of timers.values()) {
-      clearTimeout(timer);
+      clearTimeout(timer.handle);
     }
   });
 
