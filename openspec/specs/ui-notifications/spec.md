@@ -1,57 +1,62 @@
 ## Purpose
 
-Notification system: push notifications, toast rendering, auto-dismiss behavior, and variant styling.
+Defines toast notification presentation, actions, positioning, visibility limits, dismissal, and semantic styling.
 
 ## Requirements
 
-### Requirement: Push notifications
+### Requirement: Toast presentation and actions
 
-The notification store SHALL allow pushing notifications with a message, variant, and optional action.
+The application SHALL present notifications as dismissible toasts containing a message and optional action.
 
-#### Scenario: Push a notification
-- **WHEN** `pushNotification()` is called with a message and variant
-- **THEN** a notification SHALL be added to the store with a generated ID
+#### Scenario: Notification appears
+- **WHEN** application behavior raises a notification
+- **THEN** a toast SHALL display its message
 
-#### Scenario: Dismiss a notification
-- **WHEN** `dismissNotification(id)` is called
-- **THEN** the notification with that ID SHALL be removed from the store
+#### Scenario: Optional action
+- **WHEN** a notification includes an action
+- **THEN** the action SHALL be available from the toast
 
-### Requirement: Toast rendering
+#### Scenario: Manual dismissal
+- **WHEN** the user closes a toast
+- **THEN** that toast SHALL no longer be displayed
 
-The ToastHost SHALL render visible notifications as fixed-position toasts.
+### Requirement: Responsive toast positioning
+
+Toasts SHALL remain anchored to the viewport at a responsive location.
 
 #### Scenario: Desktop positioning
 - **WHEN** the viewport is wider than 768px
-- **THEN** toasts SHALL appear fixed at the bottom-right
+- **THEN** toasts SHALL appear at the bottom-right
 
 #### Scenario: Mobile positioning
 - **WHEN** the viewport is 768px or less
-- **THEN** toasts SHALL appear fixed at the top, below the safe-area inset
+- **THEN** toasts SHALL appear at the top below the device safe area
 
-#### Scenario: Max visible
-- **WHEN** more than 3 notifications are in the store
-- **THEN** only the 3 most recent SHALL be visible
+#### Scenario: Maximum visible notifications
+- **WHEN** more than three notifications are active
+- **THEN** only the three most recent SHALL be visible
 
-### Requirement: Auto-dismiss behavior
+### Requirement: Automatic dismissal
 
-Success and info toasts SHALL auto-dismiss; error toasts SHALL persist.
+Success and informational toasts SHALL dismiss automatically, while error toasts SHALL remain until closed by the user.
 
-#### Scenario: Success auto-dismiss
-- **WHEN** a success notification is pushed
-- **THEN** it SHALL be automatically dismissed after 3500ms
+#### Scenario: Success or informational notification
+- **WHEN** a success or informational toast appears
+- **THEN** it SHALL dismiss automatically after 3500ms
 
-#### Scenario: Error persists
-- **WHEN** an error notification is pushed
-- **THEN** it SHALL remain visible until the user clicks the close button
+#### Scenario: Error notification
+- **WHEN** an error toast appears
+- **THEN** it SHALL remain visible until the user closes it
 
-#### Scenario: Hover pauses dismiss
-- **WHEN** the user hovers over an auto-dismissing toast
-- **THEN** the dismiss timer SHALL pause and resume on mouse leave
+#### Scenario: Hover pauses dismissal
+- **WHEN** the user hovers over an automatically dismissing toast
+- **THEN** its remaining dismissal time SHALL pause
+- **AND** resume when the pointer leaves
 
-### Requirement: Variant styling
+### Requirement: Semantic toast styling
 
-Each toast SHALL be visually distinguished by its variant.
+Success, error, and informational toasts SHALL be visually distinguishable.
 
-#### Scenario: Variant colors
-- **WHEN** a toast is rendered
-- **THEN** success SHALL use `--color-success`, error SHALL use `--color-error`, info SHALL use `--color-info` as the left border accent color
+#### Scenario: Variant appearance
+- **WHEN** a toast is displayed
+- **THEN** its left-border accent SHALL visually communicate whether it represents success, an error, or information
