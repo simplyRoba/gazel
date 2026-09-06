@@ -1,113 +1,130 @@
 ## Purpose
 
-Vehicle form UI: the vehicle form component, create and edit pages, the settings vehicles section, delete confirmation, dashboard empty state with a vehicle link, and error notifications.
+Defines vehicle create/edit forms, settings-page vehicle management, dashboard empty-state navigation, deletion confirmation, and visible operation outcomes.
 
 ## Requirements
 
-### Requirement: Vehicle form component
+### Requirement: Vehicle form behavior
 
-A shared `VehicleForm` component SHALL render a form with fields for name, make, model, year, fuel type, and notes, usable for both creating and editing vehicles.
+Vehicle creation and editing SHALL provide fields for name, make, model, year, fuel type, and notes.
 
-#### Scenario: Empty form for create
-- **WHEN** `VehicleForm` is rendered without an `initial` prop
-- **THEN** all fields SHALL be empty except fuel type which SHALL default to "gasoline"
+#### Scenario: New vehicle form
+- **WHEN** the user opens vehicle creation
+- **THEN** all fields SHALL be empty except fuel type
+- **AND** fuel type SHALL default to `gasoline`
 
-#### Scenario: Pre-filled form for edit
-- **WHEN** `VehicleForm` is rendered with an `initial` vehicle
-- **THEN** all fields SHALL be populated with the vehicle's current values
+#### Scenario: Edit vehicle form
+- **WHEN** the user opens an existing vehicle for editing
+- **THEN** all fields SHALL contain the vehicle's current values
 
 #### Scenario: Name validation
-- **WHEN** the user submits the form with an empty or whitespace-only name
-- **THEN** a validation error SHALL be shown inline
-- **AND** the form SHALL NOT call the `onsave` callback
+- **WHEN** the user submits an empty or whitespace-only name
+- **THEN** an inline validation error SHALL be shown
+- **AND** no save request SHALL be sent
 
-#### Scenario: Successful submission
-- **WHEN** the user submits a valid form
-- **THEN** the `onsave` callback SHALL be called with the form data as a `CreateVehicle` object
+#### Scenario: Valid form
+- **WHEN** the user submits valid vehicle data
+- **THEN** the data SHALL be submitted for creation or update as appropriate
 
 ### Requirement: Create vehicle page
 
-A page at `/settings/vehicles/new` SHALL allow users to create a new vehicle.
+`/settings/vehicles/new` SHALL allow users to create a vehicle.
 
-#### Scenario: Successful create and navigate
-- **WHEN** the user fills out the form and saves
-- **AND** the API returns successfully
-- **THEN** the user SHALL be navigated back to `/settings`
+#### Scenario: Successful creation
+- **WHEN** the user submits valid creation data and saving succeeds
+- **THEN** the user SHALL return to `/settings`
+- **AND** the created vehicle SHALL appear in the vehicle list
 
-#### Scenario: Create API error
-- **WHEN** the user saves and the API returns an error
-- **THEN** the error message SHALL be displayed on the page
-- **AND** the user SHALL remain on the form page
+#### Scenario: Creation fails
+- **WHEN** saving a new vehicle fails
+- **THEN** the API error message SHALL be displayed
+- **AND** the user SHALL remain on the creation page
 
 ### Requirement: Edit vehicle page
 
-A page at `/settings/vehicles/[id]/edit` SHALL allow users to edit an existing vehicle.
+`/settings/vehicles/{id}/edit` SHALL allow users to edit an existing vehicle.
 
-#### Scenario: Load and display vehicle
-- **WHEN** the edit page is loaded
-- **THEN** the vehicle SHALL be fetched from the API by ID
-- **AND** the form SHALL be pre-filled with the vehicle's data
+#### Scenario: Vehicle loads
+- **WHEN** the user opens a valid vehicle edit URL
+- **THEN** the latest data for the vehicle identified by the URL SHALL be loaded
+- **AND** the form SHALL display that data
 
-#### Scenario: Successful edit and navigate
-- **WHEN** the user edits the form and saves
-- **AND** the API returns successfully
-- **THEN** the user SHALL be navigated back to `/settings`
+#### Scenario: Successful update
+- **WHEN** the user submits valid changes and saving succeeds
+- **THEN** the user SHALL return to `/settings`
+- **AND** the vehicle list SHALL reflect the updated values
 
 #### Scenario: Vehicle not found
-- **WHEN** the edit page is loaded with an invalid ID
+- **WHEN** the user opens an edit URL with an unknown vehicle ID
 - **THEN** an error message SHALL be displayed
 
-### Requirement: Settings vehicles section
+### Requirement: Settings vehicle list
 
-The settings page SHALL display a "Vehicles" section listing all vehicles with edit and delete actions.
+The settings page SHALL load and display the current vehicle list with edit and delete actions.
 
-#### Scenario: Vehicles displayed
-- **WHEN** the settings page loads and vehicles exist
-- **THEN** each vehicle SHALL be displayed as a row with name, make/model/year, and action buttons
+#### Scenario: Vehicle list loads
+- **WHEN** loading or refreshing the vehicle list succeeds
+- **THEN** the displayed list SHALL be replaced with the current vehicles
 
-#### Scenario: No vehicles
-- **WHEN** the settings page loads and no vehicles exist
-- **THEN** an empty state message SHALL be displayed with an "Add vehicle" action
+#### Scenario: Vehicles exist
+- **WHEN** the vehicle list contains vehicles
+- **THEN** each vehicle SHALL appear as a row with its name, make, model, year, and available actions
 
-#### Scenario: Add vehicle button
-- **WHEN** the user clicks "Add vehicle"
-- **THEN** the user SHALL be navigated to `/settings/vehicles/new`
+#### Scenario: No vehicles exist
+- **WHEN** the vehicle list is empty
+- **THEN** an empty state SHALL provide an `Add vehicle` action
 
-#### Scenario: Edit button
-- **WHEN** the user clicks the edit button on a vehicle row
-- **THEN** the user SHALL be navigated to `/settings/vehicles/[id]/edit`
+#### Scenario: Add vehicle
+- **WHEN** the user chooses `Add vehicle`
+- **THEN** navigation SHALL open `/settings/vehicles/new`
 
-### Requirement: Dashboard empty state with vehicle link
+#### Scenario: Edit vehicle
+- **WHEN** the user chooses edit for a vehicle
+- **THEN** navigation SHALL open `/settings/vehicles/{id}/edit` for that vehicle
 
-When no vehicles exist, the dashboard SHALL show an empty state directing the user to add their first vehicle.
+#### Scenario: Vehicle list refresh fails
+- **WHEN** refreshing the vehicle list fails
+- **THEN** already displayed vehicles SHALL remain unchanged
+- **AND** a notification SHALL display the API error message
 
-#### Scenario: No vehicles on dashboard
-- **WHEN** the dashboard loads and the vehicle list is empty
-- **THEN** an empty state SHALL be displayed with a button linking to `/settings/vehicles/new`
+### Requirement: Dashboard empty state links to vehicle creation
 
-### Requirement: Delete confirmation
+When no vehicles exist, the dashboard SHALL direct the user to create the first vehicle.
 
-Vehicle deletion SHALL use a ModalDialog instead of inline row confirmation.
+#### Scenario: Dashboard has no vehicles
+- **WHEN** the dashboard loads with no vehicles
+- **THEN** an empty state SHALL provide a link to `/settings/vehicles/new`
 
-#### Scenario: Delete triggers modal
-- **WHEN** the user clicks the delete button on a vehicle row
-- **THEN** a ModalDialog SHALL open with `mode="confirm"`, `variant="danger"`, and the vehicle name in the message
+### Requirement: Vehicle deletion confirmation
 
-#### Scenario: Confirm deletes vehicle
-- **WHEN** the user confirms deletion in the modal
-- **THEN** the vehicle SHALL be deleted via the store
-- **AND** the modal SHALL close
+Vehicle deletion SHALL require a destructive confirmation modal containing the vehicle name.
 
-#### Scenario: Cancel closes modal
-- **WHEN** the user cancels in the modal
+#### Scenario: Delete requested
+- **WHEN** the user chooses delete for a vehicle
+- **THEN** a destructive confirmation modal SHALL open
+- **AND** its message SHALL identify the vehicle
+
+#### Scenario: Delete confirmed
+- **WHEN** the user confirms deletion and it succeeds
 - **THEN** the modal SHALL close
-- **AND** no API call SHALL be made
+- **AND** the vehicle SHALL be removed from the displayed list
 
-### Requirement: Error notifications
+#### Scenario: Deletion fails
+- **WHEN** the user confirms deletion and it fails
+- **THEN** the modal SHALL remain open
+- **AND** the vehicle SHALL remain in the displayed list
+- **AND** a notification SHALL display the API error message
 
-Vehicle store errors SHALL push toast notifications in addition to setting error state.
+#### Scenario: Delete canceled
+- **WHEN** the user cancels deletion
+- **THEN** the modal SHALL close
+- **AND** no deletion request SHALL be sent
 
-#### Scenario: API error shows toast
-- **WHEN** a vehicle store action fails
-- **THEN** a toast notification with `variant="error"` SHALL be pushed
-- **AND** the error message from the API SHALL be displayed
+### Requirement: Vehicle operation errors
+
+Failed vehicle loading, creation, update, or deletion SHALL preserve already displayed vehicle data and show a notification containing the API error message.
+
+#### Scenario: Vehicle operation fails
+- **WHEN** a vehicle operation fails
+- **THEN** already displayed vehicle data SHALL remain unchanged
+- **AND** an error-styled notification SHALL display the API error message
