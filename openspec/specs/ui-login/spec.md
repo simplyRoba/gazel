@@ -1,11 +1,11 @@
 ## Purpose
 
-Defines Gazel’s public branded Svelte login page, its single provider-labelled OIDC action, safe return propagation, and usable failure and signed-out states.
+Defines Gazel’s public branded login page, its single provider-labelled OIDC action, safe return propagation, and usable failure and signed-out states.
 
 ## Requirements
 
 ### Requirement: Public login page presents one OIDC action
-When built-in authentication is enabled, Gazel SHALL serve a public Svelte page at `/login` without requiring an authenticated session.
+When built-in authentication is enabled, Gazel SHALL serve a public page at `/login` without requiring an authenticated session.
 
 #### Scenario: Default login page
 - **WHEN** an unauthenticated browser navigates to `/login`
@@ -16,7 +16,7 @@ When built-in authentication is enabled, Gazel SHALL serve a public Svelte page 
 
 #### Scenario: Valid session bypasses login page
 - **WHEN** a browser with a valid Gazel session requests `/login`
-- **THEN** the backend SHALL redirect to `/` before serving the Svelte login page
+- **THEN** the backend SHALL redirect to `/` before serving the login page
 - **AND** the browser SHALL NOT display the authentication-required state
 
 #### Scenario: Provider-labelled button
