@@ -1,50 +1,53 @@
 ## Purpose
 
-Reusable modal dialog: confirm and alert modes, a danger variant, built on the native dialog element.
+Defines confirmation and alert modal behavior, destructive-action emphasis, dismissal, and accessible focus handling.
 
 ## Requirements
 
-### Requirement: Confirm mode dialog
+### Requirement: Confirmation modal
 
-The ModalDialog SHALL display a confirmation dialog with Cancel and Confirm buttons.
+A confirmation modal SHALL display its title and message with Cancel and Confirm actions.
 
-#### Scenario: Confirm dialog opens
-- **WHEN** `open` is set to `true` with `mode="confirm"`
-- **THEN** a modal dialog SHALL appear with the title, message, Cancel button, and Confirm button
+#### Scenario: Confirmation opens
+- **WHEN** an interaction requests confirmation
+- **THEN** a modal SHALL appear with the requested title and message
+- **AND** Cancel and Confirm actions SHALL be available
 
-#### Scenario: Confirm callback
-- **WHEN** the user clicks the Confirm button
-- **THEN** the `onconfirm` callback SHALL be called
+#### Scenario: User confirms
+- **WHEN** the user chooses Confirm
+- **THEN** the requested action SHALL proceed
 
-#### Scenario: Cancel callback
-- **WHEN** the user clicks Cancel, presses Escape, or clicks the backdrop
-- **THEN** the `oncancel` callback SHALL be called
+#### Scenario: User cancels
+- **WHEN** the user chooses Cancel, presses Escape, or clicks the backdrop
+- **THEN** the interaction SHALL be canceled without performing the requested action
 
-### Requirement: Alert mode dialog
+### Requirement: Alert modal
 
-The ModalDialog SHALL display an alert dialog with a single OK button.
+An alert modal SHALL display its title and message with a single OK action.
 
-#### Scenario: Alert dialog
-- **WHEN** `open` is set to `true` with `mode="alert"`
-- **THEN** a modal dialog SHALL appear with the title, message, and a single OK button
+#### Scenario: Alert opens
+- **WHEN** an interaction presents an alert
+- **THEN** a modal SHALL appear with the requested title and message
+- **AND** an OK action SHALL be available
 
-#### Scenario: Alert close
-- **WHEN** the user clicks OK or presses Escape
-- **THEN** the `onclose` callback SHALL be called
+#### Scenario: Alert closes
+- **WHEN** the user chooses OK or presses Escape
+- **THEN** the alert SHALL close
 
-### Requirement: Danger variant
+### Requirement: Destructive-action emphasis
 
-The ModalDialog SHALL support a danger variant with an error-colored confirm button.
+A modal confirming a destructive action SHALL visually distinguish its confirmation action as dangerous.
 
-#### Scenario: Danger styling
-- **WHEN** `variant="danger"` is set
-- **THEN** the confirm/OK button SHALL use the error color (`--color-error`)
+#### Scenario: Destructive confirmation
+- **WHEN** a modal asks the user to confirm a destructive action
+- **THEN** its confirmation action SHALL use the application's error styling
 
-### Requirement: Native dialog element
+### Requirement: Accessible modal interaction
 
-The ModalDialog SHALL use the native `<dialog>` element with `showModal()` for proper focus trapping, backdrop, and accessibility.
+An open modal SHALL contain keyboard focus and prevent interaction with the underlying page until the modal is resolved.
 
 #### Scenario: Focus management
-- **WHEN** the dialog opens
-- **THEN** focus SHALL be trapped within the dialog
-- **AND** Escape key SHALL trigger cancel/close
+- **WHEN** a modal opens
+- **THEN** keyboard focus SHALL remain within the modal
+- **AND** the underlying page SHALL not be interactive
+- **AND** Escape SHALL trigger the modal's defined cancel or close behavior
