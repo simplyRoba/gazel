@@ -1,47 +1,45 @@
 ## Purpose
 
-Shared UI components: PageContainer and EmptyState.
+Defines consistent page-width and empty-state presentation patterns.
 
 ## Requirements
 
-### Requirement: PageContainer component
+### Requirement: Constrained page content
 
-A reusable `PageContainer` component SHALL constrain page content to a maximum width and center it within the root layout's padded content region.
+Pages SHALL support narrow, default, and wide content widths as defined by the application layout and SHALL center constrained content within the available page area.
 
-#### Scenario: Default width
-- **WHEN** `PageContainer` is used without a `width` prop
-- **THEN** the content SHALL be constrained to `--content-width-default`
-- **AND** the content SHALL be horizontally centered with `margin: 0 auto`
+#### Scenario: Default-width page
+- **WHEN** a page does not select another width variant
+- **THEN** its content SHALL use the default maximum width
+- **AND** remain horizontally centered
 
-#### Scenario: Narrow width
-- **WHEN** `PageContainer` is used with `width="narrow"`
-- **THEN** the content SHALL be constrained to `--content-width-narrow`
+#### Scenario: Narrow-width page
+- **WHEN** a page selects the narrow width variant
+- **THEN** its content SHALL use the narrow maximum width
+- **AND** remain horizontally centered
 
-#### Scenario: Wide width
-- **WHEN** `PageContainer` is used with `width="wide"`
-- **THEN** the content SHALL be constrained to `--content-width-wide`
+#### Scenario: Wide-width page
+- **WHEN** a page selects the wide width variant
+- **THEN** its content SHALL use the wide maximum width
+- **AND** remain horizontally centered
 
-#### Scenario: Content rendering
-- **WHEN** child content is placed inside `PageContainer`
-- **THEN** all children SHALL render inside the constrained container
+### Requirement: Empty-state presentation
 
-### Requirement: EmptyState component
+When a list or page presents an empty state, it SHALL center an icon, heading, description, and optional action.
 
-A reusable `EmptyState` component SHALL display a centered message with an icon, heading, description, and an optional action button, used when a list or page has no data.
+#### Scenario: Complete empty state
+- **WHEN** an empty state includes an icon, heading, description, and action
+- **THEN** the icon SHALL appear above the heading
+- **AND** the heading SHALL appear prominent and semibold
+- **AND** the description SHALL appear below it with visually secondary emphasis
+- **AND** the action SHALL appear below the description
 
-#### Scenario: Full empty state
-- **WHEN** `EmptyState` is rendered with an `icon`, `heading`, `description`, and an `action` snippet
-- **THEN** the icon SHALL render above the heading
-- **AND** the heading SHALL be displayed in `--font-lg` weight semibold
-- **AND** the description SHALL be displayed below the heading in `--color-text-secondary`
-- **AND** the action snippet SHALL render below the description
+#### Scenario: Empty state without an action
+- **WHEN** an empty state has no available action
+- **THEN** the icon, heading, and description SHALL remain visible
+- **AND** no empty action area SHALL be displayed
 
-#### Scenario: Empty state without action
-- **WHEN** `EmptyState` is rendered without an `action` snippet
-- **THEN** the icon, heading, and description SHALL render
-- **AND** no action area SHALL be displayed
-
-#### Scenario: Visual centering
-- **WHEN** `EmptyState` is rendered
-- **THEN** all content SHALL be vertically and horizontally centered within its container
-- **AND** there SHALL be consistent spacing between the icon, heading, description, and action
+#### Scenario: Empty-state alignment
+- **WHEN** an empty state is displayed
+- **THEN** its content SHALL be vertically and horizontally centered within the available area
+- **AND** the icon, heading, description, and optional action SHALL have consistent spacing
