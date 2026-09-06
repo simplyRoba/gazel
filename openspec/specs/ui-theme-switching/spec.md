@@ -1,104 +1,81 @@
 ## Purpose
 
-Theme switching: flash-free theme initialization, preference persistence, runtime toggling, system-preference change detection, and theme reconciliation on app init.
+Defines flash-free theme initialization, light/dark/system preferences, persistence, system-theme changes, and preference precedence.
 
 ## Requirements
 
-### Requirement: Theme initialization without flash
+### Requirement: Theme initializes without a flash
 
-The app SHALL apply the correct theme (light or dark) before the first paint to prevent a flash of incorrect theme colors.
+The application SHALL apply the effective light or dark theme before content is first painted.
 
-#### Scenario: Stored preference exists
-- **WHEN** the app loads and `localStorage` contains a `gazel.theme` key with value `light` or `dark`
-- **THEN** the `data-theme` attribute on `<html>` SHALL be set to that value before any content renders
+#### Scenario: Explicit preference is available
+- **WHEN** an explicit light or dark preference is available at startup
+- **THEN** that theme SHALL be applied before content renders
 
-#### Scenario: Stored preference is system
-- **WHEN** the app loads and `localStorage` contains `gazel.theme` with value `system`
-- **THEN** the `data-theme` attribute SHALL be set based on the OS `prefers-color-scheme` media query result
+#### Scenario: System preference is selected
+- **WHEN** the saved preference is `system`
+- **THEN** the current operating-system color preference SHALL determine the initial theme
+- **AND** the effective theme SHALL be applied before content renders
 
-#### Scenario: No stored preference
-- **WHEN** the app loads and no `gazel.theme` key exists in `localStorage`
-- **THEN** the `data-theme` attribute SHALL be set based on the OS `prefers-color-scheme` media query result
+#### Scenario: No preference is available
+- **WHEN** no saved theme preference is available at startup
+- **THEN** the current operating-system color preference SHALL determine the initial theme
 
-### Requirement: Theme preference persistence
+### Requirement: Theme preference persists
 
-The app SHALL persist the user's theme preference to `localStorage` under the key `gazel.theme` AND to the server via `PUT /api/settings`.
+Selecting light, dark, or system SHALL update the effective theme immediately and persist the preference for future application sessions.
 
 #### Scenario: User changes theme
+- **WHEN** the user selects a theme preference
+- **THEN** the effective theme SHALL update immediately
+- **AND** the preference SHALL be saved as an application setting
+- **AND** it SHALL be available early enough on the next startup to prevent an incorrect-theme flash
 
-- **WHEN** the user selects a theme preference (light, dark, or system)
-- **THEN** the value SHALL be written to `localStorage` key `gazel.theme` synchronously
-- **AND** the `data-theme` attribute on `<html>` SHALL update immediately
-- **AND** an async `PUT /api/settings` request SHALL be sent with `{ "color_mode": "<value>" }`
-- **AND** if the API call fails, the `localStorage` value SHALL remain (the server will be reconciled on next init)
+#### Scenario: Saving the preference fails
+- **WHEN** the selected theme cannot be saved as an application setting
+- **THEN** the selected theme SHALL remain active for the current session
+- **AND** preference precedence SHALL be resolved again during the next initialization
 
-#### Scenario: Preference survives reload
+#### Scenario: Page reload
+- **WHEN** the user reloads after selecting a theme
+- **THEN** the previously selected theme SHALL be applied before content renders
 
-- **WHEN** the user has set a theme preference and reloads the page
-- **THEN** the previously selected theme SHALL be applied on load without flash via the inline `localStorage` read
+### Requirement: System preference remains reactive
 
-### Requirement: Runtime theme toggling
+System mode SHALL follow operating-system color preference changes while the application is open.
 
-The theme store SHALL expose a function to change the theme at runtime, updating the DOM, persisting to `localStorage`, and syncing to the server.
+#### Scenario: System changes to dark
+- **WHEN** the preference is `system`
+- **AND** the operating system changes from light to dark
+- **THEN** the application SHALL switch to dark without a page reload
 
-#### Scenario: Toggle from light to dark
+#### Scenario: Explicit preference ignores system changes
+- **WHEN** the preference is explicitly light or dark
+- **AND** the operating-system color preference changes
+- **THEN** the application's effective theme SHALL remain unchanged
 
-- **WHEN** `setTheme('dark')` is called
-- **THEN** `data-theme` on `<html>` SHALL be set to `dark`
-- **AND** `localStorage` key `gazel.theme` SHALL be set to `dark`
-- **AND** all CSS custom properties from the dark theme SHALL take effect
-- **AND** `PUT /api/settings` SHALL be called with `{ "color_mode": "dark" }`
+### Requirement: Saved theme precedence
 
-#### Scenario: Set to system preference
+After startup, the application-wide saved preference SHALL normally be authoritative over any device-cached preference used for flash-free initial rendering.
 
-- **WHEN** `setTheme('system')` is called
-- **THEN** `localStorage` key `gazel.theme` SHALL be set to `system`
-- **AND** `data-theme` SHALL reflect the current OS preference
-- **AND** if the OS preference changes while the app is open, the theme SHALL update automatically
-- **AND** `PUT /api/settings` SHALL be called with `{ "color_mode": "system" }`
+#### Scenario: Preferences agree
+- **WHEN** the application-wide and device-cached preferences agree
+- **THEN** the effective theme SHALL remain unchanged
 
-### Requirement: System preference change detection
+#### Scenario: Preferences disagree
+- **WHEN** the application-wide preference differs from the device-cached preference
+- **THEN** the application-wide preference SHALL become effective
+- **AND** the device-cached preference SHALL be updated for future flash-free startup
 
-The theme store SHALL listen for OS-level color scheme changes and update the effective theme when the preference is set to `system`.
+#### Scenario: Existing explicit preference predates application settings
+- **WHEN** preference synchronization occurs for the first time
+- **AND** the application-wide preference is the default `system`
+- **AND** the device already has an explicit light or dark preference from before application settings existed
+- **THEN** the existing explicit preference SHALL remain effective
+- **AND** it SHALL become the application-wide saved preference
+- **AND** later initializations SHALL use normal application-wide precedence
 
-#### Scenario: OS switches to dark while app is open
-- **WHEN** the theme preference is `system`
-- **AND** the OS color scheme changes from light to dark
-- **THEN** `data-theme` on `<html>` SHALL update to `dark` without page reload
-
-#### Scenario: OS changes ignored when explicit preference set
-- **WHEN** the theme preference is explicitly `light` or `dark`
-- **AND** the OS color scheme changes
-- **THEN** the `data-theme` attribute SHALL NOT change
-
-### Requirement: Theme reconciliation on app init
-
-On app startup, the theme store SHALL reconcile the `localStorage` value (applied by the inline script) with the server-stored `color_mode` from the settings API.
-
-#### Scenario: Server and localStorage agree
-
-- **WHEN** the settings store fetches settings from the API
-- **AND** `server.color_mode` matches `localStorage.gazel.theme`
-- **THEN** no additional action SHALL be taken
-
-#### Scenario: Server and localStorage disagree
-
-- **WHEN** the settings store fetches settings from the API
-- **AND** `server.color_mode` differs from `localStorage.gazel.theme`
-- **THEN** the server value SHALL be treated as authoritative
-- **AND** `localStorage.gazel.theme` SHALL be updated to match the server value
-- **AND** the `data-theme` attribute SHALL be updated if the effective theme changes
-
-#### Scenario: First sync from existing localStorage
-
-- **WHEN** the settings store fetches settings from the API for the first time
-- **AND** `server.color_mode` is `system` (the default)
-- **AND** `localStorage.gazel.theme` contains an explicit `light` or `dark` value set before the settings API existed
-- **THEN** the localStorage value SHALL be pushed to the server via `PUT /api/settings`
-- **AND** subsequent inits SHALL treat the server as authoritative
-
-#### Scenario: API unavailable during init
-
-- **WHEN** the settings store fails to fetch settings from the API
-- **THEN** the theme SHALL remain as applied by the inline `localStorage` script
-- **AND** no reconciliation SHALL occur
+#### Scenario: Application settings are unavailable
+- **WHEN** application-wide settings cannot be loaded during initialization
+- **THEN** the theme already applied for flash-free startup SHALL remain effective
+- **AND** precedence reconciliation SHALL wait until a later initialization
