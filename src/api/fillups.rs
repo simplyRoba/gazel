@@ -3,6 +3,7 @@ use axum::extract::{Path, RawQuery, State};
 use axum::http::StatusCode;
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use tracing::{debug, info};
@@ -196,10 +197,15 @@ fn encode_cursor(cursor: &FillupCursor) -> Result<String, ApiError> {
 
 /// # Errors
 ///
-/// Returns `ApiError::Validation` if the date is empty or whitespace-only.
+/// Returns `ApiError::Validation` if the date is empty or is not a valid
+/// calendar date in `YYYY-MM-DD` format.
 fn validate_fillup_date(date: &str) -> Result<(), ApiError> {
-    if date.trim().is_empty() {
+    let date = date.trim();
+    if date.is_empty() {
         return Err(ApiError::Validation("FILLUP_DATE_REQUIRED"));
+    }
+    if date.len() != 10 || NaiveDate::parse_from_str(date, "%Y-%m-%d").is_err() {
+        return Err(ApiError::Validation("FILLUP_INVALID_DATE"));
     }
     Ok(())
 }

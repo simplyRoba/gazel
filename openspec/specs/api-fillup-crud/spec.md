@@ -161,8 +161,13 @@ The API SHALL require a valid date for every fill-up.
 - **THEN** the response status SHALL be `422 Unprocessable Entity`
 - **AND** the body SHALL contain `"code": "FILLUP_DATE_REQUIRED"`
 
+#### Scenario: Malformed or impossible date
+- **WHEN** a create or update request includes a date that is not a real calendar date in exact `YYYY-MM-DD` form
+- **THEN** the response status SHALL be `422 Unprocessable Entity`
+- **AND** the body SHALL contain `"code": "FILLUP_INVALID_DATE"`
+
 #### Scenario: Date is trimmed
-- **WHEN** a create or update request includes a `date` with leading/trailing whitespace
+- **WHEN** a create or update request includes a valid `date` with leading/trailing whitespace
 - **THEN** the stored date SHALL have whitespace trimmed
 
 ### Requirement: Fill-up fuel amount validation

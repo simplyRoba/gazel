@@ -427,6 +427,40 @@ async fn create_empty_date() {
 }
 
 #[tokio::test]
+async fn create_malformed_date_rejected() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-2-09","fuel_amount":30.0,"odometer":1000,"cost":40.0}"#,
+    )
+    .await;
+
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "FILLUP_INVALID_DATE");
+}
+
+#[tokio::test]
+async fn create_impossible_date_rejected() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let resp = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-02-30","fuel_amount":30.0,"odometer":1000,"cost":40.0}"#,
+    )
+    .await;
+
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "FILLUP_INVALID_DATE");
+}
+
+#[tokio::test]
 async fn create_missing_fuel_amount() {
     let mut app = common::test_app().await;
     let vid = setup_vehicle(&mut app).await;
@@ -741,6 +775,35 @@ async fn update_odometer_below_other_fillup_rejected() {
     assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
     let json = common::body_json(resp).await;
     assert_eq!(json["code"], "FILLUP_INVALID_ODOMETER");
+}
+
+#[tokio::test]
+async fn update_impossible_date_rejected() {
+    let mut app = common::test_app().await;
+    let vid = setup_vehicle(&mut app).await;
+
+    let created = create_fillup(
+        &mut app,
+        vid,
+        r#"{"date":"2026-01-01","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#,
+    )
+    .await;
+    let created = common::body_json(created).await;
+    let fillup_id = created["id"].as_i64().unwrap();
+
+    let resp = app
+        .clone()
+        .oneshot(common::json_request(
+            "PUT",
+            &format!("/api/vehicles/{vid}/fillups/{fillup_id}"),
+            Some(r#"{"date":"2026-02-30","fuel_amount":30.0,"odometer":10000,"cost":50.0}"#),
+        ))
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), StatusCode::UNPROCESSABLE_ENTITY);
+    let json = common::body_json(resp).await;
+    assert_eq!(json["code"], "FILLUP_INVALID_DATE");
 }
 
 #[tokio::test]
