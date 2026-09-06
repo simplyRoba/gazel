@@ -373,7 +373,7 @@
         class:refreshing={pullIndicatorState === "refreshing"}
         class:settling={!gestureActive && pullIndicatorState !== "refreshing"}
         style:transform="translateY({pullIndicatorVisible
-          ? Math.min(pullOffset, PULL_TO_REFRESH_THRESHOLD) - 68
+          ? pullOffset - 68
           : -100}px)"
       >
         <span class="pull-indicator-label">{pullLabel}</span>
