@@ -1,258 +1,148 @@
 ## Purpose
 
-Defines the pull-to-refresh gesture system for the PWA, including pure logic functions, touch gesture handling, visual indicator behavior, and content displacement during the gesture.
+Defines pull-to-refresh eligibility, gesture behavior, visual feedback, content movement, and page reload behavior for the installed application.
 
 ## Requirements
 
-### Requirement: Pure logic module
+### Requirement: Pull-to-refresh availability
 
-The app SHALL provide a pure logic module at `ui/src/lib/pull-to-refresh.ts` containing all pull-to-refresh constants, calculations, and state derivation as side-effect-free exported functions. The module SHALL have no DOM, framework, or browser API dependencies.
+Pull-to-refresh SHALL be available only in an installed standalone session on a touch-capable device and an eligible route.
 
-#### Scenario: Module exports constants
-- **WHEN** the module is imported
-- **THEN** it SHALL export `PULL_TO_REFRESH_THRESHOLD` as `128` (pixels)
-- **AND** it SHALL export `MAX_PULL_TO_REFRESH_OFFSET` as `140` (pixels)
-- **AND** it SHALL export `PULL_TO_REFRESH_RELOAD_DELAY_MS` as `120` (milliseconds)
+#### Scenario: Installed touch session
+- **WHEN** Gazel is running as an installed standalone application on a touch-capable device
+- **AND** the current route is eligible
+- **THEN** pull-to-refresh MAY begin when its other gesture conditions are met
 
-### Requirement: Standalone PWA detection
+#### Scenario: Browser tab or non-touch device
+- **WHEN** Gazel is running in a regular browser tab or the device is not touch-capable
+- **THEN** pull-to-refresh SHALL NOT begin
 
-The module SHALL export an `isStandalonePwaSession(window)` function that returns `true` only when the app is running as an installed standalone PWA.
+#### Scenario: Eligible routes
+- **WHEN** the current path is `/` or `/settings`
+- **THEN** the route SHALL be eligible for pull-to-refresh
 
-#### Scenario: Standalone via media query
-- **WHEN** `window.matchMedia('(display-mode: standalone)')` matches
-- **THEN** `isStandalonePwaSession()` SHALL return `true`
+#### Scenario: Ineligible routes
+- **WHEN** the current path is any route other than `/` or `/settings`
+- **THEN** pull-to-refresh SHALL NOT begin
 
-#### Scenario: Standalone via iOS navigator property
-- **WHEN** `navigator.standalone` is `true` (iOS Safari)
-- **THEN** `isStandalonePwaSession()` SHALL return `true`
+### Requirement: Pull-to-refresh safety conditions
 
-#### Scenario: Running in browser tab
-- **WHEN** neither the media query matches nor `navigator.standalone` is true
-- **THEN** `isStandalonePwaSession()` SHALL return `false`
+A gesture SHALL begin only from the top of the applicable scroll area, with no modal open, and with exactly one touch point.
 
-### Requirement: Touch capability detection
+#### Scenario: All conditions are met
+- **WHEN** the session and route are eligible
+- **AND** the page and touched scroll area are at the top
+- **AND** no modal is open
+- **AND** exactly one touch point starts a downward gesture
+- **THEN** pull-to-refresh SHALL begin
 
-The module SHALL export an `isTouchCapableDevice(window)` function that returns `true` when the device supports touch input.
+#### Scenario: Modal is open
+- **WHEN** any modal is open
+- **THEN** pull-to-refresh SHALL NOT begin
 
-#### Scenario: Coarse pointer detected
-- **WHEN** `window.matchMedia('(pointer: coarse)')` matches
-- **THEN** `isTouchCapableDevice()` SHALL return `true`
-
-#### Scenario: Touch points detected
-- **WHEN** `navigator.maxTouchPoints` is greater than `0`
-- **THEN** `isTouchCapableDevice()` SHALL return `true`
-
-#### Scenario: ontouchstart in window
-- **WHEN** `'ontouchstart' in window` is `true`
-- **THEN** `isTouchCapableDevice()` SHALL return `true`
-
-#### Scenario: No touch support
-- **WHEN** none of the above conditions are met
-- **THEN** `isTouchCapableDevice()` SHALL return `false`
-
-### Requirement: Route eligibility
-
-The module SHALL export an `isPullToRefreshRoute(pathname)` function that returns `true` only for routes where pull-to-refresh is allowed.
-
-#### Scenario: Dashboard route allowed
-- **WHEN** pathname is `/`
-- **THEN** `isPullToRefreshRoute()` SHALL return `true`
-
-#### Scenario: Settings route allowed
-- **WHEN** pathname is `/settings`
-- **THEN** `isPullToRefreshRoute()` SHALL return `true`
-
-#### Scenario: Vehicle form routes blocked
-- **WHEN** pathname is `/settings/vehicles/new` or `/settings/vehicles/{id}/edit`
-- **THEN** `isPullToRefreshRoute()` SHALL return `false`
-
-#### Scenario: Unknown routes blocked
-- **WHEN** pathname does not match any allowed route pattern
-- **THEN** `isPullToRefreshRoute()` SHALL return `false`
-
-### Requirement: Overlay blocking detection
-
-The module SHALL export a `hasBlockingPullToRefreshOverlay(document)` function that returns `true` when any modal dialog is open.
-
-#### Scenario: Open dialog blocks pull
-- **WHEN** `document.querySelector('dialog[open]')` returns an element
-- **THEN** `hasBlockingPullToRefreshOverlay()` SHALL return `true`
-
-#### Scenario: No blocking overlay
-- **WHEN** no `dialog[open]` element exists in the DOM
-- **THEN** `hasBlockingPullToRefreshOverlay()` SHALL return `false`
-
-### Requirement: Pull-to-refresh eligibility gate
-
-The module SHALL export a `canStartPullToRefresh(params)` function that returns `true` only when all preconditions are met simultaneously.
-
-#### Scenario: All conditions met
-- **WHEN** the app is a standalone PWA AND the device is touch-capable AND the current route is eligible AND the page is scrolled to the top (scrollTop <= 0) AND no dialog overlay is open
-- **THEN** `canStartPullToRefresh()` SHALL return `true`
-
-#### Scenario: Any condition fails
-- **WHEN** any one of the preconditions is not met
-- **THEN** `canStartPullToRefresh()` SHALL return `false`
-
-### Requirement: Pull indicator state derivation
-
-The module SHALL export a `getPullIndicatorState(rawPullDistance)` function that returns a state string based on the pull distance, and a `PullIndicatorState` type.
-
-#### Scenario: Idle state
-- **WHEN** rawPullDistance is `0` or negative
-- **THEN** `getPullIndicatorState()` SHALL return `"idle"`
-
-#### Scenario: Pulling state
-- **WHEN** rawPullDistance is greater than `0` and less than `PULL_TO_REFRESH_THRESHOLD` (128)
-- **THEN** `getPullIndicatorState()` SHALL return `"pulling"`
-
-#### Scenario: Release state
-- **WHEN** rawPullDistance is greater than or equal to `PULL_TO_REFRESH_THRESHOLD` (128)
-- **THEN** `getPullIndicatorState()` SHALL return `"release"`
-
-### Requirement: Elastic pull offset calculation
-
-The module SHALL export a `calculatePullOffset(distance)` function that returns the indicator's visual offset with exponential decay past the threshold.
-
-#### Scenario: Below threshold
-- **WHEN** distance is between `0` and `PULL_TO_REFRESH_THRESHOLD` (128)
-- **THEN** `calculatePullOffset()` SHALL return the distance unchanged (linear 1:1 tracking)
-
-#### Scenario: Above threshold with elastic decay
-- **WHEN** distance exceeds `PULL_TO_REFRESH_THRESHOLD`
-- **THEN** `calculatePullOffset()` SHALL return a value between `PULL_TO_REFRESH_THRESHOLD` and `MAX_PULL_TO_REFRESH_OFFSET` (140)
-- **AND** the value SHALL use the formula `THRESHOLD + elasticRange * (1 - exp(-overThreshold / elasticRange))` where `elasticRange = MAX_OFFSET - THRESHOLD`
-
-#### Scenario: Zero or negative distance
-- **WHEN** distance is `0` or negative
-- **THEN** `calculatePullOffset()` SHALL return `0`
-
-### Requirement: Elastic content offset calculation
-
-The module SHALL export a `calculateContentOffset(distance)` function that returns the main content's vertical displacement with a wider elastic range than the indicator.
-
-#### Scenario: Below threshold
-- **WHEN** distance is between `0` and `PULL_TO_REFRESH_THRESHOLD`
-- **THEN** `calculateContentOffset()` SHALL return the distance unchanged (linear 1:1 tracking)
-
-#### Scenario: Above threshold with wide elastic decay
-- **WHEN** distance exceeds `PULL_TO_REFRESH_THRESHOLD`
-- **THEN** `calculateContentOffset()` SHALL use an elastic range of `100` pixels (wider than the indicator's range)
-- **AND** the value SHALL asymptotically approach `THRESHOLD + 100`
-
-#### Scenario: Zero or negative distance
-- **WHEN** distance is `0` or negative
-- **THEN** `calculateContentOffset()` SHALL return `0`
-
-### Requirement: Refresh trigger check
-
-The module SHALL export a `shouldTriggerPullToRefresh(rawPullDistance)` function.
-
-#### Scenario: Distance meets threshold
-- **WHEN** rawPullDistance is greater than or equal to `PULL_TO_REFRESH_THRESHOLD`
-- **THEN** `shouldTriggerPullToRefresh()` SHALL return `true`
-
-#### Scenario: Distance below threshold
-- **WHEN** rawPullDistance is less than `PULL_TO_REFRESH_THRESHOLD`
-- **THEN** `shouldTriggerPullToRefresh()` SHALL return `false`
-
-### Requirement: Reload scheduling
-
-The module SHALL export a `schedulePullToRefreshReload(window, reloadFn, delayMs)` function that schedules a reload after a configurable delay, returning a timeout ID for cancellation.
-
-#### Scenario: Reload called after delay
-- **WHEN** `schedulePullToRefreshReload()` is called with a 120ms delay
-- **THEN** the provided `reloadFn` SHALL be called after 120 milliseconds
-- **AND** the function SHALL return a timeout ID
-
-### Requirement: Touch gesture handling in root layout
-
-The root layout SHALL register touch event handlers on the window to implement the pull-to-refresh gesture.
-
-#### Scenario: Single-touch gesture start
-- **WHEN** a `touchstart` event fires with exactly one touch point AND all eligibility conditions are met
-- **THEN** the layout SHALL record the starting Y position and activate the gesture
-
-#### Scenario: Multi-touch rejection
-- **WHEN** a `touchstart` or `touchmove` event fires with more than one touch point
-- **THEN** the gesture SHALL be rejected or reset
-
-#### Scenario: Scrolled descendant rejection
-- **WHEN** a `touchstart` or `touchmove` originates inside an element whose target or ancestor has `scrollTop > 0`
+#### Scenario: Multiple touch points
+- **WHEN** more than one touch point is present at gesture start or during movement
 - **THEN** the pull-to-refresh gesture SHALL be rejected or reset
-- **AND** reaching the top during a rejected touch sequence SHALL NOT arm refresh until a new single-touch gesture starts
 
-#### Scenario: Touchmove tracks pull distance
-- **WHEN** a `touchmove` event fires during an active gesture
-- **THEN** the raw pull distance SHALL be calculated as `currentY - startY`
-- **AND** `calculatePullOffset()` and `calculateContentOffset()` SHALL update the indicator and content positions
-- **AND** `event.preventDefault()` SHALL be called to block native scroll when pull distance is positive
+#### Scenario: Touched content is scrolled
+- **WHEN** the touched element or one of its scrollable ancestors is below its top position at gesture start or during movement
+- **THEN** pull-to-refresh SHALL be rejected or reset
+- **AND** reaching the top during that touch sequence SHALL NOT arm refresh
+- **AND** a new eligible single-touch gesture SHALL be required
 
-#### Scenario: Touchend triggers refresh
-- **WHEN** a `touchend` event fires during an active gesture AND `shouldTriggerPullToRefresh()` returns true
-- **THEN** the indicator state SHALL transition to `"refreshing"` and a reload SHALL be scheduled
+### Requirement: Pull states and activation threshold
 
-#### Scenario: Touchend cancels gesture
-- **WHEN** a `touchend` event fires during an active gesture AND the pull distance is below threshold
-- **THEN** the gesture SHALL reset to idle with a settling transition
+The gesture SHALL move through idle, pulling, release, and refreshing states using a 128px activation threshold.
 
-#### Scenario: Touchcancel resets gesture
-- **WHEN** a `touchcancel` event fires
-- **THEN** the gesture SHALL always reset to idle
+#### Scenario: Idle
+- **WHEN** no gesture is active or refreshing
+- **AND** there is no positive downward pull
+- **THEN** the gesture SHALL remain idle
 
-### Requirement: Pull indicator visual element
+#### Scenario: Pulling below threshold
+- **WHEN** the downward pull is greater than zero and less than 128px
+- **THEN** the gesture SHALL be in the pulling state
 
-The root layout SHALL render a fixed-position pull indicator element at the top of the viewport.
+#### Scenario: Release threshold reached
+- **WHEN** the downward pull reaches or exceeds 128px
+- **THEN** the gesture SHALL be armed in the release state
 
-#### Scenario: Indicator hidden when idle
-- **WHEN** the pull indicator state is `"idle"`
-- **THEN** the indicator element SHALL not be visible
+#### Scenario: Finger released above threshold
+- **WHEN** the user releases an armed gesture
+- **THEN** the state SHALL become refreshing
+- **AND** the page reload SHALL begin after 120ms
 
-#### Scenario: Spinner rotation during pulling
-- **WHEN** the pull indicator state is `"pulling"`
-- **THEN** a CSS-only circular spinner SHALL be displayed
-- **AND** the spinner rotation SHALL be proportional to `rawPullDistance / THRESHOLD * 360` degrees
+#### Scenario: Finger released below threshold
+- **WHEN** the user releases a gesture below 128px
+- **THEN** the gesture SHALL settle back to idle without reloading
 
-#### Scenario: Check icon on release
-- **WHEN** the pull indicator state is `"release"`
-- **THEN** a check icon SHALL replace the spinner to indicate the gesture is armed
-
-#### Scenario: Infinite spinner during refreshing
-- **WHEN** the pull indicator state is `"refreshing"`
-- **THEN** the spinner SHALL animate with an infinite rotation (`0.8s linear infinite`)
-
-### Requirement: Content push during gesture
-
-The main content area SHALL shift down via `margin-top` during the pull gesture.
-
-#### Scenario: Content follows pull
-- **WHEN** the gesture is active and pull distance is positive
-- **THEN** the main content's `margin-top` SHALL be set to `calculateContentOffset(distance)` pixels
-
-#### Scenario: Settling transition on release
-- **WHEN** the gesture ends (finger lifts) and the state is not `"refreshing"`
-- **THEN** a CSS transition (`0.18s ease`) SHALL animate the content back to zero margin-top
-
-#### Scenario: No transition during active drag
-- **WHEN** the gesture is actively tracking touch movement
-- **THEN** no CSS transition SHALL be applied to the content margin-top (instant tracking)
-
-### Requirement: Gesture reset on route navigation
-
-The gesture SHALL reset when the user navigates to a different route.
-
-#### Scenario: Navigation resets active gesture
-- **WHEN** the route pathname changes AND the indicator state is not `"refreshing"`
+#### Scenario: Gesture is canceled
+- **WHEN** the active touch sequence is canceled
 - **THEN** the gesture SHALL reset to idle
 
-#### Scenario: Navigation during refresh does not reset
-- **WHEN** the route pathname changes AND the indicator state is `"refreshing"`
-- **THEN** the gesture SHALL NOT reset (the reload will complete)
+### Requirement: Elastic pull feedback
 
-### Requirement: Pull-to-refresh unit tests
+The indicator and page content SHALL follow the user's downward pull directly until the activation threshold, then continue with increasing resistance.
 
-The module SHALL have comprehensive vitest tests for all exported pure functions.
+#### Scenario: Pull below threshold
+- **WHEN** the downward pull is between zero and 128px
+- **THEN** the indicator and content displacement SHALL track the pull distance directly
 
-#### Scenario: All pure functions tested
-- **WHEN** vitest runs on `pull-to-refresh.test.ts`
-- **THEN** tests SHALL cover: `isStandalonePwaSession`, `isTouchCapableDevice`, `isPullToRefreshRoute`, `hasBlockingPullToRefreshOverlay`, `canStartPullToRefresh`, `getPullIndicatorState`, `calculatePullOffset`, `calculateContentOffset`, `shouldTriggerPullToRefresh`, and `schedulePullToRefreshReload`
+#### Scenario: Pull above threshold
+- **WHEN** the downward pull exceeds 128px
+- **THEN** the indicator SHALL continue moving with increasing resistance toward, but not beyond, 140px from its resting position
+- **AND** the content SHALL continue moving with gentler resistance toward, but not beyond, 228px from its resting position
+- **AND** content displacement SHALL remain greater than indicator displacement above the threshold
+
+#### Scenario: Upward or zero movement
+- **WHEN** movement is upward or zero
+- **THEN** the indicator and content SHALL remain at their resting positions
+
+#### Scenario: Native scrolling during active pull
+- **WHEN** an eligible downward pull is actively moving the indicator and content
+- **THEN** native page scrolling SHALL NOT move the page independently of the gesture
+
+### Requirement: Pull indicator feedback
+
+A pull indicator SHALL appear at the top of the viewport only while a pull-to-refresh gesture is active.
+
+#### Scenario: Idle indicator
+- **WHEN** the gesture is idle
+- **THEN** the indicator SHALL not be visible
+
+#### Scenario: Pulling indicator
+- **WHEN** the gesture is pulling below the threshold
+- **THEN** a circular spinner SHALL be displayed
+- **AND** its rotation SHALL increase progressively from zero to one full turn as the pull approaches 128px
+
+#### Scenario: Armed indicator
+- **WHEN** the gesture reaches the release state
+- **THEN** a check icon SHALL replace the spinner
+
+#### Scenario: Refreshing indicator
+- **WHEN** the gesture is refreshing
+- **THEN** the spinner SHALL rotate continuously until the reload completes
+
+### Requirement: Content settling
+
+Page content SHALL track active touch movement immediately and settle smoothly after a non-refreshing gesture ends.
+
+#### Scenario: Active movement
+- **WHEN** the user moves an active pull gesture
+- **THEN** content displacement SHALL update without transition lag
+
+#### Scenario: Gesture settles
+- **WHEN** a gesture ends without entering the refreshing state
+- **THEN** content SHALL animate smoothly back to its resting position
+
+### Requirement: Route navigation resets gestures
+
+Navigation SHALL reset an active gesture unless a page reload is already in progress.
+
+#### Scenario: Navigation during pull
+- **WHEN** the route changes while the gesture is not refreshing
+- **THEN** the gesture SHALL reset to idle
+
+#### Scenario: Navigation during refresh
+- **WHEN** the route changes while the gesture is refreshing
+- **THEN** the refreshing state SHALL remain until the reload completes
