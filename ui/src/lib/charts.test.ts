@@ -73,6 +73,7 @@ describe("toEfficiencyData", () => {
     expect(result[0].date.getFullYear()).toBe(2025);
     expect(result[0].date.getMonth()).toBe(5); // June = 5
     expect(result[0].date.getDate()).toBe(20);
+    expect(result[0].date.getHours()).toBe(0);
   });
 });
 
@@ -290,6 +291,8 @@ describe("toFuelPriceData", () => {
     ]);
     expect(result[0].date.getFullYear()).toBe(2025);
     expect(result[0].date.getMonth()).toBe(7); // August = 7
+    expect(result[0].date.getDate()).toBe(15);
+    expect(result[0].date.getHours()).toBe(0);
     expect(result[0].value).toBe(1.5);
   });
 });

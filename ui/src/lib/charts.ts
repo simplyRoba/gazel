@@ -52,7 +52,7 @@ export function toEfficiencyData(
     .filter((s) => s.is_valid)
     .sort((left, right) => left.end_date.localeCompare(right.end_date))
     .map((s) => ({
-      date: new Date(s.end_date),
+      date: parseLocalDate(s.end_date),
       value: s.efficiency,
     }));
 }
@@ -243,7 +243,7 @@ export function toFuelPriceData(segments: SegmentHistory[]): TimeSeriesPoint[] {
   return segments
     .filter((s) => s.fuel > 0)
     .map((s) => ({
-      date: new Date(s.end_date),
+      date: parseLocalDate(s.end_date),
       value: s.cost / s.fuel,
     }));
 }
