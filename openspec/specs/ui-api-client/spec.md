@@ -14,16 +14,17 @@ The frontend SHALL handle backend responses according to their HTTP status and d
 
 #### Scenario: No-content response
 - **WHEN** a frontend API operation receives `204 No Content`
-- **THEN** the operation SHALL complete successfully without attempting to read a response body
+- **THEN** the operation SHALL complete successfully without showing a response-processing error
 
 #### Scenario: Application error response
 - **WHEN** a frontend API operation receives a non-success response containing the standard `code` and `message` fields
-- **THEN** frontend error handling SHALL retain the HTTP status, error code, and fallback message for localization and presentation
+- **THEN** recognized errors SHALL support the localized presentation defined by the UI localization specification
+- **AND** unrecognized errors SHALL support its safe fallback behavior
 
-#### Scenario: Non-JSON error response
+#### Scenario: Invalid error response
 - **WHEN** a frontend API operation receives a non-success response without a valid application error body
-- **THEN** frontend error handling SHALL produce a generic unknown error using the HTTP status and status text
-- **AND** failure to parse the response body SHALL NOT replace the original HTTP failure
+- **THEN** the operation SHALL produce a safe generic error
+- **AND** the original HTTP failure SHALL remain identifiable
 
 #### Scenario: JSON request body
 - **WHEN** the frontend sends a JSON request body to an API endpoint
