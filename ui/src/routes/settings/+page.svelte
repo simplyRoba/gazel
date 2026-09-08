@@ -93,8 +93,8 @@
     }
   }
 
-  function handleTheme(pref: ThemePreference) {
-    setTheme(pref);
+  async function handleTheme(pref: ThemePreference) {
+    notifyIfFailed(await setTheme(pref));
   }
 
   function notifyIfFailed(ok: boolean) {

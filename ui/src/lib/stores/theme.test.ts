@@ -1,9 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
 // Mock $lib/api before importing the theme module.
-vi.mock("$lib/api", () => ({
-  updateSettings: vi.fn().mockResolvedValue({}),
+const apiMocks = vi.hoisted(() => ({
+  updateSettings: vi.fn(),
 }));
+vi.mock("$lib/api", () => apiMocks);
 
 // Mock matchMedia before importing the module.
 let matchMediaListener: ((e: { matches: boolean }) => void) | null = null;
@@ -31,6 +32,7 @@ describe("theme store", () => {
     document.documentElement.removeAttribute("data-theme");
     matchMediaMatches = false;
     matchMediaListener = null;
+    apiMocks.updateSettings.mockReset().mockResolvedValue({});
     vi.resetModules();
   });
 
@@ -52,15 +54,29 @@ describe("theme store", () => {
   it("persists preference to localStorage on setTheme", async () => {
     const { initTheme, setTheme } = await import("./theme.svelte.ts");
     initTheme();
-    setTheme("dark");
+    await setTheme("dark");
     expect(localStorage.getItem("gazel.theme")).toBe("dark");
     expect(document.documentElement.getAttribute("data-theme")).toBe("dark");
+  });
+
+  it("rolls back the theme when persistence fails", async () => {
+    apiMocks.updateSettings.mockRejectedValue(new Error("Network"));
+    const { initTheme, setTheme, getThemePreference } =
+      await import("./theme.svelte.ts");
+    initTheme("light");
+
+    const result = await setTheme("dark");
+
+    expect(result).toBe(false);
+    expect(getThemePreference()).toBe("light");
+    expect(localStorage.getItem("gazel.theme")).toBe("light");
+    expect(document.documentElement.getAttribute("data-theme")).toBe("light");
   });
 
   it("updates theme when OS changes and preference is system", async () => {
     const { initTheme, setTheme } = await import("./theme.svelte.ts");
     initTheme();
-    setTheme("system");
+    await setTheme("system");
 
     // Simulate OS switching to dark.
     if (matchMediaListener) {
@@ -72,7 +88,7 @@ describe("theme store", () => {
   it("ignores OS changes when explicit preference is set", async () => {
     const { initTheme, setTheme } = await import("./theme.svelte.ts");
     initTheme();
-    setTheme("light");
+    await setTheme("light");
 
     // Simulate OS switching to dark.
     if (matchMediaListener) {
@@ -88,6 +104,7 @@ describe("theme reconciliation", () => {
     document.documentElement.removeAttribute("data-theme");
     matchMediaMatches = false;
     matchMediaListener = null;
+    apiMocks.updateSettings.mockReset().mockResolvedValue({});
     vi.resetModules();
   });
 

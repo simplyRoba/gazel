@@ -33,8 +33,8 @@ Selecting light, dark, or system SHALL update the effective theme immediately an
 
 #### Scenario: Saving the preference fails
 - **WHEN** the selected theme cannot be saved as an application setting
-- **THEN** the selected theme SHALL remain active for the current session
-- **AND** preference precedence SHALL be resolved again during the next initialization
+- **THEN** the previous theme preference SHALL be restored immediately
+- **AND** a user-facing error SHALL be shown
 
 #### Scenario: Page reload
 - **WHEN** the user reloads after selecting a theme

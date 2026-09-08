@@ -32,14 +32,22 @@ function applyTheme(theme: EffectiveTheme): void {
   }
 }
 
-export function setTheme(pref: ThemePreference): void {
+export async function setTheme(pref: ThemePreference): Promise<boolean> {
+  const previousPreference = themePreference;
   themePreference = pref;
   localStorage.setItem(STORAGE_KEY, pref);
   applyTheme(resolve(pref));
-  // Async server sync — fire-and-forget.
-  import("$lib/api")
-    .then(({ updateSettings }) => updateSettings({ color_mode: pref }))
-    .catch(() => {});
+
+  try {
+    const { updateSettings } = await import("$lib/api");
+    await updateSettings({ color_mode: pref });
+    return true;
+  } catch {
+    themePreference = previousPreference;
+    localStorage.setItem(STORAGE_KEY, previousPreference);
+    applyTheme(resolve(previousPreference));
+    return false;
+  }
 }
 
 export function initTheme(serverColorMode?: string): void {
