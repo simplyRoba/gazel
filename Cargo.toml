@@ -1,6 +1,6 @@
 [package]
 name = "gazel"
-version = "1.4.3"
+version = "1.4.4"
 edition = "2024"
 description = "Fuel expense and mileage tracker"
 readme = "README.md"
