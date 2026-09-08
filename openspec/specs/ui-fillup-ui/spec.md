@@ -6,18 +6,17 @@ Defines dashboard fill-up history, vehicle selection, fill-up cards, create/edit
 
 ### Requirement: Incremental fill-up history
 
-The dashboard SHALL maintain an independent chronological fill-up history for each vehicle, loading the newest page first and older pages as needed.
+The dashboard SHALL show the selected vehicle's newest fill-ups first and load older entries as needed.
 
 #### Scenario: Initial load or refresh
 - **WHEN** a vehicle becomes active or its history is refreshed
-- **THEN** its newest page SHALL replace the displayed history
-- **AND** later responses from an earlier selection or refresh SHALL NOT alter the current history
+- **THEN** its newest fill-ups SHALL be displayed in descending chronological order
+- **AND** later results from an earlier selection or refresh SHALL NOT alter the current history
 
 #### Scenario: Continue loading
 - **WHEN** older history is available and continuation is requested
-- **THEN** unseen fill-ups SHALL be appended in server order
-- **AND** future continuation SHALL begin at the next-page position returned by the server
-- **AND** duplicate fill-ups SHALL NOT be displayed
+- **THEN** the next unseen fill-ups SHALL be appended in chronological order
+- **AND** repeated continuation SHALL proceed through older history without gaps or duplicates
 
 #### Scenario: Duplicate continuation is prevented
 - **WHEN** older history is already loading, paused after failure, or exhausted
@@ -27,7 +26,7 @@ The dashboard SHALL maintain an independent chronological fill-up history for ea
 - **WHEN** loading older history fails
 - **THEN** already displayed fill-ups SHALL remain unchanged
 - **AND** automatic loading SHALL pause
-- **AND** an explicit retry action SHALL continue from the same position
+- **AND** an explicit retry action SHALL resume loading the entries that failed
 
 #### Scenario: History exhausted
 - **WHEN** no older fill-ups remain
@@ -71,18 +70,15 @@ Fill-up operations SHALL update the visible history on success, retain previousl
 
 #### Scenario: Fill-up creation succeeds
 - **WHEN** a fill-up is created successfully
-- **THEN** the visible history SHALL refresh from its newest page
-- **AND** the new fill-up SHALL appear in descending date order
+- **THEN** the new fill-up SHALL appear in the visible history in descending date order
 
 #### Scenario: Fill-up update succeeds
 - **WHEN** a fill-up is updated successfully
-- **THEN** the visible history SHALL refresh from its newest page
-- **AND** the card SHALL reflect the updated values in descending date order
+- **THEN** the visible card list SHALL reflect the updated values in descending date order
 
 #### Scenario: Fill-up deletion succeeds
 - **WHEN** a fill-up is deleted successfully
-- **THEN** the visible history SHALL refresh from its newest page
-- **AND** the deleted fill-up SHALL no longer appear
+- **THEN** the deleted fill-up SHALL no longer appear in the visible history
 
 #### Scenario: Fill-up mutation fails
 - **WHEN** creating, updating, or deleting a fill-up fails
@@ -127,7 +123,7 @@ The dashboard SHALL display fill-up cards for the selected vehicle below the chi
 - **THEN** a visual indicator SHALL show `Full tank`
 
 #### Scenario: Efficiency badge on fill-up card
-- **WHEN** a full-tank fill-up terminates a valid segment matched by end date and odometer
+- **WHEN** a full-tank fill-up ends a valid efficiency segment
 - **THEN** its card SHALL display the segment's efficiency using the user's distance and volume units
 - **AND** the badge SHALL be visually distinct
 
