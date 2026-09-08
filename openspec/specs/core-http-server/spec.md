@@ -46,7 +46,7 @@ The server SHALL serve the embedded browser application with exact shared static
 #### Scenario: Static asset served by exact path
 - **WHEN** a request exactly matches a non-HTML embedded asset required by the login or application UI (e.g., `/_app/immutable/...`, a logo, manifest, or favicon)
 - **THEN** the server SHALL respond with `200 OK` without requiring a Gazel session
-- **AND** the response SHALL include the correct `Content-Type` header inferred from the file extension
+- **AND** the response SHALL include the correct `Content-Type` header for the asset
 - **AND** the asset SHALL contain no application data or OIDC token
 - **AND** `index.html` SHALL NOT be included in the public exact-asset allowlist
 
