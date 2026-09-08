@@ -33,7 +33,8 @@ Selecting light, dark, or system SHALL update the effective theme immediately an
 
 #### Scenario: Saving the preference fails
 - **WHEN** the selected theme cannot be saved as an application setting
-- **THEN** the previous theme preference SHALL be restored immediately
+- **THEN** the previous theme preference and effective theme SHALL be restored immediately
+- **AND** the browser-local fallback SHALL be restored
 - **AND** a user-facing error SHALL be shown
 
 #### Scenario: Page reload
@@ -56,21 +57,21 @@ System mode SHALL follow operating-system color preference changes while the app
 
 ### Requirement: Saved theme precedence
 
-After startup, the application-wide saved preference SHALL normally be authoritative over any device-cached preference used for flash-free initial rendering.
+After startup, the application-wide saved preference SHALL normally be authoritative over any browser-local fallback used for flash-free initial rendering.
 
 #### Scenario: Preferences agree
-- **WHEN** the application-wide and device-cached preferences agree
+- **WHEN** the application-wide preference and browser-local fallback agree
 - **THEN** the effective theme SHALL remain unchanged
 
 #### Scenario: Preferences disagree
-- **WHEN** the application-wide preference differs from the device-cached preference
+- **WHEN** the application-wide preference differs from the browser-local fallback
 - **THEN** the application-wide preference SHALL become effective
-- **AND** the device-cached preference SHALL be updated for future flash-free startup
+- **AND** the browser-local fallback SHALL be updated for future flash-free startup
 
 #### Scenario: Existing explicit preference predates application settings
 - **WHEN** preference synchronization occurs for the first time
 - **AND** the application-wide preference is the default `system`
-- **AND** the device already has an explicit light or dark preference from before application settings existed
+- **AND** the browser-local fallback contains an explicit light or dark preference from before application settings existed
 - **THEN** the existing explicit preference SHALL remain effective
 - **AND** it SHALL become the application-wide saved preference
 - **AND** later initializations SHALL use normal application-wide precedence
