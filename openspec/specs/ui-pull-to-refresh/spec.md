@@ -45,7 +45,7 @@ A gesture SHALL begin only from the top of the applicable scroll area, with no m
 - **THEN** the pull-to-refresh gesture SHALL be rejected or reset
 
 #### Scenario: Touched content is scrolled
-- **WHEN** the touched element or one of its scrollable ancestors is below its top position at gesture start or during movement
+- **WHEN** the relevant scroll area under the initial touch is below its top position at gesture start or during movement
 - **THEN** pull-to-refresh SHALL be rejected or reset
 - **AND** reaching the top during that touch sequence SHALL NOT arm refresh
 - **AND** a new eligible single-touch gesture SHALL be required
