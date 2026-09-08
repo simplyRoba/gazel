@@ -39,7 +39,12 @@ When a list or page presents an empty state, it SHALL center an icon, heading, d
 - **THEN** the icon, heading, and description SHALL remain visible
 - **AND** no empty action area SHALL be displayed
 
-#### Scenario: Empty-state alignment
-- **WHEN** an empty state is displayed
-- **THEN** its content SHALL be vertically and horizontally centered within the available area
+#### Scenario: Full-page empty-state alignment
+- **WHEN** an empty state is the primary content of a page or dashboard
+- **THEN** its content SHALL be vertically and horizontally centered within the remaining application area
 - **AND** the icon, heading, description, and optional action SHALL have consistent spacing
+
+#### Scenario: Embedded empty-state alignment
+- **WHEN** an empty state appears within a section that has other surrounding content
+- **THEN** its content SHALL be horizontally centered with balanced vertical padding
+- **AND** it SHALL NOT expand the section to fill the viewport

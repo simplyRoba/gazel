@@ -235,6 +235,17 @@ describe("dashboard loading state", () => {
   });
 });
 
+describe("dashboard empty state", () => {
+  it("uses the full-page centered presentation when no vehicles exist", () => {
+    vehicleStore.vehicles = [];
+
+    render(Dashboard);
+
+    expect(screen.getByTestId("dashboard-empty")).toBeTruthy();
+    expect(screen.getByText("No vehicles yet")).toBeTruthy();
+  });
+});
+
 describe("dashboard statistics refresh", () => {
   it("keeps statistics visible with a non-blocking refresh status", async () => {
     statsStore.loading = true;

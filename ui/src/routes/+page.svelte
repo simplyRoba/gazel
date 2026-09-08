@@ -321,17 +321,19 @@
       </div>
     </div>
   {:else if vehicles.length === 0}
-    <EmptyState
-      icon={Car}
-      heading={t("dashboard.empty.title")}
-      description={t("dashboard.empty.description")}
-    >
-      {#snippet action()}
-        <a href={resolve("/settings/vehicles/new")} class="btn btn-primary"
-          >{t("dashboard.empty.action")}</a
-        >
-      {/snippet}
-    </EmptyState>
+    <div class="dashboard-empty" data-testid="dashboard-empty">
+      <EmptyState
+        icon={Car}
+        heading={t("dashboard.empty.title")}
+        description={t("dashboard.empty.description")}
+      >
+        {#snippet action()}
+          <a href={resolve("/settings/vehicles/new")} class="btn btn-primary"
+            >{t("dashboard.empty.action")}</a
+          >
+        {/snippet}
+      </EmptyState>
+    </div>
   {:else}
     {#if getStatsLoading() && hasLoadedStats}
       <p class="stats-refresh-status" role="status">
@@ -733,6 +735,25 @@
 {/if}
 
 <style>
+  .dashboard-empty {
+    display: grid;
+    min-height: calc(100dvh - var(--nav-bottom-total) - var(--space-8));
+    place-items: center;
+  }
+
+  @media (min-width: 769px) {
+    .dashboard-empty {
+      min-height: calc(100dvh - var(--space-12));
+    }
+  }
+
+  @media (min-width: 960px) {
+    .dashboard-empty {
+      flex: 1;
+      min-height: 0;
+    }
+  }
+
   .stats-refresh-status {
     margin: 0 0 var(--space-2);
     color: var(--color-text-secondary);
