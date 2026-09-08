@@ -199,6 +199,7 @@
   "error.VEHICLE_HAS_FILLUPS": "Fahrzeug mit bestehenden Tankfüllungen kann nicht gelöscht werden.",
   "error.FILLUP_NOT_FOUND": "Tankfüllung nicht gefunden.",
   "error.FILLUP_DATE_REQUIRED": "Datum der Tankfüllung ist erforderlich.",
+  "error.FILLUP_INVALID_DATE": "Das Tankfüllungsdatum muss ein gültiges Datum im Format YYYY-MM-DD sein.",
   "error.FILLUP_FUEL_AMOUNT_REQUIRED": "Kraftstoffmenge ist erforderlich.",
   "error.FILLUP_INVALID_FUEL_AMOUNT": "Kraftstoffmenge muss größer als null sein.",
   "error.FILLUP_ODOMETER_REQUIRED": "Kilometerstand ist erforderlich.",

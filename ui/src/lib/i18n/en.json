@@ -199,6 +199,7 @@
   "error.VEHICLE_HAS_FILLUPS": "Cannot delete vehicle with existing fill-ups.",
   "error.FILLUP_NOT_FOUND": "Fill-up not found.",
   "error.FILLUP_DATE_REQUIRED": "Fill-up date is required.",
+  "error.FILLUP_INVALID_DATE": "Fill-up date must be a valid date in YYYY-MM-DD format.",
   "error.FILLUP_FUEL_AMOUNT_REQUIRED": "Fuel amount is required.",
   "error.FILLUP_INVALID_FUEL_AMOUNT": "Fuel amount must be greater than zero.",
   "error.FILLUP_ODOMETER_REQUIRED": "Odometer reading is required.",
