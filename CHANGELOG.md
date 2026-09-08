@@ -1,5 +1,76 @@
 # Changelog
 
+## [1.4.4](https://github.com/simplyRoba/gazel/compare/v1.4.3...v1.4.4) (2026-09-08)
+
+
+### Bug Fixes
+
+* **api:** describe invalid fill-up dates ([0228925](https://github.com/simplyRoba/gazel/commit/022892557e57ebee58fb52cd0d862c6f9501c2a4))
+* **charts:** order efficiency trends chronologically ([88b824c](https://github.com/simplyRoba/gazel/commit/88b824c029330fa8228d0468ba3ec91ed86d0b8b))
+* **charts:** preserve local calendar dates ([9a37317](https://github.com/simplyRoba/gazel/commit/9a37317b319b7751b3090ea2f8f8b0f02cd9cddf))
+* **charts:** render category axis ticks ([36adec0](https://github.com/simplyRoba/gazel/commit/36adec08bb9eeb75fc51dcce4297e02f36287ce0))
+* **charts:** round sparkline endpoints ([e06a334](https://github.com/simplyRoba/gazel/commit/e06a334f04935845d36f76e8218dad7a438ca5d4))
+* **charts:** select points on touch start ([865ff8a](https://github.com/simplyRoba/gazel/commit/865ff8a7e4aae1e83231dfdf101ffb0149913bfc))
+* **dashboard:** retain stats during refresh ([8babfaf](https://github.com/simplyRoba/gazel/commit/8babfafed75ccfe906b50dc01e810ee7611c638b))
+* **fillups:** reject invalid calendar dates ([338717a](https://github.com/simplyRoba/gazel/commit/338717aa2ad74a7dd3eb176b694f4a0e376a49df))
+* **fillups:** validate moved odometer position ([ed8fb57](https://github.com/simplyRoba/gazel/commit/ed8fb578231daaa008e8ec96e8fe5acfa1fb4c75))
+* **i18n:** translate invalid fill-up dates ([1ddd160](https://github.com/simplyRoba/gazel/commit/1ddd160328929e144a50b832ec88f34927e6ccfb))
+* **import:** enforce domain validation ([01a1260](https://github.com/simplyRoba/gazel/commit/01a1260fdd47de02f57d4e6082ce02d9cd3f88a0))
+* **import:** validate semantic versions ([cf030fa](https://github.com/simplyRoba/gazel/commit/cf030fa5c517a2c7c3cf220329f5d11ae22435b2))
+* **notifications:** preserve toast dismissal time ([1be1daa](https://github.com/simplyRoba/gazel/commit/1be1daa72b1b885243a5dd4709494f3aefc4694f))
+* **refresh:** render elastic pull offset ([4cb6827](https://github.com/simplyRoba/gazel/commit/4cb68272cde343630218e04043192e9ed81acc7c))
+* **settings:** align defaults and formatting behavior ([f0a4d6a](https://github.com/simplyRoba/gazel/commit/f0a4d6ac30dbaa8085b11cd5ada74d75b46deeae))
+* **theme:** roll back failed preference saves ([903651d](https://github.com/simplyRoba/gazel/commit/903651d86a47d5d6c2570038575cce1e6542aa82))
+* **ui:** center full-page empty states ([0f265eb](https://github.com/simplyRoba/gazel/commit/0f265ebecc0a6b2ee7f401ee59ee76f92497d953))
+
+
+### Documentation
+
+* **api-client:** specify response outcomes ([da4435b](https://github.com/simplyRoba/gazel/commit/da4435be7b4a2685fe93c8bff3033c0f33f0b50e))
+* **api:** decouple version source from Cargo ([2757d87](https://github.com/simplyRoba/gazel/commit/2757d8780093ebbd1a91f51b1bba6dfb480c981f))
+* **api:** specify error behavior ([429c415](https://github.com/simplyRoba/gazel/commit/429c41580d175eff812456e9dce4f5b8145b8bdf))
+* **auth:** clarify local identity guarantee ([7dd7769](https://github.com/simplyRoba/gazel/commit/7dd77691833995f7693a15dc62f036fe80d41871))
+* **auth:** specify JWKS refresh behavior ([56af2f0](https://github.com/simplyRoba/gazel/commit/56af2f01a7891e86de33484236a87bb1ea312438))
+* **charts:** specify visible behavior ([784752b](https://github.com/simplyRoba/gazel/commit/784752bcc16f8163b055b2978fed03d033b9b23a))
+* **config:** decouple logging backend ([1ecaee6](https://github.com/simplyRoba/gazel/commit/1ecaee6af59931a1677d7212d48e12ee082e653e))
+* **config:** remove testing implementation details ([ace90c8](https://github.com/simplyRoba/gazel/commit/ace90c8ec0e2d1c338b20fe1b70f7c819b982478))
+* **dashboard:** specify stats behavior ([e6972ae](https://github.com/simplyRoba/gazel/commit/e6972ae60dabf1c164df4c2210293f140c6f18c3))
+* **database:** focus persistence specification ([1e10fe1](https://github.com/simplyRoba/gazel/commit/1e10fe10b58f7696f4fd752db0fdf819d4c59205))
+* **fillups:** decouple settings storage ([2014657](https://github.com/simplyRoba/gazel/commit/201465746ad9675b898f36b8ca5a7e734448d0fd))
+* **fillups:** specify UI behavior ([7e92100](https://github.com/simplyRoba/gazel/commit/7e921004f25770ffd98d27467cc9dbe30c62be5d))
+* **fillups:** specify visible history behavior ([8870706](https://github.com/simplyRoba/gazel/commit/8870706253733567c4b04ff2c3a6abb0dcbe33bf))
+* **i18n:** specify localization behavior ([d007ffd](https://github.com/simplyRoba/gazel/commit/d007ffdf44bf372820a2c0f601f6719cd032590d))
+* **import:** specify atomic behavior ([0d8cf92](https://github.com/simplyRoba/gazel/commit/0d8cf92b3e0a758187c33e6660da656a8d80fe4e))
+* **layout:** remove CSS implementation constraints ([4119521](https://github.com/simplyRoba/gazel/commit/4119521618b27fa6768ee62f55577aaa4505fcdb))
+* **layout:** specify visible shell behavior ([a3f81e2](https://github.com/simplyRoba/gazel/commit/a3f81e24cff496bc46d4cf550b181ece5d8f38c7))
+* **login:** decouple UI framework ([77def5a](https://github.com/simplyRoba/gazel/commit/77def5a30d11c7b04779e1e2c1bd828580d93496))
+* **modal:** specify interaction behavior ([506da7a](https://github.com/simplyRoba/gazel/commit/506da7a153c62cf25aa300afbe911c9c9a5a4ddb))
+* **notifications:** specify toast behavior ([c8d5612](https://github.com/simplyRoba/gazel/commit/c8d561287f74b9efa69a020752b2cba893d83d67))
+* **quick-fill:** decouple state management ([2d18d62](https://github.com/simplyRoba/gazel/commit/2d18d62fe1d94aab1e8845615b35e03efeca4dca))
+* **refresh:** specify gesture behavior ([93dfa9f](https://github.com/simplyRoba/gazel/commit/93dfa9fef6d64ff6717bcc269b521b480880b874))
+* **refresh:** specify nested scroll behavior ([3abb2a9](https://github.com/simplyRoba/gazel/commit/3abb2a9a8ee40b2d000a22a7c693f56f42fd8016))
+* remove dependency automation spec ([1a3ccf5](https://github.com/simplyRoba/gazel/commit/1a3ccf566279b180e44ad559930fb6a169e31987))
+* **server:** specify asset content types ([13601d6](https://github.com/simplyRoba/gazel/commit/13601d643a285ce51e1da327e42c3d7285d0f45c))
+* **server:** specify HTTP access behavior ([a7de22b](https://github.com/simplyRoba/gazel/commit/a7de22bfc9436af16fe00dcd80e9537e8e6a06b9))
+* **settings:** specify persistence behavior ([ba4abe4](https://github.com/simplyRoba/gazel/commit/ba4abe44fa12167297c43a58181599715cf0e62c))
+* **settings:** specify preference behavior ([98dd6e8](https://github.com/simplyRoba/gazel/commit/98dd6e893ddf4d9947f0b535a28462d98278b628))
+* **specs:** require behavior-only requirements ([b9cf3b5](https://github.com/simplyRoba/gazel/commit/b9cf3b5c866aab21f30d25aeaafc682a766dd18a))
+* **stats:** specify chronological evaluation ([8ab4d2f](https://github.com/simplyRoba/gazel/commit/8ab4d2f5d9eacc515082422784ead1a8404f1483))
+* **theme:** clarify local fallback behavior ([a1df7f3](https://github.com/simplyRoba/gazel/commit/a1df7f32852a91866725b331d41ded4a9201c6c4))
+* **theme:** specify preference behavior ([fccfec9](https://github.com/simplyRoba/gazel/commit/fccfec9674d9d60d7257e06d46051fe54a4a0f60))
+* **ui:** specify API communication behavior ([5822ab5](https://github.com/simplyRoba/gazel/commit/5822ab5c40a43ffc882892995657e9e965df29e8))
+* **ui:** specify shared presentation patterns ([31cd3cd](https://github.com/simplyRoba/gazel/commit/31cd3cde15ea154897b6d98ea07432314bc872c7))
+* **ui:** specify vehicle and formatting behavior ([1495d4a](https://github.com/simplyRoba/gazel/commit/1495d4a760297f86019f3ac57ce1ea6471b16941))
+* **vehicles:** specify nullable field behavior ([0794b00](https://github.com/simplyRoba/gazel/commit/0794b00f6f4ec76e38e1e2493bd8ca62c229bfe4))
+
+
+### Dependencies
+
+* bump @testing-library/user-event from 14.6.6 to 14.6.7 in /ui ([64f70aa](https://github.com/simplyRoba/gazel/commit/64f70aacff2482df82b5ab6d3e88ed4a7b2aa92c))
+* bump globals from 17.11.0 to 17.12.0 in /ui ([c63b45e](https://github.com/simplyRoba/gazel/commit/c63b45ee801001cef4070f563cf8b4bfc7bc1e71))
+* bump tower-http from 0.7.0 to 0.7.1 ([131b7d9](https://github.com/simplyRoba/gazel/commit/131b7d9b0fca12c7814ad626f858f4b8dca151d5))
+* bump typescript-eslint ([f87fdaa](https://github.com/simplyRoba/gazel/commit/f87fdaa69bbb71fe800dff8d662b213d4e6ce108))
+
 ## [1.4.3](https://github.com/simplyRoba/gazel/compare/v1.4.2...v1.4.3) (2026-09-05)
 
 
