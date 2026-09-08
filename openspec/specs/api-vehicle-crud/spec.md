@@ -89,7 +89,8 @@ The API SHALL partially update a vehicle's fields via PATCH, using three-state s
 
 #### Scenario: Clear a nullable field
 - **WHEN** a `PATCH /api/vehicles/:id` request includes a field set to `null` (e.g., `"notes": null`)
-- **THEN** that field SHALL be set to `NULL` in the database
+- **THEN** that field SHALL be cleared
+- **AND** subsequent API responses SHALL return it as `null`
 
 #### Scenario: Absent field is preserved
 - **WHEN** a `PATCH /api/vehicles/:id` request omits a field entirely
