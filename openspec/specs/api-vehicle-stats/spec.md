@@ -96,7 +96,7 @@ The `is_valid` field SHALL be `false` if any fill-up within the segment has `is_
 
 The system SHALL compute fuel efficiency segments using the tank-to-tank method:
 
-1. Query fill-ups for the vehicle ordered by `date ASC, id ASC`.
+1. Evaluate the vehicle's fill-ups in ascending chronological order, using the fill-up API's defined same-date ordering.
 2. Skip fill-ups with `odometer <= 0`.
 3. Identify consecutive full-tank fill-ups as segment boundaries.
 4. For each segment, sum `fuel_amount` and `cost` of all fill-ups after the start boundary through the end boundary (inclusive of end, exclusive of start).
