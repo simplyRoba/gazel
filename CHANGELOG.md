@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.5](https://github.com/simplyRoba/gazel/compare/v1.4.4...v1.4.5) (2026-09-09)
+
+
+### Bug Fixes
+
+* **i18n:** lazy-load locale dictionaries ([9af85c9](https://github.com/simplyRoba/gazel/commit/9af85c996dfd8860300bec0403ee4a83a8850fd5))
+
 ## [1.4.4](https://github.com/simplyRoba/gazel/compare/v1.4.3...v1.4.4) (2026-09-08)
 
 
