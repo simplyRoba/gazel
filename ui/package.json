@@ -41,7 +41,7 @@
     "vitest": "^4.1.11"
   },
   "dependencies": {
-    "layercake": "^10.0.3",
+    "layercake": "^11.0.0",
     "lucide-svelte": "^1.0.1"
   }
 }
