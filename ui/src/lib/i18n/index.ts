@@ -1,12 +1,7 @@
-import en from "./en.json";
-import de from "./de.json";
 import { getSettings } from "$lib/stores/settings.svelte";
+import { translations } from "./catalog";
 
-// ── Types ────────────────────────────────────────────────
-
-type TranslationMap = Record<string, string>;
-
-const translations: Record<string, TranslationMap> = { en, de };
+export { loadLocale, translations } from "./catalog";
 
 export const supportedLocales = ["en", "de"] as const;
 export type Locale = (typeof supportedLocales)[number];
@@ -52,7 +47,3 @@ export function tWithLocale(
 
   return value;
 }
-
-// ── Exported for tests ───────────────────────────────────
-
-export { translations };

@@ -55,6 +55,20 @@ describe("translation completeness", () => {
   });
 });
 
+describe("lazy locale loading", () => {
+  it("loads German only when requested", async () => {
+    vi.resetModules();
+    const i18n = await import("./index");
+
+    expect(i18n.translations.de).toBeUndefined();
+    expect(i18n.tWithLocale("de", "nav.settings")).toBe("Settings");
+
+    await i18n.loadLocale("de");
+
+    expect(i18n.tWithLocale("de", "nav.settings")).toBe("Einstellungen");
+  });
+});
+
 // ── t() function ─────────────────────────────────────────
 
 // We need to mock settings to control locale
@@ -87,6 +101,7 @@ describe("t()", () => {
       .__setLocale;
     __setLocale("en");
     const mod = await import("./index");
+    await mod.loadLocale("de");
     t = mod.t;
   });
 
@@ -130,6 +145,7 @@ describe("tWithLocale()", () => {
   beforeEach(async () => {
     vi.resetModules();
     const mod = await import("./index");
+    await mod.loadLocale("de");
     tWithLocale = mod.tWithLocale;
   });
 
@@ -156,6 +172,7 @@ describe("resolveError()", () => {
       "en",
     );
     const i18nMod = await import("./index");
+    await i18nMod.loadLocale("de");
     t = i18nMod.t;
     const errorsMod = await import("./errors");
     resolveError = errorsMod.resolveError;

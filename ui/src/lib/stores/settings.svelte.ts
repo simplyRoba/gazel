@@ -1,5 +1,6 @@
 import type { Settings, UpdateSettingsRequest } from "$lib/api";
 import * as api from "$lib/api";
+import { loadLocale } from "$lib/i18n/catalog";
 import { initTheme } from "$lib/stores/theme.svelte";
 
 // ── Defaults ─────────────────────────────────────────────
@@ -34,6 +35,7 @@ export async function initSettings(): Promise<void> {
   if (initialized) return;
   try {
     const fetched = await api.fetchSettings();
+    await loadLocale(fetched.locale);
     settings = fetched;
     initTheme(fetched.color_mode);
   } catch {
@@ -49,9 +51,10 @@ export async function updateSettingsStore(
   data: UpdateSettingsRequest,
 ): Promise<boolean> {
   const previous = { ...settings };
-  // Optimistic update.
-  settings = { ...settings, ...data };
   try {
+    if (data.locale) await loadLocale(data.locale);
+    // Optimistic update after its translation dictionary is available.
+    settings = { ...settings, ...data };
     const updated = await api.updateSettings(data);
     settings = updated;
     return true;
