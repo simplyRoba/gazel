@@ -1,26 +1,17 @@
-import type { Readable } from "svelte/store";
 import type { ScaleLinear, ScaleTime, ScaleBand, ScalePoint } from "d3-scale";
 
 import type { SegmentHistory } from "#lib/api.js";
 
-// ── LayerCake context type ──────────────────────────────
+// ── Scale types for LayerCake's context ──────────────────
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-export interface LayerCakeContext {
-  data: Readable<Record<string, any>[]>;
-  xGet: Readable<(d: Record<string, any>) => number>;
-  yGet: Readable<(d: Record<string, any>) => number>;
-  xScale: Readable<
+export interface ChartScales {
+  x:
     | ScaleLinear<number, number>
     | ScaleTime<number, number>
     | ScaleBand<string>
-    | ScalePoint<string>
-  >;
-  yScale: Readable<ScaleLinear<number, number>>;
-  width: Readable<number>;
-  height: Readable<number>;
+    | ScalePoint<string>;
+  y: ScaleLinear<number, number>;
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ── Chart data shapes ───────────────────────────────────
 

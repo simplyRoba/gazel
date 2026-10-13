@@ -7,7 +7,13 @@ import {
 } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Fillup, FillupPage, Vehicle, VehicleStats } from "#lib/api.js";
+import type {
+  Fillup,
+  FillupPage,
+  SegmentHistory,
+  Vehicle,
+  VehicleStats,
+} from "#lib/api.js";
 
 const apiSpies = vi.hoisted(() => ({
   fetchFillups: vi.fn(),
@@ -20,6 +26,7 @@ const vehicleStore = vi.hoisted(() => ({
 const statsStore = vi.hoisted(() => ({
   loading: false,
   stats: undefined as VehicleStats | undefined,
+  history: [] as SegmentHistory[],
   loadAllStats: vi.fn(),
   invalidateStats: vi.fn(),
 }));
@@ -38,7 +45,7 @@ vi.mock("#lib/stores/vehicles.svelte.js", () => ({
 
 vi.mock("#lib/stores/stats.svelte.js", () => ({
   getVehicleStats: () => statsStore.stats,
-  getVehicleHistory: () => [],
+  getVehicleHistory: () => statsStore.history,
   getLoading: () => statsStore.loading,
   loadAllStats: statsStore.loadAllStats,
   invalidateStats: statsStore.invalidateStats,
@@ -156,6 +163,7 @@ beforeEach(() => {
   vehicleStore.loading = false;
   statsStore.loading = false;
   statsStore.stats = undefined;
+  statsStore.history = [];
   settingsStore.locale = "en";
   observers = [];
   desktopMatches = false;
@@ -206,11 +214,104 @@ beforeEach(() => {
   }
 
   vi.stubGlobal("IntersectionObserver", MockIntersectionObserver);
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    },
+  );
 });
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
+});
+
+describe("dashboard charts", () => {
+  it("renders real charts and summary sparklines with populated history", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(640);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(180);
+    vehicleStore.vehicles = [vehicle(1, "First")];
+    statsStore.stats = {
+      total_distance: 1000,
+      total_fuel: 80,
+      total_cost: 120,
+      fill_up_count: 3,
+      average_efficiency: 8,
+      average_cost_per_distance: 0.12,
+      distance_unit: "km",
+      volume_unit: "l",
+      currency: "USD",
+    };
+    statsStore.history = ["2026-01", "2026-02"].map((month, index) => ({
+      start_date: `${month}-01`,
+      end_date: `${month}-28`,
+      start_odometer: index * 500,
+      end_odometer: (index + 1) * 500,
+      distance: 500,
+      fuel: 40,
+      cost: 60,
+      efficiency: 8,
+      cost_per_distance: 0.12,
+      is_valid: true,
+      distance_unit: "km",
+      volume_unit: "l",
+      currency: "USD",
+    }));
+
+    const { container } = await renderPageWithCursor({ nextCursor: null });
+
+    await waitFor(() => {
+      expect(container.querySelectorAll(".sparkline-bg svg")).toHaveLength(2);
+      expect(container.querySelectorAll(".chart-container svg")).toHaveLength(
+        6,
+      );
+    });
+    expect(container.querySelectorAll(".chart-empty")).toHaveLength(0);
+    const bars = container.querySelectorAll(".bars rect");
+    expect(bars).toHaveLength(4);
+    for (const bar of bars) {
+      expect(Number(bar.getAttribute("width"))).toBeGreaterThan(0);
+      expect(Number(bar.getAttribute("height"))).toBeGreaterThan(0);
+    }
+    const paths = container.querySelectorAll(".chart-container path");
+    expect(paths).toHaveLength(8);
+    for (const path of paths) {
+      expect(path.getAttribute("d")).toMatch(/^M/);
+      expect(path.getAttribute("d")).not.toMatch(/NaN|Infinity/);
+    }
+    expect(container.querySelector(".axis-x")?.textContent).toContain("Jan 26");
+    expect(container.querySelector(".axis-y")?.textContent).toContain("$");
+
+    const costChart = bars[0].closest(".chart-card")!;
+    const overlay = costChart.querySelector<SVGRectElement>(
+      'rect[role="presentation"]',
+    )!;
+    overlay.getBoundingClientRect = () => ({ left: 0 }) as DOMRect;
+    const barCenter =
+      Number(bars[0].getAttribute("x")) +
+      Number(bars[0].getAttribute("width")) / 2;
+    await fireEvent.mouseMove(overlay, { clientX: barCenter });
+    expect(costChart.querySelector("circle")?.getAttribute("cx")).toBe(
+      String(barCenter),
+    );
+    expect(costChart.textContent).toContain("January 2026");
+
+    await fireEvent.click(
+      Array.from(costChart.querySelectorAll("button")).find((button) =>
+        button.textContent?.includes("Yearly"),
+      )!,
+    );
+    expect(costChart.querySelectorAll(".bars rect")).toHaveLength(1);
+    expect(costChart.querySelector(".axis-x")?.textContent).toContain("2026");
+    expect(costChart.querySelector(".axis-x")?.textContent).not.toContain(
+      "Jan 26",
+    );
+    expect(costChart.textContent).toContain("$120.00");
+  });
 });
 
 describe("dashboard loading state", () => {

@@ -1,19 +1,18 @@
 <script lang="ts">
-  import { getContext } from "svelte";
-  import type { LayerCakeContext } from "#lib/charts.js";
-  import type { ScaleLinear } from "d3-scale";
+  import { getLayerCakeContext } from "layercake";
+  import type { ChartScales } from "#lib/charts.js";
 
-  const { yScale, width } = getContext("LayerCake") as LayerCakeContext;
+  const chart = getLayerCakeContext<ChartScales>();
 
   let { ticks = 4, format = (v: number) => String(v) } = $props();
 </script>
 
 <g class="axis-y">
-  {#each ($yScale as ScaleLinear<number, number>).ticks(ticks) as tick (tick)}
-    <g transform="translate(0, {$yScale(tick)})">
+  {#each chart.yScale.ticks(ticks) as tick (tick)}
+    <g transform="translate(0, {chart.yScale(tick)})">
       <line
         x1={0}
-        x2={$width}
+        x2={chart.width}
         stroke="var(--color-border-subtle)"
         stroke-dasharray="2,4"
         opacity="0.5"

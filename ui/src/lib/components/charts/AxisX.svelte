@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { getContext } from "svelte";
-  import type { LayerCakeContext } from "#lib/charts.js";
+  import { getLayerCakeContext } from "layercake";
+  import type { ScaleTime } from "d3-scale";
+  import type { ChartScales } from "#lib/charts.js";
   import { getSettings } from "#lib/stores/settings.svelte.js";
 
-  const { xScale, height, width } = getContext("LayerCake") as LayerCakeContext;
+  const chart = getLayerCakeContext<ChartScales>();
 
   const locale = $derived(getSettings().locale);
 
@@ -31,13 +32,14 @@
 </script>
 
 <g class="axis-x">
-  {#if "ticks" in $xScale}
-    {#each ($xScale as { ticks: (n: number) => Date[] }).ticks(ticks) as tick (tick.getTime())}
-      {@const x = ($xScale as (v: Date) => number)(tick)}
-      <g transform="translate({x}, {$height})">
+  {#if "ticks" in chart.xScale}
+    {@const scale = chart.xScale as ScaleTime<number, number>}
+    {#each scale.ticks(ticks) as tick (tick.getTime())}
+      {@const x = scale(tick)}
+      <g transform="translate({x}, {chart.height})">
         <line
           y1={0}
-          y2={-$height}
+          y2={-chart.height}
           stroke="var(--color-border-subtle)"
           stroke-dasharray="2,4"
           opacity="0.5"
@@ -53,20 +55,18 @@
         </text>
       </g>
     {/each}
-  {:else if "domain" in $xScale}
-    {@const domain = ($xScale as { domain: () => string[] }).domain()}
-    {@const bw =
-      "bandwidth" in $xScale
-        ? ($xScale as { bandwidth: () => number }).bandwidth()
-        : 0}
+  {:else}
+    {@const scale = chart.xScale}
+    {@const domain = scale.domain()}
+    {@const bw = "bandwidth" in scale ? scale.bandwidth() : 0}
     {@const labelWidth = 48}
     {@const step = Math.max(
       1,
-      Math.ceil((domain.length * labelWidth) / $width),
+      Math.ceil((domain.length * labelWidth) / chart.width),
     )}
     {#each domain as tick, i (tick)}
-      {@const x = ($xScale as (v: string) => number)(tick)}
-      <g transform="translate({x + bw / 2}, {$height})">
+      {@const x = scale(tick) ?? 0}
+      <g transform="translate({x + bw / 2}, {chart.height})">
         {#if i % step === 0}
           <line y1={0} y2={4} stroke="var(--color-border-subtle)" />
           <text
@@ -84,9 +84,9 @@
   {/if}
   <line
     x1={0}
-    x2={$width}
-    y1={$height}
-    y2={$height}
+    x2={chart.width}
+    y1={chart.height}
+    y2={chart.height}
     stroke="var(--color-border-subtle)"
   />
 </g>

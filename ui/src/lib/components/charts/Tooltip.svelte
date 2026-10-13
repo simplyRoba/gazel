@@ -1,19 +1,15 @@
 <script lang="ts">
-  import { getContext } from "svelte";
-  import type { LayerCakeContext } from "#lib/charts.js";
+  import { getLayerCakeContext } from "layercake";
+  import type { ChartScales } from "#lib/charts.js";
   import { getSettings } from "#lib/stores/settings.svelte.js";
 
-  const { data, xGet, yGet, xScale, width, height } = getContext(
-    "LayerCake",
-  ) as LayerCakeContext;
+  const chart = getLayerCakeContext<ChartScales, Record<string, unknown>[]>();
 
   const locale = $derived(getSettings().locale);
 
   // Half-bandwidth offset for band scales (bar charts); 0 for continuous scales
   const bandOffset = $derived(
-    "bandwidth" in $xScale && typeof $xScale.bandwidth === "function"
-      ? ($xScale as { bandwidth: () => number }).bandwidth() / 2
-      : 0,
+    "bandwidth" in chart.xScale ? chart.xScale.bandwidth() / 2 : 0,
   );
 
   let {
@@ -44,14 +40,14 @@
     // Find nearest data point (use center of band for bar charts)
     let nearest = 0;
     let nearestDist = Infinity;
-    for (let i = 0; i < $data.length; i++) {
-      const dist = Math.abs($xGet($data[i]) + bandOffset - mouseX);
+    for (let i = 0; i < chart.data.length; i++) {
+      const dist = Math.abs(chart.xGet(chart.data[i]) + bandOffset - mouseX);
       if (dist < nearestDist) {
         nearestDist = dist;
         nearest = i;
       }
     }
-    hoveredIndex = nearest;
+    hoveredIndex = chart.data.length > 0 ? nearest : null;
   }
 
   function handleTouch(event: TouchEvent) {
@@ -74,8 +70,8 @@
   role="presentation"
   x={0}
   y={0}
-  width={$width}
-  height={$height}
+  width={chart.width}
+  height={chart.height}
   fill="transparent"
   onmousemove={handleMouseMove}
   onmouseleave={handleMouseLeave}
@@ -84,17 +80,17 @@
   ontouchend={handleMouseLeave}
 />
 
-{#if hoveredIndex !== null}
-  {@const d = $data[hoveredIndex]}
-  {@const x = $xGet(d) + bandOffset}
-  {@const y = $yGet(d)}
+{#if hoveredIndex !== null && chart.data[hoveredIndex]}
+  {@const d = chart.data[hoveredIndex]}
+  {@const x = chart.xGet(d) + bandOffset}
+  {@const y = chart.yGet(d)}
 
   <!-- Vertical indicator line -->
   <line
     x1={x}
     x2={x}
     y1={0}
-    y2={$height}
+    y2={chart.height}
     stroke="var(--color-text-tertiary)"
     stroke-width={1}
     stroke-dasharray="3,3"
@@ -107,7 +103,7 @@
 
   <!-- Tooltip text pinned to top-right of chart -->
   <text
-    x={$width}
+    x={chart.width}
     y={-2}
     text-anchor="end"
     fill="var(--color-text)"
@@ -118,7 +114,7 @@
     {formatY(d)}
   </text>
   <text
-    x={$width}
+    x={chart.width}
     y={12}
     text-anchor="end"
     fill="var(--color-text-secondary)"

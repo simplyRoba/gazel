@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { getContext } from "svelte";
-  import type { LayerCakeContext } from "#lib/charts.js";
+  import { getLayerCakeContext } from "layercake";
+  import type { ChartScales } from "#lib/charts.js";
 
-  const { data, xGet, yGet } = getContext("LayerCake") as LayerCakeContext;
+  const chart = getLayerCakeContext<ChartScales, Record<string, unknown>[]>();
 
   let {
     stroke = "var(--color-text-tertiary)",
@@ -10,13 +10,12 @@
     opacity = 0.6,
   } = $props();
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   const trendPath = $derived.by(() => {
-    const pts = $data;
+    const pts = chart.data;
     if (pts.length < 2) return "";
 
-    const xs = pts.map((d: Record<string, any>) => $xGet(d));
-    const ys = pts.map((d: Record<string, any>) => $yGet(d));
+    const xs = pts.map<number>((d) => chart.xGet(d));
+    const ys = pts.map<number>((d) => chart.yGet(d));
     const n = xs.length;
 
     const sumX = xs.reduce((a: number, b: number) => a + b, 0);
@@ -40,7 +39,6 @@
 
     return `M${x1},${y1} L${x2},${y2}`;
   });
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 </script>
 
 {#if trendPath}

@@ -1,24 +1,21 @@
 <script lang="ts">
-  import { getContext } from "svelte";
-  import type { LayerCakeContext } from "#lib/charts.js";
-  import type { ScaleBand } from "d3-scale";
+  import { getLayerCakeContext } from "layercake";
+  import type { ChartScales } from "#lib/charts.js";
 
-  const { data, xGet, yGet, xScale, height } = getContext(
-    "LayerCake",
-  ) as LayerCakeContext;
+  const chart = getLayerCakeContext<ChartScales, Record<string, unknown>[]>();
 
   let { fill = "var(--color-accent)" } = $props();
 
   const bandwidth = $derived(
-    "bandwidth" in $xScale ? ($xScale as ScaleBand<string>).bandwidth() : 20,
+    "bandwidth" in chart.xScale ? chart.xScale.bandwidth() : 20,
   );
 </script>
 
 <g class="bars">
-  {#each $data as d, i (i)}
-    {@const x = $xGet(d)}
-    {@const y = $yGet(d)}
-    {@const barHeight = $height - y}
+  {#each chart.data as d, i (i)}
+    {@const x = chart.xGet(d)}
+    {@const y = chart.yGet(d)}
+    {@const barHeight = chart.height - y}
     {#if barHeight > 0}
       <rect {x} {y} width={bandwidth} height={barHeight} {fill} />
     {/if}

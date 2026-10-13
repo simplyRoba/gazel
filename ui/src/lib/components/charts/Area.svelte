@@ -1,25 +1,21 @@
 <script lang="ts">
-  import { getContext } from "svelte";
+  import { getLayerCakeContext } from "layercake";
   import { area, curveMonotoneX } from "d3-shape";
-  import type { LayerCakeContext } from "#lib/charts.js";
+  import type { ChartScales } from "#lib/charts.js";
 
-  const { data, xGet, yGet, height } = getContext(
-    "LayerCake",
-  ) as LayerCakeContext;
+  const chart = getLayerCakeContext<ChartScales, Record<string, unknown>[]>();
 
   let { fill = "var(--color-accent-subtle)", opacity = 0.3 } = $props();
 
-  /* eslint-disable @typescript-eslint/no-explicit-any */
   const pathD = $derived(
-    area<Record<string, any>>()
-      .x((d) => $xGet(d))
-      .y0($height)
-      .y1((d) => $yGet(d))
-      .curve(curveMonotoneX)($data) ?? "",
+    area<Record<string, unknown>>()
+      .x((d) => chart.xGet(d))
+      .y0(chart.height)
+      .y1((d) => chart.yGet(d))
+      .curve(curveMonotoneX)(chart.data) ?? "",
   );
-  /* eslint-enable @typescript-eslint/no-explicit-any */
 </script>
 
-{#if $data.length >= 2}
+{#if chart.data.length >= 2}
   <path d={pathD} {fill} {opacity} stroke="none" />
 {/if}
