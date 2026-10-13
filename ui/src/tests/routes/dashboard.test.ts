@@ -231,6 +231,72 @@ afterEach(() => {
 });
 
 describe("dashboard charts", () => {
+  it.each([
+    { segments: 0, emptyCards: 6 },
+    { segments: 1, emptyCards: 4 },
+    { segments: 2, emptyCards: 2 },
+  ])(
+    "shows all chart cards with $segments segments while preserving plot thresholds",
+    async ({ segments, emptyCards }) => {
+      vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(
+        640,
+      );
+      vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(
+        180,
+      );
+      vehicleStore.vehicles = [vehicle(1, "First")];
+      statsStore.history = Array.from({ length: segments }, (_, index) => ({
+        start_date: `2026-01-${String(index + 1).padStart(2, "0")}`,
+        end_date: `2026-01-${String(index + 2).padStart(2, "0")}`,
+        start_odometer: 1000 + index * 500,
+        end_odometer: 1500 + index * 500,
+        distance: 500,
+        fuel: 40,
+        cost: 60,
+        efficiency: 12.5,
+        cost_per_distance: 0.12,
+        is_valid: true,
+        distance_unit: "km",
+        volume_unit: "l",
+        currency: "USD",
+      }));
+
+      const { container } = await renderPageWithCursor({ nextCursor: null });
+
+      await waitFor(() => {
+        expect(
+          container.querySelectorAll(".chart-carousel-item .chart-card"),
+        ).toHaveLength(3);
+        expect(
+          container.querySelectorAll(".charts-column .chart-card"),
+        ).toHaveLength(3);
+        expect(container.querySelectorAll(".chart-empty")).toHaveLength(
+          emptyCards,
+        );
+      });
+      expect(container.querySelectorAll(".carousel-dot")).toHaveLength(3);
+      for (const card of container.querySelectorAll(".chart-card")) {
+        expect(card.querySelector(".chart-title")?.textContent).toBeTruthy();
+      }
+      for (const message of container.querySelectorAll(".chart-empty-text")) {
+        expect(message.textContent).toBe("More fill-ups needed for chart");
+      }
+    },
+  );
+
+  it("keeps chart loading skeletons until history is available", async () => {
+    statsStore.loading = true;
+    const { container } = await renderPageWithCursor({ nextCursor: null });
+
+    expect(
+      container.querySelectorAll(".chart-carousel-wrapper .skeleton-chart"),
+    ).toHaveLength(1);
+    expect(
+      container.querySelectorAll(".charts-column .skeleton-chart"),
+    ).toHaveLength(3);
+    expect(container.querySelectorAll(".chart-card")).toHaveLength(0);
+  });
+
   it("renders real charts and summary sparklines with populated history", async () => {
     vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(640);
     vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(180);
@@ -340,10 +406,11 @@ describe("dashboard empty state", () => {
   it("uses the full-page centered presentation when no vehicles exist", () => {
     vehicleStore.vehicles = [];
 
-    render(Dashboard);
+    const { container } = render(Dashboard);
 
     expect(screen.getByTestId("dashboard-empty")).toBeTruthy();
     expect(screen.getByText("No vehicles yet")).toBeTruthy();
+    expect(container.querySelectorAll(".chart-card")).toHaveLength(0);
   });
 });
 

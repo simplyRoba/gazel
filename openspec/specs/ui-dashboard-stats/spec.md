@@ -166,7 +166,7 @@ The charts panel SHALL display three trend charts for the currently selected veh
 
 #### Scenario: Charts displayed
 
-- **WHEN** a vehicle is selected (via chip or single-vehicle mode) and it has segment history
+- **WHEN** a vehicle is selected (via chip or single-vehicle mode)
 - **THEN** the charts panel SHALL display: monthly cost chart, monthly/yearly distance chart, and fuel price trend chart — stacked vertically
 
 #### Scenario: Vehicle selection changes chart data
@@ -176,6 +176,17 @@ The charts panel SHALL display three trend charts for the currently selected veh
 
 #### Scenario: Insufficient chart data
 
-- **WHEN** the selected vehicle has fewer than 2 history segments
-- **THEN** the chart carousel and chart column SHALL NOT be rendered
-- **AND** the fill-up list SHALL use the available content width
+- **WHEN** the selected vehicle's history has loaded with fewer than two segments
+- **THEN** the compact carousel and desktop chart column SHALL still display all three chart cards
+- **AND** each chart SHALL use its existing data threshold to decide whether to plot data or show the more-fill-ups-needed message
+- **AND** line and area charts SHALL still require at least two eligible points, while the cost chart SHALL accept one calendar period
+
+#### Scenario: Chart history loading
+
+- **WHEN** the selected vehicle's history is loading and no history is available yet
+- **THEN** the compact carousel and desktop chart column SHALL show skeleton placeholders
+
+#### Scenario: No vehicles
+
+- **WHEN** no vehicles exist
+- **THEN** the dashboard SHALL show the vehicle empty state without chart cards

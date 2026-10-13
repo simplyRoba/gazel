@@ -1,6 +1,5 @@
 <script lang="ts">
   import type { SegmentHistory } from "#lib/api.js";
-  import { t } from "#lib/i18n/index.js";
   import DistanceChart from "./DistanceChart.svelte";
   import CostChart from "./CostChart.svelte";
   import FuelPriceChart from "./FuelPriceChart.svelte";
@@ -16,21 +15,13 @@
     volumeUnit: string;
     currency: string;
   } = $props();
-
-  const hasData = $derived(segments.length >= 2);
 </script>
 
-{#if hasData}
-  <div class="charts-stack">
-    <CostChart {segments} {currency} />
-    <DistanceChart {segments} {distanceUnit} />
-    <FuelPriceChart {segments} {currency} {volumeUnit} />
-  </div>
-{:else}
-  <div class="card charts-empty">
-    <span class="charts-empty-text">{t("charts.empty")}</span>
-  </div>
-{/if}
+<div class="charts-stack">
+  <CostChart {segments} {currency} />
+  <DistanceChart {segments} {distanceUnit} />
+  <FuelPriceChart {segments} {currency} {volumeUnit} />
+</div>
 
 <style>
   .charts-stack {
@@ -43,16 +34,5 @@
 
   .charts-stack > :global(*) {
     flex: 1 0 auto;
-  }
-
-  .charts-empty {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .charts-empty-text {
-    font-size: var(--font-sm);
-    color: var(--color-text-tertiary);
   }
 </style>

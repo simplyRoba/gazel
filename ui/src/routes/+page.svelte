@@ -506,7 +506,7 @@
           <div class="shimmer" style="width: 100%; height: 150px"></div>
         </div>
       </div>
-    {:else if activeHistory.length >= 2}
+    {:else}
       <div class="chart-carousel-wrapper">
         <div
           class="chart-carousel"
@@ -554,7 +554,7 @@
             </div>
           {/each}
         </div>
-      {:else if activeHistory.length >= 2}
+      {:else}
         <div class="charts-column">
           <ChartsPanel
             segments={activeHistory}
