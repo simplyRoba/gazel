@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.4.5](https://github.com/simplyRoba/gazel/compare/v1.4.4...v1.4.5) (2026-10-13)
+
+
+### Bug Fixes
+
+* **i18n:** lazy-load locale dictionaries ([9af85c9](https://github.com/simplyRoba/gazel/commit/9af85c996dfd8860300bec0403ee4a83a8850fd5))
+
+
+### Dependencies
+
+* bump brace-expansion from 5.0.8 to 5.0.12 in /ui ([0cb3f50](https://github.com/simplyRoba/gazel/commit/0cb3f505bab536aa95faf0154db93ff8116e3f82))
+* bump layercake from 10.0.3 to 11.0.0 in /ui ([ac35d28](https://github.com/simplyRoba/gazel/commit/ac35d28fa4ba139179024f135313be6dce9b8af2))
+* bump postcss-selector-parser from 7.1.5 to 7.1.6 in /ui ([30cd3f2](https://github.com/simplyRoba/gazel/commit/30cd3f286699bc9399265ff7b1cd9a4cae666751))
+* bump rustls from 0.23.43 to 0.23.45 ([31d6426](https://github.com/simplyRoba/gazel/commit/31d64267532e402434d87fa2e6aad92ce39dc5fc))
+* bump source-map-js from 1.2.1 to 1.2.2 in /ui ([75dd296](https://github.com/simplyRoba/gazel/commit/75dd296d5c22114e5e8d07cd40b655dfd607da9a))
+* bump the eslint group across 1 directory with 3 updates ([c5b0485](https://github.com/simplyRoba/gazel/commit/c5b04858a3519f725f96509724cd0f08303e38fd))
+* bump the svelte group in /ui ([913916c](https://github.com/simplyRoba/gazel/commit/913916cc0213ed7f1b7a6927a6da71de50aafe3a))
+* bump tokio from 1.53.1 to 1.53.2 in the tokio group ([9e45f10](https://github.com/simplyRoba/gazel/commit/9e45f1075f1529c4877df88068e186a2e5f8c4ec))
+* bump undici from 8.10.0 to 8.11.2 in /ui ([9df9584](https://github.com/simplyRoba/gazel/commit/9df9584d0ffb93208810837e9c9ae556e207c826))
+* bump uuid from 1.26.0 to 1.27.0 ([5137c50](https://github.com/simplyRoba/gazel/commit/5137c505fe35fb3ff753c029e8bc3135a39dc7c2))
+* bump vite from 8.2.2 to 8.3.4 in /ui ([5096ab1](https://github.com/simplyRoba/gazel/commit/5096ab14857cdae361dc47cc16379ba2b567b220))
+* bump vitest from 4.1.11 to 5.0.3 in /ui ([e7abc34](https://github.com/simplyRoba/gazel/commit/e7abc34179ddbbf7fc90a7b3417daa8f2c3c1ea0))
+* migrate UI to SvelteKit 3 ([ac428de](https://github.com/simplyRoba/gazel/commit/ac428de135a599bd8845e421a4b8cbb23379603d))
+
 ## [1.4.4](https://github.com/simplyRoba/gazel/compare/v1.4.3...v1.4.4) (2026-09-08)
 
 
