@@ -3,12 +3,12 @@
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
   import { onMount } from "svelte";
-  import type { Vehicle, CreateVehicle } from "$lib/api";
-  import { fetchVehicle } from "$lib/api";
-  import { t } from "$lib/i18n";
-  import PageContainer from "$lib/components/PageContainer.svelte";
-  import VehicleForm from "$lib/components/VehicleForm.svelte";
-  import { updateVehicle, getError } from "$lib/stores/vehicles.svelte";
+  import type { Vehicle, CreateVehicle } from "#lib/api.js";
+  import { fetchVehicle } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
+  import PageContainer from "#lib/components/PageContainer.svelte";
+  import VehicleForm from "#lib/components/VehicleForm.svelte";
+  import { updateVehicle, getError } from "#lib/stores/vehicles.svelte.js";
 
   let vehicle = $state<Vehicle | null>(null);
   let loadError = $state<string | null>(null);
@@ -32,7 +32,7 @@
     saving = true;
     const updated = await updateVehicle(vehicle.id, data);
     if (updated) {
-      goto(resolve("/settings"));
+      goto(resolve("settings"));
     }
     saving = false;
   }
@@ -53,7 +53,7 @@
     <VehicleForm
       initial={vehicle}
       onsave={handleSave}
-      oncancel={() => goto(resolve("/settings"))}
+      oncancel={() => goto(resolve("settings"))}
       {saving}
     />
   {/if}

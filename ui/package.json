@@ -43,5 +43,9 @@
   "dependencies": {
     "layercake": "^10.0.3",
     "lucide-svelte": "^1.0.1"
+  },
+  "imports": {
+    "#lib": "./src/lib/index.js",
+    "#lib/*": "./src/lib/*"
   }
 }

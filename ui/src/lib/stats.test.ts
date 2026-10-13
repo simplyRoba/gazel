@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
-import type { SegmentHistory, Fillup, VehicleStats, Vehicle } from "$lib/api";
+import type {
+  SegmentHistory,
+  Fillup,
+  VehicleStats,
+  Vehicle,
+} from "#lib/api.js";
 import {
   buildEfficiencyMap,
   getEfficiencyForFillup,
   computeFleetSummary,
-} from "$lib/stats";
+} from "#lib/stats.js";
 
 // ── Test data ────────────────────────────────────────────
 

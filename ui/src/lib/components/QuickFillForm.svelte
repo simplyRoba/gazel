@@ -1,20 +1,20 @@
 <script lang="ts">
-  import type { CreateFillup } from "$lib/api";
-  import { t } from "$lib/i18n";
-  import { getSettings } from "$lib/stores/settings.svelte";
-  import { getFillupsByVehicle } from "$lib/stores/fillups.svelte";
+  import type { CreateFillup } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
+  import { getSettings } from "#lib/stores/settings.svelte.js";
+  import { getFillupsByVehicle } from "#lib/stores/fillups.svelte.js";
   import {
     deriveFuelPriceTotal,
     formatDecimalInput,
     formatEfficiency,
     parseDecimal,
     type FuelPriceTotalField,
-  } from "$lib/format";
+  } from "#lib/format.js";
   import {
     guardNumericBeforeInput,
     normalizeOnBlur,
     recordFieldEdit,
-  } from "$lib/numeric-input";
+  } from "#lib/numeric-input.js";
 
   const VOLUME_LABELS: Record<string, string> = { l: "L", gal: "gal" };
   const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", EUR: "\u20AC" };

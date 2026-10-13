@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Vehicle } from "$lib/api";
-import { ApiError } from "$lib/api";
+import type { Vehicle } from "#lib/api.js";
+import { ApiError } from "#lib/api.js";
 
-vi.mock("$lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("$lib/api")>();
+vi.mock("#lib/api.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("#lib/api.js")>();
   return {
     ...actual,
     fetchVehicles: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock("$lib/api", async (importOriginal) => {
   };
 });
 
-vi.mock("$lib/stores/settings.svelte", () => ({
+vi.mock("#lib/stores/settings.svelte.js", () => ({
   getSettings: () => ({
     unit_system: "metric",
     distance_unit: "km",
@@ -25,7 +25,7 @@ vi.mock("$lib/stores/settings.svelte", () => ({
   }),
 }));
 
-import * as api from "$lib/api";
+import * as api from "#lib/api.js";
 
 const mockVehicle: Vehicle = {
   id: 1,

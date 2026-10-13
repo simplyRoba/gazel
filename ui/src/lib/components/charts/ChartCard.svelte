@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Snippet } from "svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n/index.js";
   import { LayerCake, Svg } from "layercake";
   import type { ScaleTime, ScaleBand, ScaleLinear, ScalePoint } from "d3-scale";
 

@@ -2,12 +2,12 @@
   import { onDestroy, untrack } from "svelte";
   import { SvelteMap } from "svelte/reactivity";
   import { X } from "lucide-svelte";
-  import { t } from "$lib/i18n";
+  import { t } from "#lib/i18n/index.js";
   import {
     getVisibleNotifications,
     dismissNotification,
     type Notification,
-  } from "$lib/stores/notifications.svelte";
+  } from "#lib/stores/notifications.svelte.js";
 
   const AUTO_DISMISS_MS = 3500;
 

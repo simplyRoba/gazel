@@ -1,4 +1,4 @@
-import { getSettings } from "$lib/stores/settings.svelte";
+import { getSettings } from "#lib/stores/settings.svelte.js";
 import { translations } from "./catalog";
 
 export { loadLocale, translations } from "./catalog";

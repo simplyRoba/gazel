@@ -39,7 +39,7 @@ export async function setTheme(pref: ThemePreference): Promise<boolean> {
   applyTheme(resolve(pref));
 
   try {
-    const { updateSettings } = await import("$lib/api");
+    const { updateSettings } = await import("#lib/api.js");
     await updateSettings({ color_mode: pref });
     return true;
   } catch {
@@ -75,7 +75,7 @@ export function initTheme(serverColorMode?: string): void {
     ) {
       // First-sync upgrade: push localStorage value to server.
       themePreference = localPref;
-      import("$lib/api")
+      import("#lib/api.js")
         .then(({ updateSettings }) => updateSettings({ color_mode: localPref }))
         .catch(() => {});
     } else {

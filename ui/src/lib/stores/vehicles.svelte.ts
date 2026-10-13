@@ -1,8 +1,8 @@
-import type { Vehicle, CreateVehicle } from "$lib/api";
-import * as api from "$lib/api";
-import { t } from "$lib/i18n";
-import { resolveError } from "$lib/i18n/errors";
-import { pushNotification } from "$lib/stores/notifications.svelte";
+import type { Vehicle, CreateVehicle } from "#lib/api.js";
+import * as api from "#lib/api.js";
+import { t } from "#lib/i18n/index.js";
+import { resolveError } from "#lib/i18n/errors.js";
+import { pushNotification } from "#lib/stores/notifications.svelte.js";
 
 let vehicles = $state<Vehicle[]>([]);
 let loading = $state(false);

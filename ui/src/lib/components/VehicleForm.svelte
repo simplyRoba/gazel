@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { Vehicle, CreateVehicle } from "$lib/api";
-  import { t } from "$lib/i18n";
+  import type { Vehicle, CreateVehicle } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
 
   const FUEL_TYPES = [
     { value: "gasoline", key: "vehicle.fuel.gasoline" },

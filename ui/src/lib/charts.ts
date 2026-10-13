@@ -1,7 +1,7 @@
 import type { Readable } from "svelte/store";
 import type { ScaleLinear, ScaleTime, ScaleBand, ScalePoint } from "d3-scale";
 
-import type { SegmentHistory } from "$lib/api";
+import type { SegmentHistory } from "#lib/api.js";
 
 // ── LayerCake context type ──────────────────────────────
 

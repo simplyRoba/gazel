@@ -1,7 +1,7 @@
 <script lang="ts">
-  import type { Fillup, CreateFillup } from "$lib/api";
-  import { t } from "$lib/i18n";
-  import { getFillupsByVehicle } from "$lib/stores/fillups.svelte";
+  import type { Fillup, CreateFillup } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
+  import { getFillupsByVehicle } from "#lib/stores/fillups.svelte.js";
   import FillupForm from "./FillupForm.svelte";
   import QuickFillForm from "./QuickFillForm.svelte";
   import ModalDialog from "./ModalDialog.svelte";

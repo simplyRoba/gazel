@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getContext } from "svelte";
-  import type { LayerCakeContext } from "$lib/charts";
+  import type { LayerCakeContext } from "#lib/charts.js";
 
   const { data, xGet, yGet } = getContext("LayerCake") as LayerCakeContext;
 
