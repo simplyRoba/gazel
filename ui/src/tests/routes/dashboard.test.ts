@@ -232,8 +232,8 @@ afterEach(() => {
 
 describe("dashboard charts", () => {
   it.each([
-    { segments: 0, emptyCards: 6 },
-    { segments: 1, emptyCards: 4 },
+    { segments: 0, emptyCards: 4 },
+    { segments: 1, emptyCards: 2 },
     { segments: 2, emptyCards: 2 },
   ])(
     "shows all chart cards with $segments segments while preserving plot thresholds",
@@ -283,6 +283,100 @@ describe("dashboard charts", () => {
       }
     },
   );
+
+  it.each([false, true])(
+    "shows the first partial fill price without segments (desktop=%s)",
+    async (desktop) => {
+      desktopMatches = desktop;
+      vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(
+        640,
+      );
+      vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(
+        180,
+      );
+      apiSpies.fetchFillups.mockResolvedValueOnce(
+        page(
+          [{ ...fillup(1), is_full_tank: false, fuel_amount: 20, cost: 40 }],
+          null,
+        ),
+      );
+      const { container } = render(Dashboard);
+      await waitFor(() =>
+        expect(container.querySelectorAll(".line-point")).toHaveLength(2),
+      );
+      for (const dot of container.querySelectorAll(".line-point")) {
+        expect(Number(dot.getAttribute("cx"))).toBeGreaterThan(0);
+        expect(Number.isFinite(Number(dot.getAttribute("cy")))).toBe(true);
+        const card = dot.closest(".chart-card")!;
+        expect(card.querySelector(".chart-empty")).toBeNull();
+        expect(card.querySelector("path")).toBeNull();
+        const overlay = card.querySelector<SVGRectElement>(
+          'rect[role="presentation"]',
+        )!;
+        overlay.getBoundingClientRect = () => ({ left: 0 }) as DOMRect;
+        await fireEvent.mouseMove(overlay, { clientX: 200 });
+        expect(card.textContent).toContain("$2.00/L");
+        expect(card.textContent).toContain("Mar 1, 2026");
+      }
+      expect(container.querySelectorAll(".chart-empty")).toHaveLength(4);
+      expect(apiSpies.fetchFillups).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("updates fuel prices as loaded pages and the selected vehicle change", async () => {
+    vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(640);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(180);
+    apiSpies.fetchFillups
+      .mockResolvedValueOnce(
+        page([{ ...fillup(2), fuel_amount: 20, cost: 60 }], "older"),
+      )
+      .mockResolvedValueOnce(
+        page([{ ...fillup(1), fuel_amount: 20, cost: 40 }], null),
+      )
+      .mockResolvedValueOnce(
+        page([{ ...fillup(3, 2), fuel_amount: 20, cost: 100 }], null),
+      );
+    const { container } = render(Dashboard);
+    await screen.findByTestId("fillups-sentinel");
+    await waitFor(() =>
+      expect(container.querySelectorAll(".line-point")).toHaveLength(2),
+    );
+    expect(apiSpies.fetchFillups).toHaveBeenCalledTimes(1);
+    intersect(observers.at(-1)!);
+    await waitFor(() =>
+      expect(container.querySelectorAll(".chart-container path")).toHaveLength(
+        4,
+      ),
+    );
+    expect(container.querySelector(".line-point")).toBeNull();
+    const overlay = container.querySelector<SVGRectElement>(
+      'rect[role="presentation"]',
+    )!;
+    overlay.getBoundingClientRect = () => ({ left: 0 }) as DOMRect;
+    await fireEvent.mouseMove(overlay, { clientX: 0 });
+    expect(overlay.closest(".chart-card")!.textContent).toContain("$2.00/L");
+    await fireEvent.click(screen.getByRole("button", { name: "Second" }));
+    await waitFor(() =>
+      expect(container.querySelectorAll(".line-point")).toHaveLength(2),
+    );
+    const updatedOverlay = container.querySelector<SVGRectElement>(
+      'rect[role="presentation"]',
+    )!;
+    updatedOverlay.getBoundingClientRect = () => ({ left: 0 }) as DOMRect;
+    await fireEvent.mouseMove(updatedOverlay, { clientX: 200 });
+    expect(updatedOverlay.closest(".chart-card")!.textContent).toContain(
+      "$5.00/L",
+    );
+    expect(apiSpies.fetchFillups).toHaveBeenCalledTimes(3);
+  });
+
+  it("keeps all charts empty with zero fill-ups and no segments", async () => {
+    apiSpies.fetchFillups.mockResolvedValueOnce(page([], null));
+    const { container } = render(Dashboard);
+    await waitFor(() => expect(apiSpies.fetchFillups).toHaveBeenCalledWith(1));
+    expect(container.querySelectorAll(".chart-empty")).toHaveLength(6);
+    expect(container.querySelector(".line-point")).toBeNull();
+  });
 
   it("keeps chart loading skeletons until history is available", async () => {
     statsStore.loading = true;

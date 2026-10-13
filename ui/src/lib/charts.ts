@@ -1,6 +1,6 @@
 import type { ScaleLinear, ScaleTime, ScaleBand, ScalePoint } from "d3-scale";
 
-import type { SegmentHistory } from "#lib/api.js";
+import type { Fillup, SegmentHistory } from "#lib/api.js";
 
 // ── Scale types for LayerCake's context ──────────────────
 
@@ -226,17 +226,36 @@ export function toYearlyDistanceData(
     .map(([month, value]) => ({ month, value: Math.round(value) }));
 }
 
-/**
- * Maps segments to fuel price time-series data (cost / fuel).
- * Excludes segments with zero fuel.
- */
-export function toFuelPriceData(segments: SegmentHistory[]): TimeSeriesPoint[] {
-  return segments
-    .filter((s) => s.fuel > 0)
-    .map((s) => ({
-      date: parseLocalDate(s.end_date),
-      value: s.cost / s.fuel,
-    }));
+/** Maps loaded fill-ups to prices per target volume unit, chronologically. */
+export function toFuelPriceData(
+  fillups: Fillup[],
+  targetVolumeUnit: string,
+): TimeSeriesPoint[] {
+  const litersPerGallon = 3.785_411_784;
+  return fillups
+    .filter(
+      (fillup) =>
+        Number.isFinite(fillup.fuel_amount) &&
+        fillup.fuel_amount > 0 &&
+        Number.isFinite(fillup.cost),
+    )
+    .sort(
+      (left, right) =>
+        left.date.localeCompare(right.date) || left.id - right.id,
+    )
+    .map((fillup) => {
+      const liters =
+        fillup.fuel_unit === "gal"
+          ? fillup.fuel_amount * litersPerGallon
+          : fillup.fuel_amount;
+      const volume =
+        targetVolumeUnit === "gal" ? liters / litersPerGallon : liters;
+      return {
+        date: parseLocalDate(fillup.date),
+        value: fillup.cost / volume,
+      };
+    })
+    .filter((point) => Number.isFinite(point.value));
 }
 
 /**

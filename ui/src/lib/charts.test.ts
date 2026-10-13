@@ -7,7 +7,7 @@ import {
   toFuelPriceData,
   toSparklineData,
 } from "./charts";
-import type { SegmentHistory } from "#lib/api.js";
+import type { Fillup, SegmentHistory } from "#lib/api.js";
 
 function makeSegment(overrides: Partial<SegmentHistory> = {}): SegmentHistory {
   return {
@@ -266,34 +266,78 @@ describe("toMonthlyDistanceData", () => {
 
 // ── toFuelPriceData ─────────────────────────────────────
 
+function makeFillup(overrides: Partial<Fillup> = {}): Fillup {
+  return {
+    id: 1,
+    vehicle_id: 1,
+    date: "2025-08-15",
+    odometer: 0,
+    fuel_amount: 30,
+    fuel_unit: "l",
+    cost: 45,
+    currency: "USD",
+    is_full_tank: false,
+    is_missed: false,
+    station: null,
+    notes: null,
+    created_at: "",
+    updated_at: "",
+    ...overrides,
+  };
+}
+
 describe("toFuelPriceData", () => {
   it("returns empty array for empty input", () => {
-    expect(toFuelPriceData([])).toEqual([]);
+    expect(toFuelPriceData([], "l")).toEqual([]);
   });
 
-  it("excludes segments with zero fuel", () => {
-    const segments = [
-      makeSegment({ fuel: 40, cost: 60 }),
-      makeSegment({ fuel: 0, cost: 0, end_date: "2025-02-01" }),
-    ];
-    const result = toFuelPriceData(segments);
-    expect(result).toHaveLength(1);
+  it("includes first partial and missed fills regardless of odometer", () => {
+    const result = toFuelPriceData(
+      [makeFillup(), makeFillup({ id: 2, is_missed: true, odometer: -1 })],
+      "l",
+    );
+    expect(result.map((point) => point.value)).toEqual([1.5, 1.5]);
+    expect(result[0].date).toEqual(new Date(2025, 7, 15));
   });
 
-  it("calculates cost / fuel correctly", () => {
-    const result = toFuelPriceData([makeSegment({ fuel: 40, cost: 80 })]);
-    expect(result[0].value).toBe(2); // 80 / 40
-  });
-
-  it("parses dates correctly", () => {
-    const result = toFuelPriceData([
-      makeSegment({ end_date: "2025-08-15", fuel: 30, cost: 45 }),
+  it("excludes invalid fuel and missing or nonfinite cost but allows zero cost", () => {
+    const fillups = [0, -1, NaN, Infinity].map((fuel_amount) =>
+      makeFillup({ fuel_amount }),
+    );
+    fillups.push(
+      ...[NaN, Infinity, null, undefined].map((cost) =>
+        makeFillup({ cost: cost as number }),
+      ),
+    );
+    fillups.push(makeFillup({ cost: 0 }));
+    expect(toFuelPriceData(fillups, "l").map((point) => point.value)).toEqual([
+      0,
     ]);
-    expect(result[0].date.getFullYear()).toBe(2025);
-    expect(result[0].date.getMonth()).toBe(7); // August = 7
-    expect(result[0].date.getDate()).toBe(15);
-    expect(result[0].date.getHours()).toBe(0);
-    expect(result[0].value).toBe(1.5);
+  });
+
+  it("sorts a copy by fill-up date then id", () => {
+    const fillups = [
+      makeFillup({ id: 3, date: "2025-09-01", cost: 90 }),
+      makeFillup({ id: 2, cost: 60 }),
+      makeFillup({ id: 1, cost: 30 }),
+    ];
+    expect(toFuelPriceData(fillups, "l").map((point) => point.value)).toEqual([
+      1, 2, 3,
+    ]);
+    expect(fillups.map((fillup) => fillup.id)).toEqual([3, 2, 1]);
+  });
+
+  it("normalizes mixed stored units to liters or US gallons", () => {
+    const fillups = [
+      makeFillup({ fuel_amount: 3.785_411_784, cost: 8 }),
+      makeFillup({ id: 2, fuel_amount: 1, fuel_unit: "gal", cost: 8 }),
+    ];
+    const liters = toFuelPriceData(fillups, "l");
+    expect(liters[0].value).toBeCloseTo(8 / 3.785_411_784);
+    expect(liters[1].value).toBeCloseTo(liters[0].value);
+    expect(toFuelPriceData(fillups, "gal").map((point) => point.value)).toEqual(
+      [8, 8],
+    );
   });
 });
 

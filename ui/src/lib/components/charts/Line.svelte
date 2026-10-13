@@ -15,11 +15,21 @@
   );
 </script>
 
-<path
-  d={pathD}
-  fill="none"
-  {stroke}
-  stroke-width={strokeWidth}
-  stroke-linejoin="round"
-  stroke-linecap="round"
-/>
+{#if chart.data.length === 1}
+  <circle
+    class="line-point"
+    cx={chart.xGet(chart.data[0])}
+    cy={chart.yGet(chart.data[0])}
+    r={3}
+    fill={stroke}
+  />
+{:else}
+  <path
+    d={pathD}
+    fill="none"
+    {stroke}
+    stroke-width={strokeWidth}
+    stroke-linejoin="round"
+    stroke-linecap="round"
+  />
+{/if}

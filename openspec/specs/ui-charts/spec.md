@@ -44,7 +44,7 @@ Dashboard charts SHALL present their data consistently, fit the available card w
 Each full-size chart SHALL display its title above the visualization and use the available content width. Charts that require a trend SHALL display an explanatory empty state until enough data exists.
 
 #### Scenario: Trend has fewer than two points
-- **WHEN** a line, area, or fuel-price trend has fewer than two eligible data points
+- **WHEN** a distance or efficiency line-and-area trend has fewer than two eligible data points
 - **THEN** the chart area SHALL display a centered message indicating that more fill-ups are needed
 
 #### Scenario: Monthly cost has one period
@@ -110,15 +110,21 @@ The dashboard SHALL display monthly cost totals as a bar chart for the selected 
 The dashboard SHALL display a fuel-price line chart for the selected vehicle.
 
 #### Scenario: Fuel price data
-- **WHEN** the selected vehicle has at least two eligible history segments
+- **WHEN** the selected vehicle has at least one eligible loaded fill-up
 - **THEN** the chart title SHALL identify the currency and volume unit, such as `USD/L`
 - **AND** value-axis labels SHALL show currency values without repeating the volume-unit suffix
 - **AND** selected-point values SHALL include the volume-unit suffix
-- **AND** the time axis SHALL show segment end dates
+- **AND** the time axis SHALL show fill-up dates
+- **AND** a single point SHALL appear as a visible dot with point details available
+- **AND** two or more points SHALL use the existing line and trend presentation
+
+#### Scenario: No eligible fuel-price data
+- **WHEN** no eligible loaded fill-ups exist
+- **THEN** the fuel-price chart SHALL show the more-fill-ups-needed message
 
 ### Requirement: Chart calculation rules
 
-Chart values SHALL be derived consistently from vehicle segment history and ordered chronologically.
+Chart values SHALL be ordered chronologically and derived from vehicle segment history, except fuel prices, which SHALL use individual loaded fill-ups.
 
 #### Scenario: Efficiency trend calculation
 - **WHEN** efficiency history is prepared for display
@@ -137,8 +143,10 @@ Chart values SHALL be derived consistently from vehicle segment history and orde
 
 #### Scenario: Fuel-price calculation
 - **WHEN** fuel-price history is prepared for display
-- **THEN** each eligible point SHALL use the segment end date and `cost / fuel` value
-- **AND** segments with zero fuel SHALL be excluded
+- **THEN** each eligible point SHALL use the fill-up date and cost divided by fuel volume normalized from its stored liters or US gallons to the active volume unit
+- **AND** nonpositive or nonfinite fuel volumes and missing or nonfinite costs SHALL be excluded, while zero costs SHALL be included
+- **AND** partial and missed fill-ups SHALL be included without full-tank, segment, or odometer requirements
+- **AND** points SHALL be sorted by date, then fill-up id, without changing the source order
 
 #### Scenario: Compact trend ordering
 - **WHEN** a compact background trend is prepared for display

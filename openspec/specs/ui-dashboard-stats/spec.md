@@ -179,7 +179,15 @@ The charts panel SHALL display three trend charts for the currently selected veh
 - **WHEN** the selected vehicle's history has loaded with fewer than two segments
 - **THEN** the compact carousel and desktop chart column SHALL still display all three chart cards
 - **AND** each chart SHALL use its existing data threshold to decide whether to plot data or show the more-fill-ups-needed message
-- **AND** line and area charts SHALL still require at least two eligible points, while the cost chart SHALL accept one calendar period
+- **AND** the distance chart SHALL still require at least two eligible points, while the cost chart SHALL accept one calendar period
+- **AND** the fuel-price chart SHALL accept the first eligible loaded fill-up, including a partial fill, and display a visible dot when only one point exists
+
+#### Scenario: Loaded fuel-price history
+
+- **WHEN** fill-up pages for the selected vehicle load or change
+- **THEN** both chart layouts SHALL update fuel prices from those individual loaded fill-ups, normalized to the active volume unit
+- **AND** the dashboard SHALL NOT fetch additional pages solely for the fuel-price chart
+- **AND** cost, distance, and summary trends SHALL retain their segment-history sources and thresholds
 
 #### Scenario: Chart history loading
 

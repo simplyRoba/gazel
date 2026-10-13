@@ -1,6 +1,6 @@
 <script lang="ts">
   import { scaleTime } from "d3-scale";
-  import type { SegmentHistory } from "#lib/api.js";
+  import type { Fillup } from "#lib/api.js";
   import { t } from "#lib/i18n/index.js";
   import { toFuelPriceData } from "#lib/charts.js";
   import { formatCurrency } from "#lib/format.js";
@@ -13,18 +13,18 @@
   import Tooltip from "./Tooltip.svelte";
 
   let {
-    segments,
+    fillups,
     currency,
     volumeUnit,
   }: {
-    segments: SegmentHistory[];
+    fillups: Fillup[];
     currency: string;
     volumeUnit: string;
   } = $props();
 
   const settings = $derived(getSettings());
 
-  const chartData = $derived(toFuelPriceData(segments));
+  const chartData = $derived(toFuelPriceData(fillups, volumeUnit));
 
   // Dynamic y-domain: floor below min value with padding
   const yMin = $derived(() => {
@@ -50,6 +50,7 @@
 <ChartCard
   title={t("charts.fuelPrice", { currency, unit: volLabel })}
   data={chartData}
+  minimumDataPoints={1}
   x={(d: { date: Date }) => d.date}
   y={(d: { value: number }) => d.value}
   xScale={scaleTime()}

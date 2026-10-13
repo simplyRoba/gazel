@@ -524,7 +524,7 @@
           </div>
           <div class="chart-carousel-item">
             <FuelPriceChart
-              segments={activeHistory}
+              fillups={getFillups()}
               currency={settings.currency}
               volumeUnit={settings.volume_unit}
             />
@@ -558,6 +558,7 @@
         <div class="charts-column">
           <ChartsPanel
             segments={activeHistory}
+            fillups={getFillups()}
             distanceUnit={settings.distance_unit}
             volumeUnit={settings.volume_unit}
             currency={settings.currency}
