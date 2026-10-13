@@ -1,10 +1,10 @@
 <script lang="ts">
   import { scaleTime } from "d3-scale";
-  import type { SegmentHistory } from "$lib/api";
-  import { t } from "$lib/i18n";
-  import { getSettings } from "$lib/stores/settings.svelte";
-  import { toEfficiencyData } from "$lib/charts";
-  import { toDisplayEfficiency, efficiencyUnitLabel } from "$lib/format";
+  import type { SegmentHistory } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
+  import { getSettings } from "#lib/stores/settings.svelte.js";
+  import { toEfficiencyData } from "#lib/charts.js";
+  import { toDisplayEfficiency, efficiencyUnitLabel } from "#lib/format.js";
   import ChartCard from "./ChartCard.svelte";
   import Line from "./Line.svelte";
   import Area from "./Area.svelte";

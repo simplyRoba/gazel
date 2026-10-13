@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import type { Settings } from "$lib/api";
+import type { Settings } from "#lib/api.js";
 
 const DEFAULTS: Settings = {
   unit_system: "metric",
@@ -13,7 +13,7 @@ const DEFAULTS: Settings = {
 const mockFetchSettings = vi.fn<() => Promise<Settings>>();
 const mockUpdateSettings = vi.fn<() => Promise<Settings>>();
 
-vi.mock("$lib/api", () => ({
+vi.mock("#lib/api.js", () => ({
   fetchSettings: (...args: unknown[]) => mockFetchSettings(...(args as [])),
   updateSettings: (...args: unknown[]) => mockUpdateSettings(...(args as [])),
   ApiError: class extends Error {
@@ -28,7 +28,7 @@ vi.mock("$lib/api", () => ({
 }));
 
 // Mock initTheme since it touches DOM/matchMedia.
-vi.mock("$lib/stores/theme.svelte", () => ({
+vi.mock("#lib/stores/theme.svelte.js", () => ({
   initTheme: vi.fn(),
 }));
 

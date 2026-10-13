@@ -38,13 +38,13 @@ vi.mock("$app/state", () => ({
   },
 }));
 
-vi.mock("$lib/stores/settings.svelte", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("$lib/stores/settings.svelte")>()),
+vi.mock("#lib/stores/settings.svelte.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("#lib/stores/settings.svelte.js")>()),
   initSettings: storeSpies.initSettings,
 }));
 
-vi.mock("$lib/stores/vehicles.svelte", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("$lib/stores/vehicles.svelte")>()),
+vi.mock("#lib/stores/vehicles.svelte.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("#lib/stores/vehicles.svelte.js")>()),
   loadVehicles: storeSpies.loadVehicles,
 }));
 

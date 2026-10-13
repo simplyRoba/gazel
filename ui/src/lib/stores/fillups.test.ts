@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, type Fillup, type FillupPage } from "$lib/api";
+import { ApiError, type Fillup, type FillupPage } from "#lib/api.js";
 
-vi.mock("$lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("$lib/api")>();
+vi.mock("#lib/api.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("#lib/api.js")>();
   return {
     ...actual,
     fetchFillups: vi.fn(),
@@ -14,7 +14,7 @@ vi.mock("$lib/api", async (importOriginal) => {
   };
 });
 
-vi.mock("$lib/stores/settings.svelte", () => ({
+vi.mock("#lib/stores/settings.svelte.js", () => ({
   getSettings: () => ({
     unit_system: "metric",
     distance_unit: "km",
@@ -25,7 +25,7 @@ vi.mock("$lib/stores/settings.svelte", () => ({
   }),
 }));
 
-import * as api from "$lib/api";
+import * as api from "#lib/api.js";
 
 function fillup(id: number, overrides: Partial<Fillup> = {}): Fillup {
   return {

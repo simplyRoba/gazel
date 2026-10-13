@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getContext } from "svelte";
-  import type { LayerCakeContext } from "$lib/charts";
+  import type { LayerCakeContext } from "#lib/charts.js";
   import type { ScaleLinear } from "d3-scale";
 
   const { yScale, width } = getContext("LayerCake") as LayerCakeContext;

@@ -6,7 +6,7 @@ import {
   clearNotifications,
   getAllNotifications,
   pushNotification,
-} from "$lib/stores/notifications.svelte";
+} from "#lib/stores/notifications.svelte.js";
 
 describe("ToastHost", () => {
   beforeEach(() => {

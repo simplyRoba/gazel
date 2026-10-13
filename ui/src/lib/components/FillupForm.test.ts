@@ -7,7 +7,7 @@ import {
 } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { CreateFillup, Fillup } from "$lib/api";
+import type { CreateFillup, Fillup } from "#lib/api.js";
 import FillupForm from "./FillupForm.svelte";
 
 const storeState = vi.hoisted(() => ({
@@ -15,7 +15,7 @@ const storeState = vi.hoisted(() => ({
   loadMoreFillups: vi.fn(),
 }));
 
-vi.mock("$lib/stores/settings.svelte", () => ({
+vi.mock("#lib/stores/settings.svelte.js", () => ({
   getSettings: () => ({
     unit_system: "metric",
     distance_unit: "km",
@@ -26,7 +26,7 @@ vi.mock("$lib/stores/settings.svelte", () => ({
   }),
 }));
 
-vi.mock("$lib/stores/fillups.svelte", () => ({
+vi.mock("#lib/stores/fillups.svelte.js", () => ({
   getFillupsByVehicle: () => storeState.fillups,
   loadMoreFillups: storeState.loadMoreFillups,
 }));

@@ -1,10 +1,10 @@
 <script lang="ts">
   import { scaleBand } from "d3-scale";
-  import type { SegmentHistory } from "$lib/api";
-  import { t } from "$lib/i18n";
-  import { toMonthlyCostData, toYearlyCostData } from "$lib/charts";
-  import { formatCurrency } from "$lib/format";
-  import { getSettings } from "$lib/stores/settings.svelte";
+  import type { SegmentHistory } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
+  import { toMonthlyCostData, toYearlyCostData } from "#lib/charts.js";
+  import { formatCurrency } from "#lib/format.js";
+  import { getSettings } from "#lib/stores/settings.svelte.js";
   import ChartCard from "./ChartCard.svelte";
   import Bar from "./Bar.svelte";
   import AxisX from "./AxisX.svelte";

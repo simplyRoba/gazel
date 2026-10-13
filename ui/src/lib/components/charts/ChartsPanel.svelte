@@ -1,6 +1,6 @@
 <script lang="ts">
-  import type { SegmentHistory } from "$lib/api";
-  import { t } from "$lib/i18n";
+  import type { SegmentHistory } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
   import DistanceChart from "./DistanceChart.svelte";
   import CostChart from "./CostChart.svelte";
   import FuelPriceChart from "./FuelPriceChart.svelte";

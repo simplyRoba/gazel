@@ -1,11 +1,11 @@
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { resolve } from "$app/paths";
-  import type { CreateVehicle } from "$lib/api";
-  import { t } from "$lib/i18n";
-  import PageContainer from "$lib/components/PageContainer.svelte";
-  import VehicleForm from "$lib/components/VehicleForm.svelte";
-  import { createVehicle, getError } from "$lib/stores/vehicles.svelte";
+  import type { CreateVehicle } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
+  import PageContainer from "#lib/components/PageContainer.svelte";
+  import VehicleForm from "#lib/components/VehicleForm.svelte";
+  import { createVehicle, getError } from "#lib/stores/vehicles.svelte.js";
 
   let saving = $state(false);
 
@@ -13,7 +13,7 @@
     saving = true;
     const vehicle = await createVehicle(data);
     if (vehicle) {
-      goto(resolve("/settings"));
+      goto(resolve("settings"));
     }
     saving = false;
   }
@@ -28,7 +28,7 @@
 
   <VehicleForm
     onsave={handleSave}
-    oncancel={() => goto(resolve("/settings"))}
+    oncancel={() => goto(resolve("settings"))}
     {saving}
   />
 </PageContainer>

@@ -120,7 +120,7 @@ Guidance for coding agents working in `gazel` (Rust backend + SvelteKit frontend
 
 ## Import and module conventions
 - Rust `use` statements should be grouped as std, third-party crates, then local modules (`super`, `crate`).
-- In TypeScript, import external packages first, `$lib/*` aliases next, and relative imports last.
+- In TypeScript, import external packages first, `#lib/*` subpath imports next, and relative imports last.
 - Re-export modules sparingly (`mod.rs`/`index.ts`) and only when it improves call-site clarity.
 
 ## Error-handling conventions

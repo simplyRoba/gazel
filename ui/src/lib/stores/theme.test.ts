@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 
-// Mock $lib/api before importing the theme module.
+// Mock #lib/api.js before importing the theme module.
 const apiMocks = vi.hoisted(() => ({
   updateSettings: vi.fn(),
 }));
-vi.mock("$lib/api", () => apiMocks);
+vi.mock("#lib/api.js", () => apiMocks);
 
 // Mock matchMedia before importing the module.
 let matchMediaListener: ((e: { matches: boolean }) => void) | null = null;

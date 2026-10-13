@@ -3,7 +3,7 @@
   import { readable } from "svelte/store";
   import { scaleLinear } from "d3-scale";
 
-  import type { LayerCakeContext } from "$lib/charts";
+  import type { LayerCakeContext } from "#lib/charts.js";
 
   import Tooltip from "./Tooltip.svelte";
 

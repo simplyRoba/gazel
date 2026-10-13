@@ -1,4 +1,4 @@
-import type { ApiError } from "$lib/api";
+import type { ApiError } from "#lib/api.js";
 
 /**
  * Resolve an API error to a user-facing localized message.

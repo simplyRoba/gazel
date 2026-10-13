@@ -7,7 +7,7 @@ import {
 } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Fillup, FillupPage, Vehicle, VehicleStats } from "$lib/api";
+import type { Fillup, FillupPage, Vehicle, VehicleStats } from "#lib/api.js";
 
 const apiSpies = vi.hoisted(() => ({
   fetchFillups: vi.fn(),
@@ -25,18 +25,18 @@ const statsStore = vi.hoisted(() => ({
 }));
 const settingsStore = vi.hoisted(() => ({ locale: "en" }));
 
-vi.mock("$lib/api", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("$lib/api")>()),
+vi.mock("#lib/api.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("#lib/api.js")>()),
   fetchFillups: apiSpies.fetchFillups,
 }));
 
-vi.mock("$lib/stores/vehicles.svelte", () => ({
+vi.mock("#lib/stores/vehicles.svelte.js", () => ({
   loadVehicles: vehicleStore.loadVehicles,
   getVehicles: () => vehicleStore.vehicles,
   getLoading: () => vehicleStore.loading,
 }));
 
-vi.mock("$lib/stores/stats.svelte", () => ({
+vi.mock("#lib/stores/stats.svelte.js", () => ({
   getVehicleStats: () => statsStore.stats,
   getVehicleHistory: () => [],
   getLoading: () => statsStore.loading,
@@ -44,7 +44,7 @@ vi.mock("$lib/stores/stats.svelte", () => ({
   invalidateStats: statsStore.invalidateStats,
 }));
 
-vi.mock("$lib/stores/settings.svelte", () => ({
+vi.mock("#lib/stores/settings.svelte.js", () => ({
   getSettings: () => ({
     unit_system: "metric",
     distance_unit: "km",
@@ -55,7 +55,7 @@ vi.mock("$lib/stores/settings.svelte", () => ({
   }),
 }));
 
-import * as fillupStore from "$lib/stores/fillups.svelte";
+import * as fillupStore from "#lib/stores/fillups.svelte.js";
 import Dashboard from "../../routes/+page.svelte";
 
 interface ObserverRecord {

@@ -2,19 +2,19 @@
   import { onMount } from "svelte";
   import { resolve } from "$app/paths";
   import { Car, Fuel } from "lucide-svelte";
-  import PageContainer from "$lib/components/PageContainer.svelte";
-  import EmptyState from "$lib/components/EmptyState.svelte";
-  import FillupModal from "$lib/components/FillupModal.svelte";
-  import ChartsPanel from "$lib/components/charts/ChartsPanel.svelte";
-  import DistanceChart from "$lib/components/charts/DistanceChart.svelte";
-  import CostChart from "$lib/components/charts/CostChart.svelte";
-  import FuelPriceChart from "$lib/components/charts/FuelPriceChart.svelte";
-  import Sparkline from "$lib/components/charts/Sparkline.svelte";
+  import PageContainer from "#lib/components/PageContainer.svelte";
+  import EmptyState from "#lib/components/EmptyState.svelte";
+  import FillupModal from "#lib/components/FillupModal.svelte";
+  import ChartsPanel from "#lib/components/charts/ChartsPanel.svelte";
+  import DistanceChart from "#lib/components/charts/DistanceChart.svelte";
+  import CostChart from "#lib/components/charts/CostChart.svelte";
+  import FuelPriceChart from "#lib/components/charts/FuelPriceChart.svelte";
+  import Sparkline from "#lib/components/charts/Sparkline.svelte";
   import {
     loadVehicles,
     getVehicles,
     getLoading as getVehiclesLoading,
-  } from "$lib/stores/vehicles.svelte";
+  } from "#lib/stores/vehicles.svelte.js";
   import {
     getFillups,
     getLoading as getFillupsLoading,
@@ -28,30 +28,30 @@
     createFillup as storeCreateFillup,
     updateFillup as storeUpdateFillup,
     deleteFillup as storeDeleteFillup,
-  } from "$lib/stores/fillups.svelte";
+  } from "#lib/stores/fillups.svelte.js";
   import {
     getVehicleStats,
     getVehicleHistory,
     getLoading as getStatsLoading,
     loadAllStats,
     invalidateStats,
-  } from "$lib/stores/stats.svelte";
-  import { getSettings } from "$lib/stores/settings.svelte";
+  } from "#lib/stores/stats.svelte.js";
+  import { getSettings } from "#lib/stores/settings.svelte.js";
   import {
     formatDistance,
     formatCurrency,
     formatVolume,
     formatEfficiency,
     toDisplayEfficiency,
-  } from "$lib/format";
-  import { t } from "$lib/i18n";
-  import type { Fillup, CreateFillup } from "$lib/api";
+  } from "#lib/format.js";
+  import { t } from "#lib/i18n/index.js";
+  import type { Fillup, CreateFillup } from "#lib/api.js";
   import {
     buildEfficiencyMap,
     getEfficiencyForFillup,
     computeFleetSummary,
-  } from "$lib/stats";
-  import { toSparklineData, toEfficiencyData } from "$lib/charts";
+  } from "#lib/stats.js";
+  import { toSparklineData, toEfficiencyData } from "#lib/charts.js";
 
   // Modal state
   let showFillupModal = $state(false);
@@ -328,7 +328,7 @@
         description={t("dashboard.empty.description")}
       >
         {#snippet action()}
-          <a href={resolve("/settings/vehicles/new")} class="btn btn-primary"
+          <a href={resolve("settings/vehicles/new")} class="btn btn-primary"
             >{t("dashboard.empty.action")}</a
           >
         {/snippet}

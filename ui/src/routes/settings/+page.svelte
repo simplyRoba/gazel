@@ -15,16 +15,16 @@
     Database,
     Info,
   } from "lucide-svelte";
-  import PageContainer from "$lib/components/PageContainer.svelte";
-  import EmptyState from "$lib/components/EmptyState.svelte";
-  import ModalDialog from "$lib/components/ModalDialog.svelte";
-  import AuthenticationSettings from "$lib/components/AuthenticationSettings.svelte";
+  import PageContainer from "#lib/components/PageContainer.svelte";
+  import EmptyState from "#lib/components/EmptyState.svelte";
+  import ModalDialog from "#lib/components/ModalDialog.svelte";
+  import AuthenticationSettings from "#lib/components/AuthenticationSettings.svelte";
   import type {
     Vehicle,
     ImportMode,
     ImportPreviewResult,
     AppInfo,
-  } from "$lib/api";
+  } from "#lib/api.js";
   import {
     exportAll,
     exportVehicle,
@@ -32,27 +32,27 @@
     importData,
     fetchAppInfo,
     ApiError,
-  } from "$lib/api";
+  } from "#lib/api.js";
   import {
     loadVehicles,
     getVehicles,
     getLoading,
     deleteVehicle,
-  } from "$lib/stores/vehicles.svelte";
+  } from "#lib/stores/vehicles.svelte.js";
   import {
     getSettings,
     updateSettingsStore,
-  } from "$lib/stores/settings.svelte";
+  } from "#lib/stores/settings.svelte.js";
   import {
     setTheme,
     getThemePreference,
     type ThemePreference,
-  } from "$lib/stores/theme.svelte";
-  import { pushNotification } from "$lib/stores/notifications.svelte";
-  import { clearCache as clearFillupCache } from "$lib/stores/fillups.svelte";
-  import { clearCache as clearStatsCache } from "$lib/stores/stats.svelte";
-  import { t } from "$lib/i18n";
-  import { resolveError } from "$lib/i18n/errors";
+  } from "#lib/stores/theme.svelte.js";
+  import { pushNotification } from "#lib/stores/notifications.svelte.js";
+  import { clearCache as clearFillupCache } from "#lib/stores/fillups.svelte.js";
+  import { clearCache as clearStatsCache } from "#lib/stores/stats.svelte.js";
+  import { t } from "#lib/i18n/index.js";
+  import { resolveError } from "#lib/i18n/errors.js";
 
   let appInfo = $state<AppInfo | null>(null);
 
@@ -490,7 +490,7 @@
           description={t("settings.vehicles.empty.description")}
         >
           {#snippet action()}
-            <a href={resolve("/settings/vehicles/new")} class="btn btn-primary">
+            <a href={resolve("settings/vehicles/new")} class="btn btn-primary">
               <Plus size={16} />
               {t("settings.vehicles.add")}
             </a>
@@ -541,7 +541,7 @@
         </div>
 
         <div class="add-action">
-          <a href={resolve("/settings/vehicles/new")} class="btn btn-primary">
+          <a href={resolve("settings/vehicles/new")} class="btn btn-primary">
             <Plus size={16} />
             {t("settings.vehicles.add")}
           </a>

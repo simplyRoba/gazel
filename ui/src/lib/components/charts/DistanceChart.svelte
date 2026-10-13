@@ -1,10 +1,10 @@
 <script lang="ts">
   import { scalePoint } from "d3-scale";
-  import type { SegmentHistory } from "$lib/api";
-  import { t } from "$lib/i18n";
-  import { toMonthlyDistanceData, toYearlyDistanceData } from "$lib/charts";
-  import { formatDistance } from "$lib/format";
-  import { getSettings } from "$lib/stores/settings.svelte";
+  import type { SegmentHistory } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
+  import { toMonthlyDistanceData, toYearlyDistanceData } from "#lib/charts.js";
+  import { formatDistance } from "#lib/format.js";
+  import { getSettings } from "#lib/stores/settings.svelte.js";
   import ChartCard from "./ChartCard.svelte";
   import Line from "./Line.svelte";
   import Area from "./Area.svelte";

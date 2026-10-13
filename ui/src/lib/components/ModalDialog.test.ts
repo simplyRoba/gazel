@@ -1,14 +1,17 @@
 import { cleanup, render, waitFor } from "@testing-library/svelte";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("$lib/api", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("$lib/api")>()),
+vi.mock("#lib/api.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("#lib/api.js")>()),
   updateSettings: vi.fn(),
 }));
 
-import * as api from "$lib/api";
+import * as api from "#lib/api.js";
 import ModalDialog from "./ModalDialog.svelte";
-import { getSettings, updateSettingsStore } from "$lib/stores/settings.svelte";
+import {
+  getSettings,
+  updateSettingsStore,
+} from "#lib/stores/settings.svelte.js";
 
 afterEach(cleanup);
 

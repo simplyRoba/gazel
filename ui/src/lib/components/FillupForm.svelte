@@ -1,10 +1,13 @@
 <script lang="ts">
-  import type { Fillup, CreateFillup } from "$lib/api";
-  import { t } from "$lib/i18n";
-  import { parseDecimal } from "$lib/format";
-  import { guardNumericBeforeInput, normalizeOnBlur } from "$lib/numeric-input";
-  import { getSettings } from "$lib/stores/settings.svelte";
-  import { getFillupsByVehicle } from "$lib/stores/fillups.svelte";
+  import type { Fillup, CreateFillup } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
+  import { parseDecimal } from "#lib/format.js";
+  import {
+    guardNumericBeforeInput,
+    normalizeOnBlur,
+  } from "#lib/numeric-input.js";
+  import { getSettings } from "#lib/stores/settings.svelte.js";
+  import { getFillupsByVehicle } from "#lib/stores/fillups.svelte.js";
 
   const VOLUME_LABELS: Record<string, string> = { l: "L", gal: "gal" };
   const CURRENCY_SYMBOLS: Record<string, string> = { USD: "$", EUR: "\u20AC" };

@@ -7,7 +7,7 @@ import {
   toFuelPriceData,
   toSparklineData,
 } from "./charts";
-import type { SegmentHistory } from "$lib/api";
+import type { SegmentHistory } from "#lib/api.js";
 
 function makeSegment(overrides: Partial<SegmentHistory> = {}): SegmentHistory {
   return {

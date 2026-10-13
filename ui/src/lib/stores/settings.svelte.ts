@@ -1,7 +1,7 @@
-import type { Settings, UpdateSettingsRequest } from "$lib/api";
-import * as api from "$lib/api";
-import { loadLocale } from "$lib/i18n/catalog";
-import { initTheme } from "$lib/stores/theme.svelte";
+import type { Settings, UpdateSettingsRequest } from "#lib/api.js";
+import * as api from "#lib/api.js";
+import { loadLocale } from "#lib/i18n/catalog.js";
+import { initTheme } from "#lib/stores/theme.svelte.js";
 
 // ── Defaults ─────────────────────────────────────────────
 

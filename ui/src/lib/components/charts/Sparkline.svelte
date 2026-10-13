@@ -4,7 +4,7 @@
    * Renders a minimal area+line chart as an inline SVG background.
    */
 
-  import type { SparklinePoint } from "$lib/charts";
+  import type { SparklinePoint } from "#lib/charts.js";
 
   let {
     data = [] as SparklinePoint[],

@@ -5,7 +5,7 @@
 // decimal separator. Parsing of completed values lives in `format.ts`
 // (`parseDecimal`); these helpers only gate intermediate keystrokes.
 
-import { formatDecimalInput, type FuelPriceTotalField } from "$lib/format";
+import { formatDecimalInput, type FuelPriceTotalField } from "#lib/format.js";
 
 /**
  * Returns `true` when `value` is a valid *partial* numeric entry — i.e. a

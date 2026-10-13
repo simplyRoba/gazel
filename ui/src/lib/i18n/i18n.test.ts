@@ -72,7 +72,7 @@ describe("lazy locale loading", () => {
 // ── t() function ─────────────────────────────────────────
 
 // We need to mock settings to control locale
-vi.mock("$lib/stores/settings.svelte", () => {
+vi.mock("#lib/stores/settings.svelte.js", () => {
   let locale = "en";
   return {
     getSettings: () => ({
@@ -96,7 +96,7 @@ describe("t()", () => {
 
   beforeEach(async () => {
     vi.resetModules();
-    const settings = await import("$lib/stores/settings.svelte");
+    const settings = await import("#lib/stores/settings.svelte.js");
     __setLocale = (settings as unknown as { __setLocale: (l: string) => void })
       .__setLocale;
     __setLocale("en");
@@ -167,7 +167,7 @@ describe("resolveError()", () => {
 
   beforeEach(async () => {
     vi.resetModules();
-    const settings = await import("$lib/stores/settings.svelte");
+    const settings = await import("#lib/stores/settings.svelte.js");
     (settings as unknown as { __setLocale: (l: string) => void }).__setLocale(
       "en",
     );
@@ -184,7 +184,7 @@ describe("resolveError()", () => {
       message: "Vehicle not found.",
       status: 404,
     };
-    const result = resolveError(error as import("$lib/api").ApiError, t);
+    const result = resolveError(error as import("#lib/api.js").ApiError, t);
     expect(result).toBe("Vehicle not found.");
   });
 
@@ -194,12 +194,12 @@ describe("resolveError()", () => {
       message: "Some server message",
       status: 500,
     };
-    const result = resolveError(error as import("$lib/api").ApiError, t);
+    const result = resolveError(error as import("#lib/api.js").ApiError, t);
     expect(result).toBe("Some server message");
   });
 
   it("resolves to German for known code when locale is de", async () => {
-    const settings = await import("$lib/stores/settings.svelte");
+    const settings = await import("#lib/stores/settings.svelte.js");
     (settings as unknown as { __setLocale: (l: string) => void }).__setLocale(
       "de",
     );
@@ -208,7 +208,7 @@ describe("resolveError()", () => {
       message: "Vehicle not found.",
       status: 404,
     };
-    const result = resolveError(error as import("$lib/api").ApiError, t);
+    const result = resolveError(error as import("#lib/api.js").ApiError, t);
     expect(result).toBe("Fahrzeug nicht gefunden.");
   });
 });

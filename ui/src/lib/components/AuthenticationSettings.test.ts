@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/svelte";
 import { describe, expect, it } from "vitest";
-import type { AppInfo } from "$lib/api";
+import type { AppInfo } from "#lib/api.js";
 import AuthenticationSettings from "./AuthenticationSettings.svelte";
 
 const disabledInfo: AppInfo = {

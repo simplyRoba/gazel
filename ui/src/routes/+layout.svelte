@@ -1,33 +1,33 @@
 <script lang="ts">
-  import "$lib/styles/tokens.css";
-  import "$lib/styles/reset.css";
-  import "$lib/styles/corner.css";
-  import "$lib/styles/buttons.css";
-  import "$lib/styles/inputs.css";
-  import "$lib/styles/chips.css";
-  import "$lib/styles/badges.css";
-  import "$lib/styles/cards.css";
-  import "$lib/styles/skeletons.css";
-  import "$lib/styles/segmented.css";
+  import "#lib/styles/tokens.css";
+  import "#lib/styles/reset.css";
+  import "#lib/styles/corner.css";
+  import "#lib/styles/buttons.css";
+  import "#lib/styles/inputs.css";
+  import "#lib/styles/chips.css";
+  import "#lib/styles/badges.css";
+  import "#lib/styles/cards.css";
+  import "#lib/styles/skeletons.css";
+  import "#lib/styles/segmented.css";
 
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
   import { resolve } from "$app/paths";
   import { untrack } from "svelte";
   import { LayoutDashboard, Settings, Plus, Check } from "lucide-svelte";
-  import { initSettings } from "$lib/stores/settings.svelte";
-  import { getVehicles, loadVehicles } from "$lib/stores/vehicles.svelte";
+  import { initSettings } from "#lib/stores/settings.svelte.js";
+  import { getVehicles, loadVehicles } from "#lib/stores/vehicles.svelte.js";
   import {
     getActiveVehicleId,
     setActiveVehicle,
     createFillup as storeCreateFillup,
-  } from "$lib/stores/fillups.svelte";
-  import { invalidateStats } from "$lib/stores/stats.svelte";
-  import Logo from "$lib/components/Logo.svelte";
-  import ToastHost from "$lib/components/ToastHost.svelte";
-  import FillupModal from "$lib/components/FillupModal.svelte";
-  import type { CreateFillup, Vehicle } from "$lib/api";
-  import { t } from "$lib/i18n";
+  } from "#lib/stores/fillups.svelte.js";
+  import { invalidateStats } from "#lib/stores/stats.svelte.js";
+  import Logo from "#lib/components/Logo.svelte";
+  import ToastHost from "#lib/components/ToastHost.svelte";
+  import FillupModal from "#lib/components/FillupModal.svelte";
+  import type { CreateFillup, Vehicle } from "#lib/api.js";
+  import { t } from "#lib/i18n/index.js";
   import {
     PULL_TO_REFRESH_THRESHOLD,
     isStandalonePwaSession,
@@ -40,7 +40,7 @@
     shouldTriggerPullToRefresh,
     schedulePullToRefreshReload,
     type PullIndicatorState,
-  } from "$lib/pull-to-refresh";
+  } from "#lib/pull-to-refresh.js";
 
   let { children } = $props();
   let isLoginRoute = $derived(page.url.pathname === "/login");
@@ -63,7 +63,7 @@
   function handleCta(): void {
     const vehicles = getVehicles();
     if (vehicles.length === 0) {
-      goto(resolve("/settings/vehicles/new"));
+      goto(resolve("settings/vehicles/new"));
       return;
     }
     if (vehicles.length === 1) {
@@ -331,7 +331,7 @@
         <div class="spacer"></div>
 
         <a
-          href={resolve("/settings")}
+          href={resolve("settings")}
           class="nav-item corner-tri-hover corner-tri-sm"
           class:active={isActive("/settings")}
         >
@@ -356,7 +356,7 @@
         </button>
 
         <a
-          href={resolve("/settings")}
+          href={resolve("settings")}
           class="nav-item"
           class:active={isActive("/settings")}
         >

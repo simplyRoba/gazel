@@ -1,7 +1,7 @@
 <script lang="ts">
   import { getContext } from "svelte";
   import { area, curveMonotoneX } from "d3-shape";
-  import type { LayerCakeContext } from "$lib/charts";
+  import type { LayerCakeContext } from "#lib/charts.js";
 
   const { data, xGet, yGet, height } = getContext(
     "LayerCake",

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
-  import { fetchAuthConfig, type AuthConfig } from "$lib/api";
-  import Logo from "$lib/components/Logo.svelte";
-  import { t } from "$lib/i18n";
+  import { fetchAuthConfig, type AuthConfig } from "#lib/api.js";
+  import Logo from "#lib/components/Logo.svelte";
+  import { t } from "#lib/i18n/index.js";
 
   let config = $state<AuthConfig | null>(null);
   let configFailed = $state(false);

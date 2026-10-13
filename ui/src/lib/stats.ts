@@ -1,4 +1,9 @@
-import type { SegmentHistory, Fillup, VehicleStats, Vehicle } from "$lib/api";
+import type {
+  SegmentHistory,
+  Fillup,
+  VehicleStats,
+  Vehicle,
+} from "#lib/api.js";
 
 /**
  * Build a map from fill-up key (date|odometer) to segment efficiency.
