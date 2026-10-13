@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.4.6](https://github.com/simplyRoba/gazel/compare/v1.4.5...v1.4.6) (2026-10-13)
+
+
+### Bug Fixes
+
+* migrate charts to LayerCake 11 context API ([5fd4cdc](https://github.com/simplyRoba/gazel/commit/5fd4cdc23319a0fa4351563d3f8e60360b582ab9))
+* plot fuel prices from the first fill-up ([4fcd71f](https://github.com/simplyRoba/gazel/commit/4fcd71f44506f5e3dc3b1798a4f4dfb6cff469f1))
+* show dashboard chart cards before history is available ([080f528](https://github.com/simplyRoba/gazel/commit/080f5286b16a1e83d7480d1cc9933d1c21ec0531))
+
 ## [1.4.5](https://github.com/simplyRoba/gazel/compare/v1.4.4...v1.4.5) (2026-10-13)
 
 
