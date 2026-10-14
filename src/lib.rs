@@ -5,3 +5,4 @@ pub mod db;
 pub mod embedded;
 pub mod server;
 pub mod state;
+pub mod stats;

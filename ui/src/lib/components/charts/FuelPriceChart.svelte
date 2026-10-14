@@ -1,8 +1,8 @@
 <script lang="ts">
   import { scaleTime } from "d3-scale";
-  import type { Fillup } from "#lib/api.js";
+  import type { FuelPriceSeries } from "#lib/api.js";
   import { t } from "#lib/i18n/index.js";
-  import { toFuelPriceData } from "#lib/charts.js";
+  import { toPriceData } from "#lib/charts.js";
   import { formatCurrency } from "#lib/format.js";
   import { getSettings } from "#lib/stores/settings.svelte.js";
   import ChartCard from "./ChartCard.svelte";
@@ -13,18 +13,28 @@
   import Tooltip from "./Tooltip.svelte";
 
   let {
-    fillups,
+    series,
     currency,
     volumeUnit,
   }: {
-    fillups: Fillup[];
+    series: FuelPriceSeries | null;
     currency: string;
     volumeUnit: string;
   } = $props();
 
   const settings = $derived(getSettings());
 
-  const chartData = $derived(toFuelPriceData(fillups, volumeUnit));
+  const chartData = $derived(toPriceData(series?.points ?? []));
+  const trend = $derived(series?.trend ? toPriceData(series.trend) : null);
+  const caption = $derived(
+    series?.reduced && series.displayed_range
+      ? t("charts.reducedHistory", {
+          shown: series.points.length,
+          total: series.source_count,
+          ...series.displayed_range,
+        })
+      : undefined,
+  );
 
   // Dynamic y-domain: floor below min value with padding
   const yMin = $derived(() => {
@@ -49,6 +59,7 @@
 
 <ChartCard
   title={t("charts.fuelPrice", { currency, unit: volLabel })}
+  {caption}
   data={chartData}
   minimumDataPoints={1}
   x={(d: { date: Date }) => d.date}
@@ -59,6 +70,6 @@
   <AxisY format={yFormat} />
   <AxisX />
   <Line />
-  <TrendLine />
+  <TrendLine points={trend} />
   <Tooltip formatY={tooltipFormatY} />
 </ChartCard>

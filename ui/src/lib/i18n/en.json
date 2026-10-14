@@ -187,6 +187,8 @@
   "charts.monthlyDistance": "Monthly distance ({unit})",
   "charts.yearlyDistance": "Yearly distance ({unit})",
   "charts.fuelPrice": "Fuel price ({currency}/{unit})",
+  "charts.limitedRange": "Showing {start}–{end}; older periods omitted",
+  "charts.reducedHistory": "Showing {shown} of {total} recorded prices ({start}–{end})",
 
   "toast.dismiss": "Dismiss",
 
@@ -214,7 +216,7 @@
   "error.SETTINGS_INVALID_VOLUME_UNIT": "Invalid volume unit.",
   "error.SETTINGS_INVALID_CURRENCY": "Invalid currency.",
   "error.SETTINGS_INVALID_LOCALE": "Invalid locale.",
-  "error.STATS_INVALID_DATE_FILTER": "Invalid date filter.",
+  "error.STATS_INVALID_VEHICLE_ID": "Vehicle ID must be a positive integer.",
   "error.IMPORT_VERSION_MISMATCH": "Export version is incompatible.",
   "error.IMPORT_INVALID_MODE": "Invalid import mode.",
   "error.IMPORT_VALIDATION_ERROR": "Import data contains invalid records.",

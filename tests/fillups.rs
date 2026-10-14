@@ -39,7 +39,43 @@ async fn list_fillups(app: &axum::Router, uri: &str) -> serde_json::Value {
         .await
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
-    common::body_json(resp).await
+    let page = common::body_json(resp).await;
+    let items = page["items"].as_array().unwrap();
+    let values = page["efficiency"]["values"].as_array().unwrap();
+    assert_eq!(values.len(), items.len());
+    for (item, value) in items.iter().zip(values) {
+        assert_eq!(item["id"], value["fillup_id"]);
+        assert_fillup_fields(item);
+    }
+    page
+}
+
+fn assert_fillup_fields(fillup: &serde_json::Value) {
+    let mut actual: Vec<_> = fillup
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    actual.sort_unstable();
+    let mut expected = vec![
+        "id",
+        "vehicle_id",
+        "date",
+        "odometer",
+        "fuel_amount",
+        "fuel_unit",
+        "cost",
+        "currency",
+        "is_full_tank",
+        "is_missed",
+        "station",
+        "notes",
+        "created_at",
+        "updated_at",
+    ];
+    expected.sort_unstable();
+    assert_eq!(actual, expected);
 }
 
 async fn create_ordered_fillups(app: &mut axum::Router, vehicle_id: i64, count: u8) -> Vec<i64> {
@@ -281,6 +317,7 @@ async fn get_existing_fillup() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let json = common::body_json(resp).await;
+    assert_fillup_fields(&json);
     assert_eq!(json["id"], fid);
     assert_eq!(json["vehicle_id"], vid);
     assert_eq!(json["date"], "2026-04-01");
@@ -336,6 +373,7 @@ async fn create_with_all_fields() {
     .await;
     assert_eq!(resp.status(), StatusCode::CREATED);
     let json = common::body_json(resp).await;
+    assert_fillup_fields(&json);
     assert_eq!(json["vehicle_id"], vid);
     assert_eq!(json["date"], "2026-04-09");
     assert_eq!(json["odometer"], 15230.5);
@@ -665,6 +703,7 @@ async fn update_changes_fields() {
         .unwrap();
     assert_eq!(resp.status(), StatusCode::OK);
     let json = common::body_json(resp).await;
+    assert_fillup_fields(&json);
     assert_eq!(json["date"], "2026-04-02");
     assert_eq!(json["fuel_amount"], 35.0);
     assert_eq!(json["cost"], 60.0);

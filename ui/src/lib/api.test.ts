@@ -19,6 +19,7 @@ import {
   fetchAppInfo,
   authenticationLoginUrl,
   fetchFillups,
+  fetchStats,
 } from "./api";
 
 function stubBrowserLocation(
@@ -39,7 +40,11 @@ describe("fill-up API", () => {
   });
 
   it("returns the first FillupPage without a query string", async () => {
-    const page = { items: [], next_cursor: "older-page" };
+    const page = {
+      items: [],
+      next_cursor: "older-page",
+      efficiency: { distance_unit: "km", volume_unit: "l", values: [] },
+    };
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
@@ -54,7 +59,11 @@ describe("fill-up API", () => {
 
   it("encodes and forwards a server cursor unchanged", async () => {
     const cursor = "2026-03-01T12:00:00Z/id+with spaces&symbols";
-    const page = { items: [], next_cursor: null };
+    const page = {
+      items: [],
+      next_cursor: null,
+      efficiency: { distance_unit: "km", volume_unit: "l", values: [] },
+    };
     mockFetch.mockResolvedValue({
       ok: true,
       status: 200,
@@ -64,6 +73,109 @@ describe("fill-up API", () => {
     await expect(fetchFillups(42, cursor)).resolves.toEqual(page);
     expect(mockFetch).toHaveBeenCalledWith(
       `/api/vehicles/42/fillups?${new URLSearchParams({ cursor })}`,
+      { method: "GET" },
+    );
+  });
+});
+
+describe("statistics API", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it.each([undefined, null, 42])(
+    "makes one combined request for selection %s",
+    async (id) => {
+      const summary = {
+        vehicle_id: 42,
+        total_distance: 100,
+        total_fuel: 10,
+        total_cost: 20,
+        fill_up_count: 2,
+        average_efficiency: 10,
+        average_cost_per_distance: 0.2,
+      };
+      const period = {
+        points: [{ period: "2026-01", value: 20 }],
+        source_count: 1,
+        source_range: { start: "2026-01", end: "2026-01" },
+        displayed_range: { start: "2026-01", end: "2026-01" },
+        omitted_older_periods: false,
+      };
+      const sparkline = {
+        points: [{ position: 0, value: 10 }],
+        source_count: 1,
+        reduced: false,
+      };
+      const response = {
+        units: { distance_unit: "km", volume_unit: "l", currency: "EUR" },
+        fleet: {
+          total_distance: 100,
+          total_fuel: 10,
+          total_cost: 20,
+          fill_up_count: 2,
+          average_efficiency: 10,
+          cost_per_distance: 0.2,
+          cost_per_volume: 2,
+        },
+        vehicles: [summary],
+        fleet_efficiency: sparkline,
+        selected:
+          id == null
+            ? null
+            : {
+                vehicle_id: 42,
+                summary,
+                charts: {
+                  cost: {
+                    monthly: period,
+                    yearly: {
+                      ...period,
+                      points: [{ period: "2026", value: 20 }],
+                    },
+                  },
+                  distance: { monthly: period, yearly: period },
+                  fuel_price: {
+                    points: [{ date: "2026-01-01", value: 2 }],
+                    source_count: 1,
+                    reduced: false,
+                    source_range: { start: "2026-01-01", end: "2026-01-01" },
+                    displayed_range: { start: "2026-01-01", end: "2026-01-01" },
+                    trend: null,
+                  },
+                },
+                cost_per_distance: sparkline,
+              },
+      };
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(response),
+      });
+      await expect(fetchStats(id)).resolves.toEqual(response);
+      expect(mockFetch).toHaveBeenCalledExactlyOnceWith(
+        id == null ? "/api/stats" : "/api/stats?vehicle_id=42",
+        { method: "GET" },
+      );
+    },
+  );
+
+  it("propagates selection errors without a legacy endpoint fallback", async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 404,
+      json: () =>
+        Promise.resolve({
+          code: "VEHICLE_NOT_FOUND",
+          message: "Vehicle not found",
+        }),
+    });
+    await expect(fetchStats(999)).rejects.toMatchObject({
+      status: 404,
+      code: "VEHICLE_NOT_FOUND",
+    });
+    expect(mockFetch).toHaveBeenCalledExactlyOnceWith(
+      "/api/stats?vehicle_id=999",
       { method: "GET" },
     );
   });

@@ -22,7 +22,7 @@
     setActiveVehicle,
     createFillup as storeCreateFillup,
   } from "#lib/stores/fillups.svelte.js";
-  import { invalidateStats } from "#lib/stores/stats.svelte.js";
+  import { refreshStats } from "#lib/stores/stats.svelte.js";
   import Logo from "#lib/components/Logo.svelte";
   import ToastHost from "#lib/components/ToastHost.svelte";
   import FillupModal from "#lib/components/FillupModal.svelte";
@@ -103,7 +103,7 @@
     if (!result) {
       throw new Error("Save failed");
     }
-    invalidateStats(ctaVehicleId);
+    void refreshStats();
   }
 
   let pickerDialogEl: HTMLDialogElement | undefined = $state();

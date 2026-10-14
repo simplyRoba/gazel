@@ -1,6 +1,8 @@
 import type { Settings, UpdateSettingsRequest } from "#lib/api.js";
 import * as api from "#lib/api.js";
 import { loadLocale } from "#lib/i18n/catalog.js";
+import { clearEfficiencyMetadata } from "#lib/stores/fillups.svelte.js";
+import { refreshStats } from "#lib/stores/stats.svelte.js";
 import { initTheme } from "#lib/stores/theme.svelte.js";
 
 // ── Defaults ─────────────────────────────────────────────
@@ -57,6 +59,19 @@ export async function updateSettingsStore(
     settings = { ...settings, ...data };
     const updated = await api.updateSettings(data);
     settings = updated;
+    if (
+      previous.distance_unit !== updated.distance_unit ||
+      previous.volume_unit !== updated.volume_unit
+    ) {
+      clearEfficiencyMetadata();
+    }
+    if (
+      previous.distance_unit !== updated.distance_unit ||
+      previous.volume_unit !== updated.volume_unit ||
+      previous.currency !== updated.currency
+    ) {
+      void refreshStats();
+    }
     return true;
   } catch {
     // Revert on failure.

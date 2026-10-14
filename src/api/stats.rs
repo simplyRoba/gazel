@@ -1,425 +1,265 @@
+use std::collections::BTreeMap;
+
 use axum::Json;
-use axum::extract::{Path, Query, State};
+use axum::extract::{RawQuery, State};
+use axum::http::{HeaderValue, header};
+use axum::response::{IntoResponse, Response};
 use chrono::NaiveDate;
-use serde::{Deserialize, Serialize};
-use sqlx::SqlitePool;
+use sqlx::{Sqlite, SqlitePool, Transaction};
 
 use super::error::{ApiError, db_error};
-use super::fillups::ensure_vehicle_exists;
+use crate::stats::{self, AggregatedStats, Fillup, Segment};
 
-// ── Conversion constants ─────────────────────────────────
+mod response;
+use response::{SelectedStats, StatsResponse, Units, VehicleSummary};
 
-const KM_PER_MI: f64 = 1.609_344;
-const L_PER_GAL: f64 = 3.785_411_784;
+/// Optional positive vehicle selection. Unknown parameters are ignored.
+#[derive(Debug, Default)]
+pub struct StatsQuery {
+    pub vehicle_id: Option<i64>,
+}
 
-// ── Database row type ────────────────────────────────────
+impl StatsQuery {
+    fn parse(raw: Option<&str>) -> Result<Self, ApiError> {
+        let mut query = Self::default();
+        for (key, value) in url::form_urlencoded::parse(raw.unwrap_or_default().as_bytes()) {
+            if key == "vehicle_id" {
+                if query.vehicle_id.is_some() {
+                    return Err(ApiError::BadRequest("STATS_INVALID_VEHICLE_ID"));
+                }
+                query.vehicle_id = Some(
+                    value
+                        .parse::<i64>()
+                        .ok()
+                        .filter(|id| *id > 0)
+                        .ok_or(ApiError::BadRequest("STATS_INVALID_VEHICLE_ID"))?,
+                );
+            }
+        }
+        Ok(query)
+    }
+}
 
-/// Lightweight fillup row for stats calculations.
 #[derive(sqlx::FromRow)]
 struct StatsRow {
+    vehicle_id: i64,
+    id: i64,
     date: String,
     odometer: Option<f64>,
     fuel_amount: f64,
     fuel_unit: String,
     cost: Option<f64>,
-    is_full_tank: i32,
-    is_missed: i32,
+    is_full_tank: bool,
+    is_missed: bool,
 }
 
-// ── Query parameters ─────────────────────────────────────
-
-/// Optional date-range filter for stats endpoints.
-#[derive(Deserialize)]
-pub struct StatsQuery {
-    pub from: Option<String>,
-    pub to: Option<String>,
-}
-
-// ── Response types ───────────────────────────────────────
-
-/// Aggregate vehicle statistics.
-#[derive(Serialize)]
-pub struct VehicleStats {
-    pub total_distance: f64,
-    pub total_fuel: f64,
-    pub total_cost: f64,
-    pub fill_up_count: i64,
-    pub average_efficiency: Option<f64>,
-    pub average_cost_per_distance: Option<f64>,
-    pub distance_unit: String,
-    pub volume_unit: String,
-    pub currency: String,
-}
-
-/// A single efficiency segment for the history endpoint.
-#[derive(Serialize)]
-pub struct SegmentHistory {
-    pub start_date: String,
-    pub end_date: String,
-    pub start_odometer: f64,
-    pub end_odometer: f64,
-    pub distance: f64,
-    pub fuel: f64,
-    pub cost: f64,
-    pub efficiency: f64,
-    pub cost_per_distance: f64,
-    pub is_valid: bool,
-    pub distance_unit: String,
-    pub volume_unit: String,
-    pub currency: String,
-}
-
-// ── Internal types ───────────────────────────────────────
-
-/// Internal segment computed from raw fillup data (in stored units).
-struct Segment {
-    start_date: String,
-    end_date: String,
-    start_odometer: f64,
-    end_odometer: f64,
-    distance: f64,
-    fuel: f64,
-    cost: f64,
-    efficiency: f64,
-    cost_per_distance: f64,
-    is_valid: bool,
-}
-
-/// Settings fields needed for stats unit conversion.
-#[derive(sqlx::FromRow)]
-struct StatsSettings {
-    distance_unit: String,
-    volume_unit: String,
-    currency: String,
-}
-
-// ── Validation ───────────────────────────────────────────
-
-/// Validate that a date string is a real ISO calendar date (YYYY-MM-DD).
-///
-/// # Errors
-///
-/// Returns `ApiError::BadRequest` if the string is not a valid date.
-fn validate_date_filter(value: &str) -> Result<(), ApiError> {
-    match NaiveDate::parse_from_str(value, "%Y-%m-%d") {
-        Ok(_) => Ok(()),
-        Err(_) => Err(ApiError::BadRequest("STATS_INVALID_DATE_FILTER")),
+impl From<StatsRow> for Fillup {
+    fn from(row: StatsRow) -> Self {
+        Self {
+            id: row.id,
+            date: row.date,
+            odometer: row.odometer,
+            fuel_amount: row.fuel_amount,
+            fuel_unit: row.fuel_unit,
+            cost: row.cost,
+            is_full_tank: row.is_full_tank,
+            is_missed: row.is_missed,
+        }
     }
 }
 
-// ── Unit conversion helpers ──────────────────────────────
-
-/// Normalize a fuel amount to liters based on its stored unit.
-fn normalize_fuel_to_liters(amount: f64, fuel_unit: &str) -> f64 {
-    match fuel_unit {
-        "gal" => amount * L_PER_GAL,
-        _ => amount, // "l" or unknown → treat as liters
-    }
-}
-
-/// Convert a distance value between units.
-fn convert_distance(value: f64, to: &str) -> f64 {
-    match to {
-        "mi" => value / KM_PER_MI,
-        _ => value, // assume stored as km
-    }
-}
-
-/// Convert a volume value from liters to the target unit.
-fn convert_volume(value: f64, to: &str) -> f64 {
-    match to {
-        "gal" => value / L_PER_GAL,
-        _ => value, // already liters
-    }
-}
-
-/// Round a float to two decimal places.
-fn round2(value: f64) -> f64 {
-    (value * 100.0).round() / 100.0
-}
-
-// ── Data fetching ────────────────────────────────────────
-
-/// Fetch fillups for stats, ordered chronologically, filtered by date range,
-/// excluding rows with zero/negative odometer.
-///
-/// # Errors
-///
-/// Returns `ApiError::InternalError` on database failures.
-async fn fetch_fillups_for_stats(
-    pool: &SqlitePool,
-    vehicle_id: i64,
-    query: &StatsQuery,
-) -> Result<Vec<StatsRow>, ApiError> {
-    let mut sql = String::from(
-        "SELECT date, odometer, fuel_amount, fuel_unit, cost, \
-         is_full_tank, is_missed FROM fillups \
-         WHERE vehicle_id = ? AND (odometer IS NULL OR odometer > 0)",
-    );
-
-    if query.from.is_some() {
-        sql.push_str(" AND date >= ?");
-    }
-    if query.to.is_some() {
-        sql.push_str(" AND date <= ?");
-    }
-
-    sql.push_str(" ORDER BY date ASC, id ASC");
-
-    let mut q = sqlx::query_as::<_, StatsRow>(sqlx::AssertSqlSafe(sql.as_str())).bind(vehicle_id);
-
-    if let Some(ref from) = query.from {
-        q = q.bind(from);
-    }
-    if let Some(ref to) = query.to {
-        q = q.bind(to);
-    }
-
-    q.fetch_all(pool).await.map_err(db_error)
-}
-
-/// Read settings needed for stats unit conversion.
-///
-/// # Errors
-///
-/// Returns `ApiError::InternalError` on database failures.
-async fn read_stats_settings(pool: &SqlitePool) -> Result<StatsSettings, ApiError> {
-    sqlx::query_as::<_, StatsSettings>(
-        "SELECT distance_unit, volume_unit, currency FROM settings WHERE id = 1",
+/// The only full-history read for a statistics request. Include null and zero
+/// odometers: price eligibility differs from segment/summary eligibility.
+async fn fetch_history(tx: &mut Transaction<'_, Sqlite>) -> Result<Vec<StatsRow>, ApiError> {
+    tracing::debug!(target: "gazel::stats", event = "history_fetch", "Reading shared statistics history");
+    sqlx::query_as::<_, StatsRow>(
+        "SELECT vehicle_id, id, date, odometer, fuel_amount, fuel_unit, cost, \
+         is_full_tank, is_missed FROM fillups ORDER BY vehicle_id, date, id",
     )
-    .fetch_one(pool)
+    .fetch_all(&mut **tx)
     .await
     .map_err(db_error)
 }
 
-// ── Calculation engine ───────────────────────────────────
-
-/// Compute efficiency segments from an ordered list of fillups.
-///
-/// Uses the tank-to-tank method: segments span between consecutive full-tank
-/// fills, accumulating fuel and cost from all intermediate fills. Segments
-/// containing missed fills are flagged as invalid.
-fn compute_segments(rows: &[StatsRow]) -> Vec<Segment> {
-    let mut segments = Vec::new();
-    let mut segment_start: Option<usize> = None;
-
-    for (i, row) in rows.iter().enumerate() {
-        // Skip rows with no valid odometer
-        let odo = row.odometer.unwrap_or(0.0);
-        if odo <= 0.0 {
-            continue;
-        }
-
-        if row.is_full_tank != 0 {
-            if let Some(start_idx) = segment_start {
-                let start_row = &rows[start_idx];
-                let start_odo = start_row.odometer.unwrap_or(0.0);
-                let distance = odo - start_odo;
-
-                if distance > 0.0 {
-                    // Accumulate fuel and cost from all fills after start through
-                    // end (inclusive of end, exclusive of start).
-                    let mut total_fuel = 0.0;
-                    let mut total_cost = 0.0;
-                    let mut has_missed = false;
-
-                    for fill in &rows[(start_idx + 1)..=i] {
-                        total_fuel += normalize_fuel_to_liters(fill.fuel_amount, &fill.fuel_unit);
-                        total_cost += fill.cost.unwrap_or(0.0);
-                        if fill.is_missed != 0 {
-                            has_missed = true;
-                        }
-                    }
-
-                    if total_fuel > 0.0 {
-                        segments.push(Segment {
-                            start_date: start_row.date.clone(),
-                            end_date: row.date.clone(),
-                            start_odometer: start_odo,
-                            end_odometer: odo,
-                            distance,
-                            fuel: total_fuel,
-                            cost: total_cost,
-                            efficiency: distance / total_fuel,
-                            cost_per_distance: total_cost / distance,
-                            is_valid: !has_missed,
-                        });
-                    }
-                }
-            }
-            // This full-tank fill becomes the start of the next potential segment
-            segment_start = Some(i);
-        }
-    }
-
-    segments
+fn calculation_error(error: &stats::CalculationError) -> ApiError {
+    tracing::error!("Statistics calculation failed: {error}");
+    ApiError::InternalError("INTERNAL_ERROR")
 }
 
-/// Aggregate stats from segments and the full fillup list.
-#[allow(clippy::cast_possible_wrap)]
-fn aggregate_stats(rows: &[StatsRow], segments: &[Segment]) -> AggregatedStats {
-    // Total fuel, cost, fill-up count from all rows
-    let fill_up_count = rows.len() as i64;
-    let total_fuel: f64 = rows
-        .iter()
-        .map(|r| normalize_fuel_to_liters(r.fuel_amount, &r.fuel_unit))
-        .sum();
-    let total_cost: f64 = rows.iter().map(|r| r.cost.unwrap_or(0.0)).sum();
-
-    // Total distance: from first to last valid odometer
-    let valid_odometers: Vec<f64> = rows
-        .iter()
-        .filter_map(|r| r.odometer)
-        .filter(|&o| o > 0.0)
-        .collect();
-    let total_distance = if valid_odometers.len() >= 2 {
-        valid_odometers.last().unwrap() - valid_odometers.first().unwrap()
+fn finite(values: impl IntoIterator<Item = f64>) -> Result<(), stats::CalculationError> {
+    if values.into_iter().all(f64::is_finite) {
+        Ok(())
     } else {
-        0.0
-    };
-
-    // Average efficiency and cost_per_distance from valid segments only
-    let valid_segments: Vec<&Segment> = segments.iter().filter(|s| s.is_valid).collect();
-
-    let valid_count = valid_segments.len();
-    let average_efficiency = if valid_segments.is_empty() {
-        None
-    } else {
-        let sum: f64 = valid_segments.iter().map(|s| s.efficiency).sum();
-        #[allow(clippy::cast_precision_loss)]
-        let avg = sum / valid_count as f64;
-        Some(avg)
-    };
-
-    let average_cost_per_distance = if valid_segments.is_empty() {
-        None
-    } else {
-        let sum: f64 = valid_segments.iter().map(|s| s.cost_per_distance).sum();
-        #[allow(clippy::cast_precision_loss)]
-        let avg = sum / valid_count as f64;
-        Some(avg)
-    };
-
-    AggregatedStats {
-        total_distance,
-        total_fuel,
-        total_cost,
-        fill_up_count,
-        average_efficiency,
-        average_cost_per_distance,
+        Err(stats::CalculationError)
     }
 }
 
-struct AggregatedStats {
-    total_distance: f64,
-    total_fuel: f64,
-    total_cost: f64,
-    fill_up_count: i64,
-    average_efficiency: Option<f64>,
-    average_cost_per_distance: Option<f64>,
-}
-
-// ── Handlers ─────────────────────────────────────────────
-
-/// Vehicle summary stats.
-///
-/// # Errors
-///
-/// Returns `ApiError::NotFound` if the vehicle does not exist, or
-/// `ApiError::BadRequest` for invalid date filters.
-pub async fn summary(
-    State(pool): State<SqlitePool>,
-    Path(vehicle_id): Path<i64>,
-    Query(query): Query<StatsQuery>,
-) -> Result<Json<VehicleStats>, ApiError> {
-    ensure_vehicle_exists(&pool, vehicle_id).await?;
-    validate_query_dates(&query)?;
-
-    let rows = fetch_fillups_for_stats(&pool, vehicle_id, &query).await?;
-    let segments = compute_segments(&rows);
-    let agg = aggregate_stats(&rows, &segments);
-    let settings = read_stats_settings(&pool).await?;
-
-    Ok(Json(VehicleStats {
-        total_distance: round2(convert_distance(
-            agg.total_distance,
-            &settings.distance_unit,
-        )),
-        total_fuel: round2(convert_volume(agg.total_fuel, &settings.volume_unit)),
-        total_cost: round2(agg.total_cost),
-        fill_up_count: agg.fill_up_count,
-        average_efficiency: agg.average_efficiency.map(|e| {
-            // Efficiency is distance_unit / volume_unit.
-            // Raw is km/L. Convert to target units.
-            let dist = convert_distance(1.0, &settings.distance_unit);
-            let vol = convert_volume(1.0, &settings.volume_unit);
-            round2(e * dist / vol)
-        }),
-        average_cost_per_distance: agg.average_cost_per_distance.map(|c| {
-            // Raw is cost/km. Convert to cost/distance_unit.
-            let dist = convert_distance(1.0, &settings.distance_unit);
-            round2(c / dist)
-        }),
-        distance_unit: settings.distance_unit,
-        volume_unit: settings.volume_unit,
-        currency: settings.currency,
-    }))
-}
-
-/// Vehicle stats history (per-segment data points).
-///
-/// # Errors
-///
-/// Returns `ApiError::NotFound` if the vehicle does not exist, or
-/// `ApiError::BadRequest` for invalid date filters.
-pub async fn history(
-    State(pool): State<SqlitePool>,
-    Path(vehicle_id): Path<i64>,
-    Query(query): Query<StatsQuery>,
-) -> Result<Json<Vec<SegmentHistory>>, ApiError> {
-    ensure_vehicle_exists(&pool, vehicle_id).await?;
-    validate_query_dates(&query)?;
-
-    let rows = fetch_fillups_for_stats(&pool, vehicle_id, &query).await?;
-    let segments = compute_segments(&rows);
-    let settings = read_stats_settings(&pool).await?;
-
-    let dist_factor = convert_distance(1.0, &settings.distance_unit);
-    let vol_factor = convert_volume(1.0, &settings.volume_unit);
-
-    let history: Vec<SegmentHistory> = segments
-        .into_iter()
-        .map(|s| SegmentHistory {
-            start_date: s.start_date,
-            end_date: s.end_date,
-            start_odometer: round2(convert_distance(s.start_odometer, &settings.distance_unit)),
-            end_odometer: round2(convert_distance(s.end_odometer, &settings.distance_unit)),
-            distance: round2(convert_distance(s.distance, &settings.distance_unit)),
-            fuel: round2(convert_volume(s.fuel, &settings.volume_unit)),
-            cost: round2(s.cost),
-            efficiency: round2(s.efficiency * dist_factor / vol_factor),
-            cost_per_distance: round2(s.cost_per_distance / dist_factor),
-            is_valid: s.is_valid,
-            distance_unit: settings.distance_unit.clone(),
-            volume_unit: settings.volume_unit.clone(),
-            currency: settings.currency.clone(),
-        })
-        .collect();
-
-    Ok(Json(history))
-}
-
-/// Validate the `from` and `to` query parameters if present.
-///
-/// # Errors
-///
-/// Returns `ApiError::BadRequest` if either date has an invalid format.
-fn validate_query_dates(query: &StatsQuery) -> Result<(), ApiError> {
-    if let Some(ref from) = query.from {
-        validate_date_filter(from)?;
-    }
-    if let Some(ref to) = query.to {
-        validate_date_filter(to)?;
+fn validate_rows(rows: &[Fillup]) -> Result<(), stats::CalculationError> {
+    for row in rows {
+        NaiveDate::parse_from_str(&row.date, "%Y-%m-%d").map_err(|_| stats::CalculationError)?;
+        finite(
+            [row.fuel_amount]
+                .into_iter()
+                .chain(row.odometer)
+                .chain(row.cost),
+        )?;
     }
     Ok(())
+}
+
+fn validate_summary(summary: &AggregatedStats) -> Result<(), stats::CalculationError> {
+    finite(
+        [
+            summary.total_distance,
+            summary.total_fuel,
+            summary.total_cost,
+        ]
+        .into_iter()
+        .chain(summary.average_efficiency)
+        .chain(summary.average_cost_per_distance),
+    )
+}
+
+fn vehicle_calculation(
+    rows: &[Fillup],
+    units: &Units,
+) -> Result<(AggregatedStats, Vec<Segment>), stats::CalculationError> {
+    validate_rows(rows)?;
+    let segments = stats::compute_segments(rows);
+    let mut summary = stats::displayed_summary(
+        &stats::aggregate_stats(rows, &segments),
+        &units.distance_unit,
+        &units.volume_unit,
+    );
+    summary.average_efficiency =
+        stats::displayed_average_efficiency(&segments, &units.distance_unit, &units.volume_unit);
+    validate_summary(&summary)?;
+    let segments: Vec<_> = segments
+        .iter()
+        .map(|s| stats::displayed_segment(s, &units.distance_unit, &units.volume_unit))
+        .collect();
+    for s in &segments {
+        finite([
+            s.distance,
+            s.fuel,
+            s.cost,
+            s.efficiency,
+            s.cost_per_distance,
+            s.start_odometer,
+            s.end_odometer,
+        ])?;
+    }
+    Ok((summary, segments))
+}
+
+async fn build(pool: &SqlitePool, query: StatsQuery) -> Result<StatsResponse, ApiError> {
+    let mut tx = pool.begin().await.map_err(db_error)?;
+    let ids = sqlx::query_scalar::<_, i64>("SELECT id FROM vehicles ORDER BY id")
+        .fetch_all(&mut *tx)
+        .await
+        .map_err(db_error)?;
+    if query.vehicle_id.is_some_and(|id| !ids.contains(&id)) {
+        return Err(ApiError::NotFound("VEHICLE_NOT_FOUND"));
+    }
+    let units = sqlx::query_as::<_, Units>(
+        "SELECT distance_unit, volume_unit, currency FROM settings WHERE id = 1",
+    )
+    .fetch_one(&mut *tx)
+    .await
+    .map_err(db_error)?;
+    let history = fetch_history(&mut tx).await?;
+    tx.commit().await.map_err(db_error)?;
+    let mut grouped: BTreeMap<i64, Vec<Fillup>> = BTreeMap::new();
+    for row in history {
+        grouped.entry(row.vehicle_id).or_default().push(row.into());
+    }
+    calculate(&ids, &grouped, units, query.vehicle_id).map_err(|error| calculation_error(&error))
+}
+
+fn calculate(
+    ids: &[i64],
+    grouped: &BTreeMap<i64, Vec<Fillup>>,
+    units: Units,
+    selected_id: Option<i64>,
+) -> Result<StatsResponse, stats::CalculationError> {
+    let mut summaries = Vec::with_capacity(ids.len());
+    let mut vehicles = Vec::with_capacity(ids.len());
+    let mut fleet_segments = Vec::new();
+    let mut selected = None;
+    for &id in ids {
+        let rows = grouped.get(&id).map_or(&[][..], Vec::as_slice);
+        let (summary, segments) = vehicle_calculation(rows, &units)?;
+        let vehicle = VehicleSummary::new(id, &summary);
+        if Some(id) == selected_id {
+            selected = Some(SelectedStats::new(
+                vehicle.clone(),
+                rows,
+                &segments,
+                &units,
+            )?);
+        }
+        fleet_segments.extend(segments.into_iter().filter(|s| s.is_valid).map(|s| (id, s)));
+        summaries.push(summary);
+        vehicles.push(vehicle);
+    }
+    fleet_segments.sort_by(|(id_a, a), (id_b, b)| {
+        a.end_date
+            .cmp(&b.end_date)
+            .then(id_a.cmp(id_b))
+            .then(a.end_fillup_id.cmp(&b.end_fillup_id))
+    });
+    let native_values: Vec<_> = fleet_segments.iter().map(|(_, s)| s.efficiency).collect();
+    let average_efficiency = if native_values.is_empty() {
+        None
+    } else {
+        let count =
+            f64::from(u32::try_from(native_values.len()).map_err(|_| stats::CalculationError)?);
+        Some(native_values.iter().sum::<f64>() / count)
+    };
+    let fleet = response::Fleet::new(&stats::fleet_summary(&summaries), average_efficiency);
+    finite(
+        [fleet.total_distance, fleet.total_fuel, fleet.total_cost]
+            .into_iter()
+            .chain(fleet.average_efficiency)
+            .chain(fleet.cost_per_distance)
+            .chain(fleet.cost_per_volume),
+    )?;
+    let efficiency_values: Vec<_> = native_values
+        .into_iter()
+        .map(|v| {
+            if units.distance_unit == "km" && units.volume_unit == "l" && v > 0.0 {
+                100.0 / v
+            } else {
+                v
+            }
+        })
+        .collect();
+    Ok(StatsResponse {
+        units,
+        fleet,
+        vehicles,
+        selected,
+        fleet_efficiency: stats::sample_sparkline(&efficiency_values)?,
+    })
+}
+
+/// Combined exact all-time summaries and bounded selected-vehicle charts.
+///
+/// # Errors
+/// Responds with safe JSON errors for invalid selections (400), missing vehicles
+/// (404), and database or calculation failures (500). All handler responses,
+/// including errors, prohibit HTTP caching.
+pub async fn get_stats(State(pool): State<SqlitePool>, RawQuery(raw): RawQuery) -> Response {
+    let result = match StatsQuery::parse(raw.as_deref()) {
+        Ok(query) => build(&pool, query).await,
+        Err(error) => Err(error),
+    };
+    let mut response = match result {
+        Ok(stats) => Json(stats).into_response(),
+        Err(error) => error.into_response(),
+    };
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
 }

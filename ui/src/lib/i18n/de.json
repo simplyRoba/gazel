@@ -187,6 +187,8 @@
   "charts.monthlyDistance": "Monatliche Strecke ({unit})",
   "charts.yearlyDistance": "Jährliche Strecke ({unit})",
   "charts.fuelPrice": "Kraftstoffpreis ({currency}/{unit})",
+  "charts.limitedRange": "Anzeige {start}–{end}; ältere Zeiträume ausgelassen",
+  "charts.reducedHistory": "Anzeige von {shown} von {total} erfassten Preisen ({start}–{end})",
 
   "toast.dismiss": "Schließen",
 
@@ -214,7 +216,7 @@
   "error.SETTINGS_INVALID_VOLUME_UNIT": "Ungültige Volumeneinheit.",
   "error.SETTINGS_INVALID_CURRENCY": "Ungültige Währung.",
   "error.SETTINGS_INVALID_LOCALE": "Ungültige Sprache.",
-  "error.STATS_INVALID_DATE_FILTER": "Ungültiger Datumsfilter.",
+  "error.STATS_INVALID_VEHICLE_ID": "Die Fahrzeug-ID muss eine positive ganze Zahl sein.",
   "error.IMPORT_VERSION_MISMATCH": "Export-Version ist nicht kompatibel.",
   "error.IMPORT_INVALID_MODE": "Ungültiger Import-Modus.",
   "error.IMPORT_VALIDATION_ERROR": "Importdaten enthalten ungültige Einträge.",

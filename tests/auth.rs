@@ -1341,7 +1341,12 @@ async fn enabled_router_protects_application_and_api_routes() {
         .expect("oversized request should succeed");
     assert_eq!(response_location(&oversized), "/login?return_to=%2F");
 
-    for target in ["/api", "/api/vehicles"] {
+    for target in [
+        "/api",
+        "/api/vehicles",
+        "/api/stats",
+        "/api/stats?vehicle_id=1",
+    ] {
         let response = app
             .clone()
             .oneshot(
@@ -1412,6 +1417,24 @@ async fn enabled_router_accepts_authenticated_ui_and_api_requests() {
         .await
         .expect("authenticated page request should succeed");
     assert_eq!(protected_page.status(), StatusCode::OK);
+
+    let statistics = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/api/stats?vehicle_id=invalid")
+                .header(header::COOKIE, &authenticated_cookie)
+                .body(Body::empty())
+                .expect("request should build"),
+        )
+        .await
+        .expect("authenticated stats request should succeed");
+    assert_eq!(statistics.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(statistics.headers()[header::CACHE_CONTROL], "no-store");
+    assert_eq!(
+        response_json(statistics).await["code"],
+        "STATS_INVALID_VEHICLE_ID"
+    );
 
     let info = app
         .oneshot(

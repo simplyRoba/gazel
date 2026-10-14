@@ -37,6 +37,7 @@
     loadVehicles,
     getVehicles,
     getLoading,
+    getError as getVehiclesError,
     deleteVehicle,
   } from "#lib/stores/vehicles.svelte.js";
   import {
@@ -49,8 +50,12 @@
     type ThemePreference,
   } from "#lib/stores/theme.svelte.js";
   import { pushNotification } from "#lib/stores/notifications.svelte.js";
-  import { clearCache as clearFillupCache } from "#lib/stores/fillups.svelte.js";
-  import { clearCache as clearStatsCache } from "#lib/stores/stats.svelte.js";
+  import {
+    clearCache as clearFillupCache,
+    getActiveVehicleId,
+    setActiveVehicle,
+  } from "#lib/stores/fillups.svelte.js";
+  import { resetStats, loadStats } from "#lib/stores/stats.svelte.js";
   import { t } from "#lib/i18n/index.js";
   import { resolveError } from "#lib/i18n/errors.js";
 
@@ -281,10 +286,17 @@
       importFileData = null;
       importPreview = null;
       importFileName = "";
-      // Clear stale caches and refresh vehicles
+      await loadVehicles();
+      const current = getActiveVehicleId();
+      const next =
+        getVehicles().find((vehicle) => vehicle.id === current) ??
+        getVehicles()[0];
       clearFillupCache();
-      clearStatsCache();
-      loadVehicles();
+      resetStats();
+      if (!getVehiclesError()) {
+        if (next) void setActiveVehicle(next.id);
+        void loadStats(next?.id ?? null);
+      }
     } catch (e) {
       importError =
         e instanceof ApiError

@@ -10,6 +10,8 @@ use tracing::{debug, info};
 
 use super::error::{ApiError, JsonBody, db_error};
 
+mod efficiency;
+
 // ── Response type ────────────────────────────────────────
 
 /// Fill-up as returned by the API.
@@ -36,6 +38,22 @@ pub struct Fillup {
 pub struct FillupPage {
     pub items: Vec<Fillup>,
     pub next_cursor: Option<String>,
+    pub efficiency: FillupPageEfficiency,
+}
+
+/// Display units and ID-keyed efficiencies for only this page's entries.
+#[derive(Serialize)]
+pub struct FillupPageEfficiency {
+    pub distance_unit: String,
+    pub volume_unit: String,
+    pub values: Vec<FillupEfficiency>,
+}
+
+/// Nullable native distance-per-volume ratio for one returned fill-up.
+#[derive(Serialize)]
+pub struct FillupEfficiency {
+    pub fillup_id: i64,
+    pub efficiency: Option<f64>,
 }
 
 // ── Database row type ────────────────────────────────────
@@ -352,8 +370,9 @@ async fn read_settings(pool: &SqlitePool) -> Result<(String, String), ApiError> 
 ///
 /// # Errors
 ///
-/// Returns `ApiError::NotFound` if the vehicle does not exist, or
-/// `ApiError::BadRequest` if pagination parameters are invalid.
+/// Returns `ApiError::NotFound` if the vehicle does not exist,
+/// `ApiError::BadRequest` if pagination parameters are invalid, or
+/// `ApiError::InternalError` on database failures.
 pub async fn list(
     State(pool): State<SqlitePool>,
     Path(vehicle_id): Path<i64>,
@@ -361,6 +380,7 @@ pub async fn list(
 ) -> Result<Json<FillupPage>, ApiError> {
     let page_query = PageQuery::parse(raw_query.as_deref())?;
     ensure_vehicle_exists(&pool, vehicle_id).await?;
+    let mut tx = pool.begin().await.map_err(db_error)?;
 
     let mut rows = if let Some(cursor) = page_query.cursor {
         let query = format!(
@@ -374,7 +394,7 @@ pub async fn list(
             .bind(&cursor.date)
             .bind(cursor.id)
             .bind(i64::from(page_query.limit) + 1)
-            .fetch_all(&pool)
+            .fetch_all(&mut *tx)
             .await
             .map_err(db_error)?
     } else {
@@ -383,7 +403,7 @@ pub async fn list(
         sqlx::query_as::<_, FillupRow>(sqlx::AssertSqlSafe(query.as_str()))
             .bind(vehicle_id)
             .bind(i64::from(page_query.limit) + 1)
-            .fetch_all(&pool)
+            .fetch_all(&mut *tx)
             .await
             .map_err(db_error)?
     };
@@ -402,9 +422,13 @@ pub async fn list(
         None
     };
 
+    let efficiency = efficiency::for_page(&mut tx, vehicle_id, &rows).await?;
+    tx.commit().await.map_err(db_error)?;
+
     Ok(Json(FillupPage {
         items: rows.into_iter().map(Fillup::from).collect(),
         next_cursor,
+        efficiency,
     }))
 }
 

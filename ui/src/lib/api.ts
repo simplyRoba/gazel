@@ -201,9 +201,16 @@ export interface Fillup {
   updated_at: string;
 }
 
+export interface FillupPageEfficiency {
+  distance_unit: string;
+  volume_unit: string;
+  values: Array<{ fillup_id: number; efficiency: number | null }>;
+}
+
 export interface FillupPage {
   items: Fillup[];
   next_cursor: string | null;
+  efficiency: FillupPageEfficiency;
 }
 
 export interface CreateFillup {
@@ -270,44 +277,99 @@ export function deleteFillup(
 
 // ── Stats types ─────────────────────────────────────────
 
-export interface VehicleStats {
+export interface StatsUnits {
+  distance_unit: string;
+  volume_unit: string;
+  currency: string;
+}
+
+export interface StatsVehicleSummary {
+  vehicle_id: number;
   total_distance: number;
   total_fuel: number;
   total_cost: number;
   fill_up_count: number;
   average_efficiency: number | null;
   average_cost_per_distance: number | null;
-  distance_unit: string;
-  volume_unit: string;
-  currency: string;
 }
 
-export interface SegmentHistory {
-  start_date: string;
-  end_date: string;
-  start_odometer: number;
-  end_odometer: number;
-  distance: number;
-  fuel: number;
-  cost: number;
-  efficiency: number;
-  cost_per_distance: number;
-  is_valid: boolean;
-  distance_unit: string;
-  volume_unit: string;
-  currency: string;
+export interface StatsFleetSummary {
+  total_distance: number;
+  total_fuel: number;
+  total_cost: number;
+  fill_up_count: number;
+  average_efficiency: number | null;
+  cost_per_distance: number | null;
+  cost_per_volume: number | null;
+}
+
+export interface StatsRange {
+  start: string;
+  end: string;
+}
+
+export interface PeriodSeries {
+  points: Array<{ period: string; value: number }>;
+  source_count: number;
+  source_range: StatsRange | null;
+  displayed_range: StatsRange | null;
+  omitted_older_periods: boolean;
+}
+
+export interface PeriodModes {
+  monthly: PeriodSeries;
+  yearly: PeriodSeries;
+}
+
+export interface FuelPricePoint {
+  date: string;
+  value: number;
+}
+
+export interface FuelPriceSeries {
+  points: FuelPricePoint[];
+  source_count: number;
+  reduced: boolean;
+  source_range: StatsRange | null;
+  displayed_range: StatsRange | null;
+  trend: [FuelPricePoint, FuelPricePoint] | null;
+}
+
+export interface SparklineSeries {
+  points: Array<{ position: number; value: number }>;
+  source_count: number;
+  reduced: boolean;
+}
+
+export interface SelectedStats {
+  vehicle_id: number;
+  summary: StatsVehicleSummary;
+  charts: {
+    cost: PeriodModes;
+    distance: PeriodModes;
+    fuel_price: FuelPriceSeries;
+  };
+  cost_per_distance: SparklineSeries;
+}
+
+export interface StatsResponse {
+  units: StatsUnits;
+  fleet: StatsFleetSummary;
+  vehicles: StatsVehicleSummary[];
+  fleet_efficiency: SparklineSeries;
+  selected: SelectedStats | null;
 }
 
 // ── Stats API functions ─────────────────────────────────
 
-export function fetchVehicleStats(vehicleId: number): Promise<VehicleStats> {
-  return request("GET", `/api/vehicles/${vehicleId}/stats`);
-}
-
-export function fetchVehicleStatsHistory(
-  vehicleId: number,
-): Promise<SegmentHistory[]> {
-  return request("GET", `/api/vehicles/${vehicleId}/stats/history`);
+export function fetchStats(
+  vehicleId: number | null = null,
+): Promise<StatsResponse> {
+  const query =
+    vehicleId === null
+      ? ""
+      : `?${new URLSearchParams({ vehicle_id: String(vehicleId) })}`;
+  return request("GET", `/api/stats${query}`);
 }
 
 // ── Settings types ───────────────────────────────────────

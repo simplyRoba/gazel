@@ -1,13 +1,25 @@
-import { SvelteMap } from "svelte/reactivity";
+import { SvelteMap, SvelteSet } from "svelte/reactivity";
 
-import type { CreateFillup, Fillup, UpdateFillup } from "#lib/api.js";
+import type {
+  CreateFillup,
+  Fillup,
+  FillupPageEfficiency,
+  UpdateFillup,
+} from "#lib/api.js";
 import * as api from "#lib/api.js";
 import { t } from "#lib/i18n/index.js";
 import { resolveError } from "#lib/i18n/errors.js";
 import { pushNotification } from "#lib/stores/notifications.svelte.js";
 
+export interface FillupChainEfficiency {
+  distance_unit: string;
+  volume_unit: string;
+  values: Record<number, number | null>;
+}
+
 export interface FillupPageChain {
   items: Fillup[];
+  efficiency: FillupChainEfficiency | null;
   nextCursor: string | null;
   initialLoading: boolean;
   loadingMore: boolean;
@@ -27,6 +39,7 @@ let activeVehicleId = $state<number | null>(null);
 function emptyChain(): FillupChain {
   return {
     items: [],
+    efficiency: null,
     nextCursor: null,
     initialLoading: false,
     loadingMore: false,
@@ -84,11 +97,28 @@ function sortFillups(fillups: Fillup[]): Fillup[] {
   );
 }
 
+function pageEfficiency(
+  metadata: FillupPageEfficiency,
+  items: Fillup[],
+): FillupChainEfficiency {
+  const ids = new Set(items.map(({ id }) => id));
+  return {
+    distance_unit: metadata.distance_unit,
+    volume_unit: metadata.volume_unit,
+    values: Object.fromEntries(
+      metadata.values
+        .filter(({ fillup_id }) => ids.has(fillup_id))
+        .map(({ fillup_id, efficiency }) => [fillup_id, efficiency]),
+    ),
+  };
+}
+
 function startInitialLoad(vehicleId: number): Promise<void> {
   const current = getChain(vehicleId);
   const generation = ++nextGeneration;
   setChain(vehicleId, {
     ...current,
+    efficiency: null,
     nextCursor: null,
     initialLoading: true,
     loadingMore: false,
@@ -107,6 +137,7 @@ function startInitialLoad(vehicleId: number): Promise<void> {
       setChain(vehicleId, {
         ...chain,
         items: page.items,
+        efficiency: pageEfficiency(page.efficiency, page.items),
         nextCursor: page.next_cursor,
         initialLoading: false,
         loadingMore: false,
@@ -209,14 +240,30 @@ async function continueFillups(
     const current = getChain(vehicleId);
     if (current.generation !== generation) return;
 
-    const seenIds = new Set(current.items.map((fillup) => fillup.id));
-    const items = [
-      ...current.items,
-      ...page.items.filter((fillup) => !seenIds.has(fillup.id)),
-    ];
+    const seenIds = new SvelteSet(current.items.map((fillup) => fillup.id));
+    const addedItems = page.items.filter(({ id }) => {
+      if (seenIds.has(id)) return false;
+      seenIds.add(id);
+      return true;
+    });
+    const items = [...current.items, ...addedItems];
+    const sameUnits =
+      current.efficiency?.distance_unit === page.efficiency.distance_unit &&
+      current.efficiency?.volume_unit === page.efficiency.volume_unit;
+    const efficiency = pageEfficiency(
+      page.efficiency,
+      sameUnits ? addedItems : page.items,
+    );
+    if (sameUnits) {
+      efficiency.values = {
+        ...current.efficiency?.values,
+        ...efficiency.values,
+      };
+    }
     setChain(vehicleId, {
       ...current,
       items,
+      efficiency,
       nextCursor: page.next_cursor,
       loadingMore: false,
       continuationError: null,
@@ -313,6 +360,19 @@ export async function deleteFillup(
   } catch (e) {
     setActionError(vehicleId, e, "store.fillups.deleteFailed");
     return false;
+  }
+}
+
+/** Clears response-unit badges and supersedes requests without reloading lists. */
+export function clearEfficiencyMetadata(): void {
+  for (const [vehicleId, chain] of fillupCache) {
+    setChain(vehicleId, {
+      ...chain,
+      efficiency: null,
+      generation: ++nextGeneration,
+      initialLoading: false,
+      loadingMore: false,
+    });
   }
 }
 

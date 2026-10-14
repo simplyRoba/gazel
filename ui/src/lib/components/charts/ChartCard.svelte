@@ -7,6 +7,7 @@
   /* eslint-disable @typescript-eslint/no-explicit-any */
   let {
     title,
+    caption,
     data,
     x,
     y,
@@ -19,6 +20,7 @@
     children,
   }: {
     title: string;
+    caption?: string;
     data: Record<string, any>[];
     x: string | ((d: any) => any);
     y: string | ((d: any) => any);
@@ -46,6 +48,9 @@
       {@render actions()}
     {/if}
   </div>
+  {#if caption}
+    <p class="chart-caption">{caption}</p>
+  {/if}
   {#if hasEnoughData}
     <div class="chart-container" style="height: {height}px">
       <LayerCake {data} {x} {y} {xScale} {yDomain} {padding}>
@@ -80,6 +85,12 @@
     font-size: var(--font-xs);
     font-weight: var(--font-weight-medium);
     color: var(--color-text-secondary);
+  }
+
+  .chart-caption {
+    font-size: var(--font-xs);
+    color: var(--color-text-tertiary);
+    margin: 0 0 var(--space-2);
   }
 
   .chart-container {

@@ -93,8 +93,8 @@ const ERROR_MESSAGES: &[(&str, &str)] = &[
     ("SETTINGS_INVALID_CURRENCY", "Invalid currency."),
     ("SETTINGS_INVALID_LOCALE", "Invalid locale."),
     (
-        "STATS_INVALID_DATE_FILTER",
-        "Invalid date filter. Use YYYY-MM-DD format.",
+        "STATS_INVALID_VEHICLE_ID",
+        "Vehicle ID must be a positive integer.",
     ),
     (
         "IMPORT_VERSION_MISMATCH",

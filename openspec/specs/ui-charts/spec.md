@@ -72,82 +72,106 @@ Interactive charts SHALL expose the nearest data point on hover or touch.
 
 ### Requirement: Compact efficiency trend
 
-The dashboard summary area SHALL display average efficiency with a low-contrast background trend when sufficient valid history exists.
+The dashboard SHALL display the exact all-time average efficiency with a low-contrast background trend from the bounded dashboard response. The trend SHALL use at most 60 representative eligible values; the displayed average SHALL NOT be calculated from that reduced series.
 
 #### Scenario: Efficiency summary data
-- **WHEN** loaded vehicle history contains valid efficiency segments
-- **THEN** the summary card SHALL display average efficiency formatted with the user's unit system
+- **WHEN** the complete eligible history contains valid efficiency segments
+- **THEN** the card SHALL display the all-time average formatted with the user's response units
 - **AND** segments where `is_valid` is `false` SHALL be excluded
-- **AND** a chronological line-and-area trend SHALL appear behind the value when at least two valid segments exist
+- **AND** a chronological line-and-area trend SHALL appear when at least two valid segments exist
 
 #### Scenario: Insufficient efficiency history
-- **WHEN** fewer than two valid efficiency segments exist
-- **THEN** no background trend line or area SHALL be displayed
+- **WHEN** fewer than two valid segments exist
+- **THEN** no efficiency background trend SHALL be displayed
+
+#### Scenario: Long history
+- **WHEN** more than 60 valid segment values exist
+- **THEN** the trend SHALL use the supplied representative values and original relative positions
+- **AND** its displayed average SHALL still include every valid segment
 
 ### Requirement: Distance trend chart
 
-The dashboard SHALL display a distance trend line-and-area chart for the selected vehicle.
+The dashboard SHALL display the selected vehicle's server-prepared monthly/yearly distance trend as a line-and-area chart. Each mode SHALL show at most its latest 12 periods. Existing calendar allocation, distance formatting, and zero-based value-domain rules SHALL remain unchanged.
 
 #### Scenario: Monthly and yearly distance
-- **WHEN** the selected vehicle has at least two history segments
-- **THEN** the distance chart SHALL allow switching between monthly and yearly totals
-- **AND** monthly mode SHALL display at most the latest 12 months
-- **AND** the value axis and selected-point details SHALL format values with the user's distance unit
+- **WHEN** at least two eligible period points exist in the selected mode
+- **THEN** the distance chart SHALL plot that bounded series and allow switching modes
+- **AND** monthly mode SHALL show at most the latest 12 months and yearly mode at most the latest 12 years
+- **AND** axes and point details SHALL use the response's distance unit
 - **AND** the value-axis domain SHALL start at zero
+
+#### Scenario: Older periods omitted
+- **WHEN** history contains periods outside the returned window
+- **THEN** the chart SHALL identify its limited displayed range rather than imply that it displays all-time distance
 
 ### Requirement: Monthly cost trend chart
 
-The dashboard SHALL display monthly cost totals as a bar chart for the selected vehicle.
+The dashboard SHALL display server-prepared calendar-period cost totals as bars for the selected vehicle. Monthly and yearly modes SHALL each show at most the latest 12 periods without changing existing segment-cost allocation or currency formatting.
 
 #### Scenario: Monthly cost data
-- **WHEN** the selected vehicle has segment history
-- **THEN** each bar SHALL represent the total cost for one calendar month
-- **AND** the category axis SHALL show month labels
-- **AND** the value axis SHALL show values formatted with the user's currency
+- **WHEN** eligible segment costs exist
+- **THEN** each bar SHALL represent a calendar-period total
+- **AND** the category axis SHALL show period labels
+- **AND** the value axis SHALL use the response's currency
+
+#### Scenario: Older periods omitted
+- **WHEN** history exceeds the period window
+- **THEN** the chart SHALL identify its limited displayed range
+- **AND** all-time summary totals SHALL remain unaffected
 
 ### Requirement: Fuel price trend chart
 
-The dashboard SHALL display a fuel-price line chart for the selected vehicle.
+The dashboard SHALL display the selected vehicle's bounded, server-prepared fuel-price history independently of paginated fill-up entries. It SHALL plot one eligible recorded price as a visible dot and two or more prices as the existing line/trend presentation, with at most 240 retained prices.
 
 #### Scenario: Fuel price data
-- **WHEN** the selected vehicle has at least one eligible loaded fill-up
-- **THEN** the chart title SHALL identify the currency and volume unit, such as `USD/L`
-- **AND** value-axis labels SHALL show currency values without repeating the volume-unit suffix
-- **AND** selected-point values SHALL include the volume-unit suffix
-- **AND** the time axis SHALL show fill-up dates
-- **AND** a single point SHALL appear as a visible dot with point details available
-- **AND** two or more points SHALL use the existing line and trend presentation
+- **WHEN** at least one eligible recorded price exists
+- **THEN** the title SHALL identify the response currency and volume unit, such as `USD/L`
+- **AND** axis values SHALL omit the repeated volume suffix while point details SHALL include it
+- **AND** the time axis SHALL show recorded fill-up dates
+- **AND** a single point SHALL be a visible dot with point details available
+- **AND** the first eligible partial fill SHALL NOT require a full-tank segment
 
 #### Scenario: No eligible fuel-price data
-- **WHEN** no eligible loaded fill-ups exist
-- **THEN** the fuel-price chart SHALL show the more-fill-ups-needed message
+- **WHEN** no eligible recorded prices exist
+- **THEN** the chart SHALL show the existing more-fill-ups-needed message
+
+#### Scenario: Reduced fuel-price history
+- **WHEN** more than 240 recorded prices exist
+- **THEN** the chart SHALL show the bounded chronological series supplied by the backend
+- **AND** retained details SHALL describe actual recorded prices, not fabricated averages
+- **AND** the chart SHALL indicate that the history has been reduced
+- **AND** the supplied trend SHALL represent the complete eligible price population, not a new regression calculated from retained points alone
 
 ### Requirement: Chart calculation rules
 
-Chart values SHALL be ordered chronologically and derived from vehicle segment history, except fuel prices, which SHALL use individual loaded fill-ups.
+Dashboard charts and sparklines SHALL use server-prepared bounded series. Efficiency, cost, and distance SHALL retain their existing segment-based calculations; fuel prices SHALL use individual eligible fills. The client SHALL format and render these values without reconstructing full histories or deriving chart data from list pages.
 
 #### Scenario: Efficiency trend calculation
-- **WHEN** efficiency history is prepared for display
-- **THEN** only segments where `is_valid` is `true` SHALL be included
-- **AND** each point SHALL use the segment's end date and efficiency value
+- **WHEN** efficiency trend data is prepared
+- **THEN** only valid segments SHALL contribute
+- **AND** values SHALL remain chronologically ordered by segment end date
 
 #### Scenario: Monthly cost calculation
-- **WHEN** monthly cost history is prepared for display
-- **THEN** segment costs SHALL be summed by calendar month
-- **AND** month totals SHALL be ordered chronologically
+- **WHEN** period cost data is prepared
+- **THEN** segment costs SHALL be summed into their ending calendar periods and ordered chronologically
 
 #### Scenario: Monthly and yearly distance calculation
-- **WHEN** monthly or yearly distance history is prepared for display
-- **THEN** a segment's distance SHALL be distributed proportionally by calendar days across every month or year it spans
-- **AND** period totals SHALL be ordered chronologically
+- **WHEN** period distance data is prepared
+- **THEN** each segment's distance SHALL be distributed proportionally by calendar days across the periods it spans
+- **AND** period totals SHALL remain chronological and use the existing integer-rounding rule
 
 #### Scenario: Fuel-price calculation
-- **WHEN** fuel-price history is prepared for display
-- **THEN** each eligible point SHALL use the fill-up date and cost divided by fuel volume normalized from its stored liters or US gallons to the active volume unit
-- **AND** nonpositive or nonfinite fuel volumes and missing or nonfinite costs SHALL be excluded, while zero costs SHALL be included
-- **AND** partial and missed fill-ups SHALL be included without full-tank, segment, or odometer requirements
-- **AND** points SHALL be sorted by date, then fill-up id, without changing the source order
+- **WHEN** recorded prices are prepared
+- **THEN** each eligible price SHALL equal cost divided by fuel volume normalized to the response's volume unit
+- **AND** nonpositive or nonfinite fuel and missing or nonfinite cost SHALL be excluded, while zero cost SHALL be included
+- **AND** partial and missed fills SHALL remain eligible regardless of odometer or segment availability
+- **AND** date-then-ID order SHALL be preserved before and after reduction
 
 #### Scenario: Compact trend ordering
-- **WHEN** a compact background trend is prepared for display
-- **THEN** its points SHALL preserve the chronological order of eligible segment values
+- **WHEN** a background trend is prepared
+- **THEN** it SHALL preserve the original relative positions of retained chronological values
+- **AND** the cost-per-distance trend SHALL use the selected vehicle's segment values, including invalid efficiency segments, with at most 60 retained values
+
+#### Scenario: List pagination
+- **WHEN** older fill-up entries load on scroll
+- **THEN** rendered chart data, trend lines, axes, and sparklines SHALL remain unchanged

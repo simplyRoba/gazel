@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/svelte";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/svelte";
 import { SvelteURL } from "svelte/reactivity";
 import { tick } from "svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -13,6 +19,10 @@ const pageState = vi.hoisted(() => ({
 const storeSpies = vi.hoisted(() => ({
   initSettings: vi.fn(() => Promise.resolve()),
   loadVehicles: vi.fn(() => Promise.resolve()),
+  vehicles: [] as import("#lib/api.js").Vehicle[],
+  createFillup: vi.fn(),
+  setActiveVehicle: vi.fn(),
+  refreshStats: vi.fn(),
 }));
 
 function buildTouchEvent(
@@ -46,22 +56,80 @@ vi.mock("#lib/stores/settings.svelte.js", async (importOriginal) => ({
 vi.mock("#lib/stores/vehicles.svelte.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("#lib/stores/vehicles.svelte.js")>()),
   loadVehicles: storeSpies.loadVehicles,
+  getVehicles: () => storeSpies.vehicles,
+}));
+
+vi.mock("#lib/stores/stats.svelte.js", () => ({
+  refreshStats: storeSpies.refreshStats,
+}));
+vi.mock("#lib/stores/fillups.svelte.js", async (original) => ({
+  ...(await original<typeof import("#lib/stores/fillups.svelte.js")>()),
+  createFillup: storeSpies.createFillup,
+  setActiveVehicle: storeSpies.setActiveVehicle,
 }));
 
 describe("root layout public login branch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    storeSpies.vehicles = [];
     vi.stubGlobal(
       "matchMedia",
       vi.fn(() => ({ matches: false })),
     );
     pageState.url = new SvelteURL("http://localhost/login");
+    HTMLDialogElement.prototype.showModal = function () {
+      this.open = true;
+    };
+    HTMLDialogElement.prototype.close = function () {
+      this.open = false;
+    };
   });
 
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
   });
+
+  it.each([true, false])(
+    "refreshes displayed statistics only after a successful global CTA save (success=%s)",
+    async (success) => {
+      pageState.url = new SvelteURL("http://localhost/");
+      storeSpies.vehicles = [
+        { id: 1, name: "First" },
+        { id: 2, name: "Second" },
+      ] as import("#lib/api.js").Vehicle[];
+      storeSpies.createFillup.mockResolvedValueOnce(success ? { id: 1 } : null);
+      const { container } = render(LoginLayoutFixture);
+      await tick();
+      await fireEvent.click(container.querySelector(".sidebar-cta")!);
+      await fireEvent.click(screen.getByRole("button", { name: "Second" }));
+      expect(storeSpies.setActiveVehicle).toHaveBeenCalledExactlyOnceWith(2);
+      expect(storeSpies.refreshStats).not.toHaveBeenCalled();
+      for (const [id, value] of [
+        ["q-odometer", "11000"],
+        ["q-fuel", "40"],
+        ["q-total", "80"],
+      ]) {
+        await fireEvent.input(container.querySelector(`#${id}`)!, {
+          target: { value },
+        });
+      }
+      await fireEvent.submit(container.querySelector("#quick-fill-form")!);
+      await waitFor(() =>
+        expect(storeSpies.createFillup).toHaveBeenCalledTimes(1),
+      );
+      if (success) {
+        await waitFor(() =>
+          expect(storeSpies.refreshStats).toHaveBeenCalledExactlyOnceWith(),
+        );
+      } else {
+        await waitFor(() =>
+          expect(container.querySelector(".save-error")).toBeTruthy(),
+        );
+        expect(storeSpies.refreshStats).not.toHaveBeenCalled();
+      }
+    },
+  );
 
   it("renders only login content without protected shell or hydration", () => {
     const { container } = render(LoginLayoutFixture);

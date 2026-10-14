@@ -47,8 +47,16 @@ function fillup(id: number, overrides: Partial<Fillup> = {}): Fillup {
   };
 }
 
-function page(items: Fillup[], next_cursor: string | null): FillupPage {
-  return { items, next_cursor };
+function page(
+  items: Fillup[],
+  next_cursor: string | null,
+  efficiency: FillupPage["efficiency"] = {
+    distance_unit: "km",
+    volume_unit: "l",
+    values: items.map(({ id }) => ({ fillup_id: id, efficiency: id })),
+  },
+): FillupPage {
+  return { items, next_cursor, efficiency };
 }
 
 function deferred<T>() {
@@ -69,6 +77,134 @@ describe("fillup store pagination", () => {
     vi.resetModules();
     store = await import("./fillups.svelte");
   });
+
+  it("keeps response units, nulls, and same-date IDs while filtering extra metadata", async () => {
+    const items = [fillup(2), fillup(1, { date: fillup(2).date })];
+    vi.mocked(api.fetchFillups).mockResolvedValueOnce(
+      page(items, null, {
+        distance_unit: "mi",
+        volume_unit: "gal",
+        values: [
+          { fillup_id: 2, efficiency: 23.45 },
+          { fillup_id: 1, efficiency: null },
+          { fillup_id: 99, efficiency: 999 },
+        ],
+      }),
+    );
+    await store.setActiveVehicle(10);
+    expect(store.getFillupPageChain(10).efficiency).toEqual({
+      distance_unit: "mi",
+      volume_unit: "gal",
+      values: { 2: 23.45, 1: null },
+    });
+  });
+
+  it("immutably merges metadata only for deduplicated new items", async () => {
+    vi.mocked(api.fetchFillups)
+      .mockResolvedValueOnce(page([fillup(3)], "more"))
+      .mockResolvedValueOnce(
+        page(
+          [
+            fillup(3, { cost: 999 }),
+            fillup(2),
+            fillup(2, { cost: 999 }),
+            fillup(1, { date: fillup(2).date }),
+          ],
+          null,
+          {
+            distance_unit: "km",
+            volume_unit: "l",
+            values: [
+              { fillup_id: 3, efficiency: 999 },
+              { fillup_id: 2, efficiency: 2 },
+              { fillup_id: 2, efficiency: 2 },
+              { fillup_id: 1, efficiency: null },
+              { fillup_id: 99, efficiency: 999 },
+            ],
+          },
+        ),
+      );
+    await store.setActiveVehicle(10);
+    const original = store.getFillupPageChain(10);
+    await store.loadMoreFillups();
+    expect(store.getFillups().map(({ id }) => id)).toEqual([3, 2, 1]);
+    expect(store.getFillups()[0].cost).toBe(fillup(3).cost);
+    expect(store.getFillups()[1].cost).toBe(fillup(2).cost);
+    expect(store.getFillupPageChain(10).efficiency?.values).toEqual({
+      3: 3,
+      2: 2,
+      1: null,
+    });
+    expect(original.efficiency?.values).toEqual({ 3: 3 });
+  });
+
+  it("discards old unit values when continuation units differ, including overlapping IDs", async () => {
+    vi.mocked(api.fetchFillups)
+      .mockResolvedValueOnce(page([fillup(4), fillup(3)], "more"))
+      .mockResolvedValueOnce(
+        page([fillup(3), fillup(2)], null, {
+          distance_unit: "mi",
+          volume_unit: "gal",
+          values: [
+            { fillup_id: 3, efficiency: 30 },
+            { fillup_id: 2, efficiency: null },
+          ],
+        }),
+      );
+    await store.setActiveVehicle(10);
+    await store.loadMoreFillups();
+    expect(store.getFillups().map(({ id }) => id)).toEqual([4, 3, 2]);
+    expect(store.getFillupPageChain(10).efficiency).toEqual({
+      distance_unit: "mi",
+      volume_unit: "gal",
+      values: { 3: 30, 2: null },
+    });
+  });
+
+  it("clears metadata immediately on first-page reset and replaces it on success", async () => {
+    const fresh = deferred<FillupPage>();
+    vi.mocked(api.fetchFillups)
+      .mockResolvedValueOnce(page([fillup(2)], "more"))
+      .mockReturnValueOnce(fresh.promise);
+    await store.setActiveVehicle(10);
+    const refresh = store.loadFillups(10);
+    expect(store.getFillups()).toEqual([fillup(2)]);
+    expect(store.getFillupPageChain(10).efficiency).toBeNull();
+    fresh.resolve(page([fillup(1)], null));
+    await refresh;
+    expect(store.getFillupPageChain(10).efficiency?.values).toEqual({ 1: 1 });
+  });
+
+  it.each(["initial", "continuation"])(
+    "clearCache rejects late %s successes and failures without repopulating",
+    async (kind) => {
+      for (const outcome of ["success", "failure"]) {
+        const stale = deferred<FillupPage>();
+        store.clearCache();
+        if (kind === "continuation") {
+          vi.mocked(api.fetchFillups).mockResolvedValueOnce(
+            page([fillup(2)], "more"),
+          );
+          await store.setActiveVehicle(10);
+        }
+        vi.mocked(api.fetchFillups).mockReturnValueOnce(stale.promise);
+        const load =
+          kind === "initial"
+            ? store.setActiveVehicle(10)
+            : store.loadMoreFillups();
+        store.clearCache();
+        if (outcome === "success") stale.resolve(page([fillup(1)], null));
+        else stale.reject(new Error("stale"));
+        await load;
+        expect(store.getFillupPageChain(10)).toMatchObject({
+          items: [],
+          efficiency: null,
+          nextCursor: null,
+        });
+        expect(store.getError()).toBeNull();
+      }
+    },
+  );
 
   it("starts empty and exposes dashboard continuation state", () => {
     expect(store.getFillups()).toEqual([]);
@@ -94,6 +230,11 @@ describe("fillup store pagination", () => {
       items: [fillup(2), fillup(1)],
       nextCursor: "cursor-1",
       generation: 1,
+      efficiency: {
+        distance_unit: "km",
+        volume_unit: "l",
+        values: { 2: 2, 1: 1 },
+      },
     });
   });
 
@@ -136,6 +277,7 @@ describe("fillup store pagination", () => {
       expect(store.getFillupPageChain(1)).toMatchObject({
         initialLoading: false,
         nextCursor: null,
+        efficiency: null,
       });
       expect(store.getError()).toBeNull();
     },
@@ -169,6 +311,11 @@ describe("fillup store pagination", () => {
         nextCursor: "vehicle-one-cursor",
         loadingMore: false,
         continuationError: null,
+        efficiency: {
+          distance_unit: "km",
+          volume_unit: "l",
+          values: { 10: 10 },
+        },
       });
       expect(store.getFillups()).toEqual([fillup(20, { vehicle_id: 2 })]);
       expect(store.getError()).toBeNull();
@@ -252,70 +399,94 @@ describe("fillup store pagination", () => {
     await store.loadMoreFillups();
     expect(store.getFillups()).toEqual([fillup(2)]);
     expect(store.getNextCursor()).toBe("retry-cursor");
+    expect(store.getFillupPageChain(10).efficiency?.values).toEqual({ 2: 2 });
     expect(store.getContinuationError()).toBe("An unexpected error occurred.");
 
     await store.retryLoadMoreFillups();
     expect(api.fetchFillups).toHaveBeenLastCalledWith(10, "retry-cursor");
     expect(store.getFillups().map(({ id }) => id)).toEqual([2, 1]);
+    expect(store.getFillupPageChain(10).efficiency?.values).toEqual({
+      2: 2,
+      1: 1,
+    });
   });
 
-  it("ignores an older first-page response after a fresh generation begins", async () => {
-    const older = deferred<FillupPage>();
-    const newer = deferred<FillupPage>();
-    vi.mocked(api.fetchFillups)
-      .mockReturnValueOnce(older.promise)
-      .mockReturnValueOnce(newer.promise);
+  it.each(["success", "failure"])(
+    "ignores an older first-page %s after a fresh generation begins",
+    async (outcome) => {
+      const older = deferred<FillupPage>();
+      const newer = deferred<FillupPage>();
+      vi.mocked(api.fetchFillups)
+        .mockReturnValueOnce(older.promise)
+        .mockReturnValueOnce(newer.promise);
 
-    const oldLoad = store.loadFillups(10);
-    const freshLoad = store.loadFillups(10);
-    newer.resolve(page([fillup(2)], null));
-    await freshLoad;
-    older.resolve(page([fillup(1)], "stale"));
-    await oldLoad;
+      const oldLoad = store.loadFillups(10);
+      const freshLoad = store.loadFillups(10);
+      newer.resolve(page([fillup(2)], null));
+      await freshLoad;
+      if (outcome === "success") older.resolve(page([fillup(1)], "stale"));
+      else older.reject(new Error("stale"));
+      await oldLoad;
 
-    expect(store.getFillupsByVehicle(10)).toEqual([fillup(2)]);
-    expect(store.getFillupPageChain(10).generation).toBe(2);
-  });
+      expect(store.getFillupsByVehicle(10)).toEqual([fillup(2)]);
+      expect(store.getFillupPageChain(10).efficiency?.values).toEqual({ 2: 2 });
+      expect(store.getError()).toBeNull();
+      expect(store.getFillupPageChain(10).generation).toBe(2);
+    },
+  );
 
-  it("ignores a stale first-page response after clearing the cache and reloading the same vehicle", async () => {
-    const stale = deferred<FillupPage>();
-    const fresh = deferred<FillupPage>();
-    vi.mocked(api.fetchFillups)
-      .mockReturnValueOnce(stale.promise)
-      .mockReturnValueOnce(fresh.promise);
+  it.each(["success", "failure"])(
+    "ignores a stale first-page %s after clearing the cache and reloading the same vehicle",
+    async (outcome) => {
+      const stale = deferred<FillupPage>();
+      const fresh = deferred<FillupPage>();
+      vi.mocked(api.fetchFillups)
+        .mockReturnValueOnce(stale.promise)
+        .mockReturnValueOnce(fresh.promise);
 
-    const staleLoad = store.setActiveVehicle(10);
-    store.clearCache();
-    const freshLoad = store.setActiveVehicle(10);
-    fresh.resolve(page([fillup(2)], null));
-    await freshLoad;
-    stale.resolve(page([fillup(1)], "stale"));
-    await staleLoad;
+      const staleLoad = store.setActiveVehicle(10);
+      store.clearCache();
+      const freshLoad = store.setActiveVehicle(10);
+      fresh.resolve(page([fillup(2)], null));
+      await freshLoad;
+      if (outcome === "success") stale.resolve(page([fillup(1)], "stale"));
+      else stale.reject(new Error("stale"));
+      await staleLoad;
 
-    expect(store.getFillups()).toEqual([fillup(2)]);
-    expect(store.getFillupPageChain(10).generation).toBe(2);
-  });
+      expect(store.getFillups()).toEqual([fillup(2)]);
+      expect(store.getFillupPageChain(10).efficiency?.values).toEqual({ 2: 2 });
+      expect(store.getError()).toBeNull();
+      expect(store.getFillupPageChain(10).generation).toBe(2);
+    },
+  );
 
-  it("ignores a stale continuation response after a refresh generation", async () => {
-    const continuation = deferred<FillupPage>();
-    const fresh = deferred<FillupPage>();
-    vi.mocked(api.fetchFillups)
-      .mockResolvedValueOnce(page([fillup(3)], "cursor-1"))
-      .mockReturnValueOnce(continuation.promise)
-      .mockReturnValueOnce(fresh.promise);
-    await store.setActiveVehicle(10);
+  it.each(["success", "failure"])(
+    "ignores a stale continuation %s after a refresh generation",
+    async (outcome) => {
+      const continuation = deferred<FillupPage>();
+      const fresh = deferred<FillupPage>();
+      vi.mocked(api.fetchFillups)
+        .mockResolvedValueOnce(page([fillup(3)], "cursor-1"))
+        .mockReturnValueOnce(continuation.promise)
+        .mockReturnValueOnce(fresh.promise);
+      await store.setActiveVehicle(10);
 
-    const oldContinuation = store.loadMoreFillups();
-    const refresh = store.loadFillups(10);
-    fresh.resolve(page([fillup(4)], null));
-    await refresh;
-    continuation.resolve(page([fillup(2)], "stale-cursor"));
-    await oldContinuation;
+      const oldContinuation = store.loadMoreFillups();
+      const refresh = store.loadFillups(10);
+      fresh.resolve(page([fillup(4)], null));
+      await refresh;
+      if (outcome === "success")
+        continuation.resolve(page([fillup(2)], "stale-cursor"));
+      else continuation.reject(new Error("stale"));
+      await oldContinuation;
 
-    expect(store.getFillupsByVehicle(10)).toEqual([fillup(4)]);
-    expect(store.getNextCursor()).toBeNull();
-    expect(store.getLoadingMore()).toBe(false);
-  });
+      expect(store.getFillupsByVehicle(10)).toEqual([fillup(4)]);
+      expect(store.getFillupPageChain(10).efficiency?.values).toEqual({ 4: 4 });
+      expect(store.getContinuationError()).toBeNull();
+      expect(store.getNextCursor()).toBeNull();
+      expect(store.getLoadingMore()).toBe(false);
+    },
+  );
 
   it("invalidates an old cursor when a fresh initial load fails", async () => {
     vi.mocked(api.fetchFillups)
@@ -325,6 +496,7 @@ describe("fillup store pagination", () => {
 
     await store.loadFillups(10);
     expect(store.getFillups()).toEqual([fillup(2)]);
+    expect(store.getFillupPageChain(10).efficiency).toBeNull();
     expect(store.getNextCursor()).toBeNull();
 
     await store.loadMoreFillups();
@@ -371,6 +543,7 @@ describe("fillup store pagination", () => {
       }),
     ).resolves.toEqual(fillup(2));
     expect(store.getFillups().map(({ id }) => id)).toEqual([2, 1]);
+    expect(store.getFillupPageChain(10).efficiency).toBeNull();
     expect(store.getFillupPageChain(10).generation).toBe(2);
     expect(api.fetchFillups).toHaveBeenLastCalledWith(10);
 
@@ -396,6 +569,7 @@ describe("fillup store pagination", () => {
       }),
     ).resolves.toEqual(updated);
     expect(store.getFillups().find(({ id }) => id === 1)?.cost).toBe(99);
+    expect(store.getFillupPageChain(10).efficiency).toBeNull();
     expect(store.getFillupPageChain(10).generation).toBe(2);
 
     refresh.resolve(page([fillup(3)], null));
@@ -412,6 +586,7 @@ describe("fillup store pagination", () => {
 
     await expect(store.deleteFillup(10, 1)).resolves.toBe(true);
     expect(store.getFillups().map(({ id }) => id)).toEqual([2]);
+    expect(store.getFillupPageChain(10).efficiency).toBeNull();
     expect(store.getFillupPageChain(10).generation).toBe(2);
 
     refresh.resolve(page([fillup(3)], null));

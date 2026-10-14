@@ -1,8 +1,8 @@
 <script lang="ts">
   import { scaleBand } from "d3-scale";
-  import type { SegmentHistory } from "#lib/api.js";
+  import type { PeriodModes } from "#lib/api.js";
   import { t } from "#lib/i18n/index.js";
-  import { toMonthlyCostData, toYearlyCostData } from "#lib/charts.js";
+  import { toPeriodData } from "#lib/charts.js";
   import { formatCurrency } from "#lib/format.js";
   import { getSettings } from "#lib/stores/settings.svelte.js";
   import ChartCard from "./ChartCard.svelte";
@@ -12,10 +12,10 @@
   import Tooltip from "./Tooltip.svelte";
 
   let {
-    segments,
+    series,
     currency,
   }: {
-    segments: SegmentHistory[];
+    series: PeriodModes | null;
     currency: string;
   } = $props();
 
@@ -24,12 +24,14 @@
   type CostMode = "monthly" | "yearly";
   let mode: CostMode = $state("monthly");
 
-  const MAX_MONTHS = 12;
-
+  const selectedSeries = $derived(series?.[mode]);
   const chartData = $derived(
-    mode === "monthly"
-      ? toMonthlyCostData(segments).slice(-MAX_MONTHS)
-      : toYearlyCostData(segments),
+    selectedSeries ? toPeriodData(selectedSeries) : [],
+  );
+  const caption = $derived(
+    selectedSeries?.omitted_older_periods && selectedSeries.displayed_range
+      ? t("charts.limitedRange", { ...selectedSeries.displayed_range })
+      : undefined,
   );
 
   const chartTitle = $derived(
@@ -70,6 +72,7 @@
 
 <ChartCard
   title={chartTitle}
+  {caption}
   data={chartData}
   x="month"
   y="value"

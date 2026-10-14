@@ -1,18 +1,16 @@
 <script lang="ts">
-  import type { Fillup, SegmentHistory } from "#lib/api.js";
+  import type { SelectedStats } from "#lib/api.js";
   import DistanceChart from "./DistanceChart.svelte";
   import CostChart from "./CostChart.svelte";
   import FuelPriceChart from "./FuelPriceChart.svelte";
 
   let {
-    segments,
-    fillups,
+    charts,
     distanceUnit,
     volumeUnit,
     currency,
   }: {
-    segments: SegmentHistory[];
-    fillups: Fillup[];
+    charts: SelectedStats["charts"] | null;
     distanceUnit: string;
     volumeUnit: string;
     currency: string;
@@ -20,9 +18,9 @@
 </script>
 
 <div class="charts-stack">
-  <CostChart {segments} {currency} />
-  <DistanceChart {segments} {distanceUnit} />
-  <FuelPriceChart {fillups} {currency} {volumeUnit} />
+  <CostChart series={charts?.cost ?? null} {currency} />
+  <DistanceChart series={charts?.distance ?? null} {distanceUnit} />
+  <FuelPriceChart series={charts?.fuel_price ?? null} {currency} {volumeUnit} />
 </div>
 
 <style>

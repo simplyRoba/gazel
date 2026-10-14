@@ -1,8 +1,10 @@
 import type { ScaleLinear, ScaleTime, ScaleBand, ScalePoint } from "d3-scale";
 
-import type { Fillup, SegmentHistory } from "#lib/api.js";
-
-// ── Scale types for LayerCake's context ──────────────────
+import type {
+  FuelPricePoint,
+  PeriodSeries,
+  SparklineSeries,
+} from "#lib/api.js";
 
 export interface ChartScales {
   x:
@@ -12,8 +14,6 @@ export interface ChartScales {
     | ScalePoint<string>;
   y: ScaleLinear<number, number>;
 }
-
-// ── Chart data shapes ───────────────────────────────────
 
 export interface TimeSeriesPoint {
   date: Date;
@@ -30,244 +30,25 @@ export interface SparklinePoint {
   y: number;
 }
 
-// ── Data transformation functions ───────────────────────
+/** Adapt server periods without aggregating, filling gaps, or trimming them. */
+export function toPeriodData(series: PeriodSeries): MonthlyCostPoint[] {
+  return series.points.map(({ period, value }) => ({ month: period, value }));
+}
 
-/**
- * Maps valid segments to efficiency time-series data.
- * Filters out invalid segments (where is_valid is false).
- */
-export function toEfficiencyData(
-  segments: SegmentHistory[],
+/** Parse calendar dates locally; values are already in the response units. */
+export function toPriceData(
+  points: readonly FuelPricePoint[],
 ): TimeSeriesPoint[] {
-  return segments
-    .filter((s) => s.is_valid)
-    .sort((left, right) => left.end_date.localeCompare(right.end_date))
-    .map((s) => ({
-      date: parseLocalDate(s.end_date),
-      value: s.efficiency,
-    }));
+  return points.map(({ date, value }) => {
+    const [year, month, day] = date.split("-").map(Number);
+    return { date: new Date(year, month - 1, day), value };
+  });
 }
 
-/**
- * Aggregates segment costs by calendar month.
- * Returns sorted (chronological) monthly totals with zero-filled
- * gaps so every month between the first and last entry is present.
- */
-export function toMonthlyCostData(
-  segments: SegmentHistory[],
-): MonthlyCostPoint[] {
-  if (segments.length === 0) return [];
-
-  const monthMap = new Map<string, number>();
-
-  for (const s of segments) {
-    const month = s.end_date.slice(0, 7); // YYYY-MM
-    monthMap.set(month, (monthMap.get(month) ?? 0) + s.cost);
-  }
-
-  const keys = Array.from(monthMap.keys()).sort();
-  const first = keys[0];
-  const last = keys[keys.length - 1];
-
-  const result: MonthlyCostPoint[] = [];
-  let [y, m] = first.split("-").map(Number);
-  const [endY, endM] = last.split("-").map(Number);
-
-  while (y < endY || (y === endY && m <= endM)) {
-    const key = `${y}-${String(m).padStart(2, "0")}`;
-    result.push({ month: key, value: monthMap.get(key) ?? 0 });
-    m++;
-    if (m > 12) {
-      m = 1;
-      y++;
-    }
-  }
-
-  return result;
-}
-
-/**
- * Aggregates segment costs by calendar year.
- * Returns sorted (chronological) yearly totals.
- */
-export function toYearlyCostData(
-  segments: SegmentHistory[],
-): MonthlyCostPoint[] {
-  const yearMap = new Map<string, number>();
-
-  for (const s of segments) {
-    const year = s.end_date.slice(0, 4); // YYYY
-    yearMap.set(year, (yearMap.get(year) ?? 0) + s.cost);
-  }
-
-  return Array.from(yearMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, value]) => ({ month, value }));
-}
-
-/** Parse a YYYY-MM-DD string as a local-time Date (avoids UTC shifting). */
-function parseLocalDate(dateStr: string): Date {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(y, m - 1, d);
-}
-
-/**
- * Distributes segment distances proportionally across the months they span.
- * A segment from Jan 15 to Mar 20 has its distance split across Jan, Feb,
- * and Mar based on how many days of the segment fall in each month.
- * Returns sorted (chronological) monthly totals with zero-filled gaps.
- */
-export function toMonthlyDistanceData(
-  segments: SegmentHistory[],
-): MonthlyCostPoint[] {
-  if (segments.length === 0) return [];
-
-  const MS_PER_DAY = 86_400_000;
-  const monthMap = new Map<string, number>();
-
-  for (const s of segments) {
-    const start = parseLocalDate(s.start_date);
-    // End date is inclusive (fill-up happened that day), so use next day
-    // as the exclusive boundary for proportional splitting.
-    const endExcl = parseLocalDate(s.end_date);
-    endExcl.setDate(endExcl.getDate() + 1);
-    const totalDays = Math.max(
-      1,
-      (endExcl.getTime() - start.getTime()) / MS_PER_DAY,
-    );
-
-    // Walk month by month from start to endExcl, distributing distance
-    let cursor = new Date(start);
-    while (cursor < endExcl) {
-      const y = cursor.getFullYear();
-      const m = cursor.getMonth();
-      const key = `${y}-${String(m + 1).padStart(2, "0")}`;
-
-      // Slice: from cursor to min(firstOfNextMonth, endExcl)
-      const nextMonth = new Date(y, m + 1, 1);
-      const sliceEnd =
-        nextMonth.getTime() <= endExcl.getTime() ? nextMonth : endExcl;
-      const daysInSlice = (sliceEnd.getTime() - cursor.getTime()) / MS_PER_DAY;
-
-      if (daysInSlice > 0) {
-        const fraction = daysInSlice / totalDays;
-        monthMap.set(key, (monthMap.get(key) ?? 0) + s.distance * fraction);
-      }
-
-      cursor = nextMonth;
-    }
-  }
-
-  const keys = Array.from(monthMap.keys()).sort();
-  const first = keys[0];
-  const last = keys[keys.length - 1];
-
-  const result: MonthlyCostPoint[] = [];
-  let [fy, fm] = first.split("-").map(Number);
-  const [endY, endM] = last.split("-").map(Number);
-
-  while (fy < endY || (fy === endY && fm <= endM)) {
-    const key = `${fy}-${String(fm).padStart(2, "0")}`;
-    result.push({ month: key, value: Math.round(monthMap.get(key) ?? 0) });
-    fm++;
-    if (fm > 12) {
-      fm = 1;
-      fy++;
-    }
-  }
-
-  return result;
-}
-
-/**
- * Aggregates segment distances by calendar year.
- * Returns sorted (chronological) yearly totals.
- */
-export function toYearlyDistanceData(
-  segments: SegmentHistory[],
-): MonthlyCostPoint[] {
-  if (segments.length === 0) return [];
-
-  const MS_PER_DAY = 86_400_000;
-  const yearMap = new Map<string, number>();
-
-  for (const s of segments) {
-    const start = parseLocalDate(s.start_date);
-    const endExcl = parseLocalDate(s.end_date);
-    endExcl.setDate(endExcl.getDate() + 1);
-    const totalDays = Math.max(
-      1,
-      (endExcl.getTime() - start.getTime()) / MS_PER_DAY,
-    );
-
-    // Walk year by year from start to endExcl, distributing distance
-    let cursor = new Date(start);
-    while (cursor < endExcl) {
-      const y = cursor.getFullYear();
-      const key = String(y);
-
-      // Slice: from cursor to min(firstOfNextYear, endExcl)
-      const nextYear = new Date(y + 1, 0, 1);
-      const sliceEnd =
-        nextYear.getTime() <= endExcl.getTime() ? nextYear : endExcl;
-      const daysInSlice = (sliceEnd.getTime() - cursor.getTime()) / MS_PER_DAY;
-
-      if (daysInSlice > 0) {
-        const fraction = daysInSlice / totalDays;
-        yearMap.set(key, (yearMap.get(key) ?? 0) + s.distance * fraction);
-      }
-
-      cursor = nextYear;
-    }
-  }
-
-  return Array.from(yearMap.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([month, value]) => ({ month, value: Math.round(value) }));
-}
-
-/** Maps loaded fill-ups to prices per target volume unit, chronologically. */
-export function toFuelPriceData(
-  fillups: Fillup[],
-  targetVolumeUnit: string,
-): TimeSeriesPoint[] {
-  const litersPerGallon = 3.785_411_784;
-  return fillups
-    .filter(
-      (fillup) =>
-        Number.isFinite(fillup.fuel_amount) &&
-        fillup.fuel_amount > 0 &&
-        Number.isFinite(fillup.cost),
-    )
-    .sort(
-      (left, right) =>
-        left.date.localeCompare(right.date) || left.id - right.id,
-    )
-    .map((fillup) => {
-      const liters =
-        fillup.fuel_unit === "gal"
-          ? fillup.fuel_amount * litersPerGallon
-          : fillup.fuel_amount;
-      const volume =
-        targetVolumeUnit === "gal" ? liters / litersPerGallon : liters;
-      return {
-        date: parseLocalDate(fillup.date),
-        value: fillup.cost / volume,
-      };
-    })
-    .filter((point) => Number.isFinite(point.value));
-}
-
-/**
- * Generic mapper for sparkline-ready data.
- * Returns index-based x values with y from the accessor.
- */
-export function toSparklineData(
-  segments: SegmentHistory[],
-  accessor: (s: SegmentHistory) => number,
-): SparklinePoint[] {
-  return segments.map((s, i) => ({
-    x: i,
-    y: accessor(s),
+/** Preserve the server's original positions and display-convention values. */
+export function toSparklineData(series: SparklineSeries): SparklinePoint[] {
+  return series.points.map(({ position, value }) => ({
+    x: position,
+    y: value,
   }));
 }

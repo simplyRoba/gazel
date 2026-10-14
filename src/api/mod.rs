@@ -38,8 +38,7 @@ pub fn router(_state: AppState) -> Router<AppState> {
                 .put(fillups::update)
                 .delete(fillups::delete),
         )
-        .route("/vehicles/{vehicle_id}/stats", get(stats::summary))
-        .route("/vehicles/{vehicle_id}/stats/history", get(stats::history))
+        .route("/stats", get(stats::get_stats))
         .route("/export", get(export::export_all))
         // Import endpoint with 10 MB body size limit (returns 413 if exceeded)
         .route(

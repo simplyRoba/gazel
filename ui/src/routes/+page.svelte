@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import { resolve } from "$app/paths";
   import { Car, Fuel } from "lucide-svelte";
   import PageContainer from "#lib/components/PageContainer.svelte";
@@ -17,6 +17,8 @@
   } from "#lib/stores/vehicles.svelte.js";
   import {
     getFillups,
+    getFillupPageChain,
+    clearCache as clearFillupCache,
     getLoading as getFillupsLoading,
     getLoadingMore as getFillupsLoadingMore,
     getContinuationError as getFillupsContinuationError,
@@ -30,11 +32,14 @@
     deleteFillup as storeDeleteFillup,
   } from "#lib/stores/fillups.svelte.js";
   import {
-    getVehicleStats,
-    getVehicleHistory,
+    getStats,
+    getSelectedStats,
+    getSelectedVehicleId,
+    getRequestCounter,
+    getError as getStatsError,
     getLoading as getStatsLoading,
-    loadAllStats,
-    invalidateStats,
+    loadStats,
+    refreshStats,
   } from "#lib/stores/stats.svelte.js";
   import { getSettings } from "#lib/stores/settings.svelte.js";
   import {
@@ -42,16 +47,10 @@
     formatCurrency,
     formatVolume,
     formatEfficiency,
-    toDisplayEfficiency,
   } from "#lib/format.js";
   import { t } from "#lib/i18n/index.js";
   import type { Fillup, CreateFillup } from "#lib/api.js";
-  import {
-    buildEfficiencyMap,
-    getEfficiencyForFillup,
-    computeFleetSummary,
-  } from "#lib/stats.js";
-  import { toSparklineData, toEfficiencyData } from "#lib/charts.js";
+  import { toSparklineData } from "#lib/charts.js";
 
   // Modal state
   let showFillupModal = $state(false);
@@ -59,70 +58,25 @@
 
   const settings = $derived(getSettings());
 
-  // ── Fleet summary (derived from per-vehicle stats) ─────
-
   const vehicles = $derived(getVehicles());
-
-  const fleetSummary = $derived(computeFleetSummary(vehicles, getVehicleStats));
-  const hasLoadedStats = $derived(
-    vehicles.some((vehicle) => getVehicleStats(vehicle.id) !== undefined),
-  );
-
-  // ── Per-vehicle stats for active vehicle ───────────────
-
-  const activeStats = $derived.by(() => {
-    const id = getActiveVehicleId();
-    if (id === null) return null;
-    return getVehicleStats(id) ?? null;
-  });
-
-  const activeHistory = $derived.by(() => {
-    const id = getActiveVehicleId();
-    if (id === null) return [];
-    return getVehicleHistory(id);
-  });
-
-  // ── Sparkline data for summary cards ──────────────────
-
+  const stats = $derived(getStats());
+  const units = $derived(stats?.units ?? settings);
+  const fleetSummary = $derived(stats?.fleet ?? null);
+  const hasLoadedStats = $derived(stats !== null);
+  const selected = $derived(getSelectedStats(getActiveVehicleId()));
+  const activeStats = $derived(selected?.summary ?? null);
+  const fleetAvgEfficiency = $derived(fleetSummary?.average_efficiency ?? null);
+  const activeAvgEfficiency = $derived(activeStats?.average_efficiency ?? null);
   const costPerDistanceSparkline = $derived(
-    activeHistory.length >= 2
-      ? toSparklineData(activeHistory, (s) => s.cost_per_distance)
-      : [],
+    selected ? toSparklineData(selected.cost_per_distance) : [],
   );
-
-  // Efficiency sparkline — uses all vehicle histories for fleet,
-  // active vehicle history for per-vehicle view
-  const allHistory = $derived(vehicles.flatMap((v) => getVehicleHistory(v.id)));
-
-  const fleetEfficiencyData = $derived(toEfficiencyData(allHistory));
   const fleetEfficiencySparkline = $derived(
-    fleetEfficiencyData.length >= 2
-      ? fleetEfficiencyData.map((d, i) => ({
-          x: i,
-          y: toDisplayEfficiency(
-            d.value,
-            settings.distance_unit,
-            settings.volume_unit,
-          ),
-        }))
-      : [],
+    stats ? toSparklineData(stats.fleet_efficiency) : [],
   );
-  const fleetAvgEfficiency = $derived.by(() => {
-    if (fleetEfficiencyData.length === 0) return null;
-    const sum = fleetEfficiencyData.reduce((a, d) => a + d.value, 0);
-    return sum / fleetEfficiencyData.length;
+  const efficiency = $derived.by(() => {
+    const id = getActiveVehicleId();
+    return id === null ? null : getFillupPageChain(id).efficiency;
   });
-
-  const activeEfficiencyData = $derived(toEfficiencyData(activeHistory));
-  const activeAvgEfficiency = $derived.by(() => {
-    if (activeEfficiencyData.length === 0) return null;
-    const sum = activeEfficiencyData.reduce((a, d) => a + d.value, 0);
-    return sum / activeEfficiencyData.length;
-  });
-
-  // ── Segment-to-fillup efficiency map ───────────────────
-
-  const efficiencyMap = $derived(buildEfficiencyMap(activeHistory));
 
   // ── Mobile carousel state ─────────────────────────────
 
@@ -189,13 +143,52 @@
 
   // ── Lifecycle ──────────────────────────────────────────
 
-  onMount(async () => {
-    await loadVehicles();
-    const vs = getVehicles();
-    if (vs.length > 0) {
-      setActiveVehicle(vs[0].id);
-      loadAllStats(vs.map((v) => v.id));
-    }
+  let initialized = $state(false);
+  let loadedSelection = false;
+
+  onMount(() => {
+    let mounted = true;
+    const initialStatsRequestCounter = getRequestCounter();
+    void loadVehicles().then(() => {
+      if (!mounted) return;
+      const vs = getVehicles();
+      const current = getActiveVehicleId();
+      const next = vs.find((vehicle) => vehicle.id === current) ?? vs[0];
+      if (
+        getRequestCounter() !== initialStatsRequestCounter &&
+        getSelectedVehicleId() === (next?.id ?? null)
+      ) {
+        // A newer statistics request already covers this selection.
+        loadedSelection = true;
+        if (next) {
+          const chain = getFillupPageChain(next.id);
+          if (
+            current !== next.id ||
+            (!chain.initialLoading && chain.efficiency === null)
+          ) {
+            void setActiveVehicle(next.id);
+          }
+        }
+      } else {
+        if (next) void setActiveVehicle(next.id);
+        else if (current !== null) clearFillupCache();
+      }
+      initialized = true;
+    });
+    return () => {
+      mounted = false;
+    };
+  });
+
+  $effect(() => {
+    if (!initialized) return;
+    const vehicleId = getActiveVehicleId();
+    untrack(() => {
+      if (!loadedSelection || getSelectedVehicleId() !== vehicleId) {
+        loadedSelection = true;
+        void loadStats(vehicleId);
+      }
+    });
   });
 
   function handleChipClick(vehicleId: number) {
@@ -230,7 +223,7 @@
     if (!result) {
       throw new Error("Save failed");
     }
-    invalidateStats(vehicleId);
+    void refreshStats();
   }
 
   async function handleDelete(fillupId: number) {
@@ -238,7 +231,7 @@
     if (!vehicleId) return;
     const ok = await storeDeleteFillup(vehicleId, fillupId);
     if (ok) {
-      invalidateStats(vehicleId);
+      void refreshStats();
     }
   }
 
@@ -341,6 +334,10 @@
       </p>
     {/if}
 
+    {#if getStatsError()}
+      <p role="alert">{getStatsError()}</p>
+    {/if}
+
     <!-- Summary cards (always shown — single vehicle or aggregated) -->
     {#if getStatsLoading() && !hasLoadedStats}
       <div class="summary-grid" data-testid="summary-cards-loading">
@@ -354,14 +351,14 @@
     {:else if fleetSummary}
       <div class="summary-grid" data-testid="summary-cards">
         <div class="card summary-card">
-          <span class="summary-value">{fleetSummary.totalFillups}</span>
+          <span class="summary-value">{fleetSummary.fill_up_count}</span>
           <span class="summary-label">{t("dashboard.summary.fillups")}</span>
         </div>
         <div class="card summary-card">
           <span class="summary-value mono">
             {formatCurrency(
-              fleetSummary.totalCost,
-              settings.currency,
+              fleetSummary.total_cost,
+              units.currency,
               settings.locale,
             )}
           </span>
@@ -372,8 +369,8 @@
             {#if fleetAvgEfficiency !== null}
               {formatEfficiency(
                 fleetAvgEfficiency,
-                settings.distance_unit,
-                settings.volume_unit,
+                units.distance_unit,
+                units.volume_unit,
                 settings.locale,
               )}
             {:else}
@@ -391,19 +388,19 @@
         </div>
         <div class="card summary-card summary-card--sparkline">
           <span class="summary-value mono">
-            {#if fleetSummary.costPerDistance !== null}
+            {#if fleetSummary.cost_per_distance !== null}
               {formatCurrency(
-                fleetSummary.costPerDistance,
-                settings.currency,
+                fleetSummary.cost_per_distance,
+                units.currency,
                 settings.locale,
-              )}/{settings.distance_unit}
+              )}/{units.distance_unit}
             {:else}
               &mdash;
             {/if}
           </span>
           <span class="summary-label"
             >{t("dashboard.summary.costPer", {
-              unit: settings.distance_unit,
+              unit: units.distance_unit,
             })}</span
           >
           {#if costPerDistanceSparkline.length >= 2}
@@ -448,7 +445,7 @@
             <span class="vehicle-stat-value mono">
               {formatCurrency(
                 activeStats.total_cost,
-                settings.currency,
+                units.currency,
                 settings.locale,
               )}
             </span>
@@ -461,8 +458,8 @@
               {#if activeAvgEfficiency !== null}
                 {formatEfficiency(
                   activeAvgEfficiency,
-                  settings.distance_unit,
-                  settings.volume_unit,
+                  units.distance_unit,
+                  units.volume_unit,
                   settings.locale,
                 )}
               {:else}
@@ -478,16 +475,16 @@
               {#if activeStats.average_cost_per_distance !== null}
                 {formatCurrency(
                   activeStats.average_cost_per_distance,
-                  settings.currency,
+                  units.currency,
                   settings.locale,
-                )}/{settings.distance_unit}
+                )}/{units.distance_unit}
               {:else}
                 &mdash;
               {/if}
             </span>
             <span class="vehicle-stat-label"
               >{t("dashboard.summary.costPer", {
-                unit: settings.distance_unit,
+                unit: units.distance_unit,
               })}</span
             >
           </div>
@@ -496,74 +493,80 @@
     {/if}
 
     <!-- ── Mobile chart carousel (<=768px) ────────────── -->
-    {#if getStatsLoading() && activeHistory.length === 0}
-      <div class="chart-carousel-wrapper">
-        <div class="card skeleton-chart">
+    {#if getActiveVehicleId() !== null}
+      {#if getStatsLoading() && !selected}
+        <div class="chart-carousel-wrapper">
+          <div class="card skeleton-chart">
+            <div
+              class="shimmer"
+              style="width: 60px; height: 10px; margin-bottom: var(--space-2)"
+            ></div>
+            <div class="shimmer" style="width: 100%; height: 150px"></div>
+          </div>
+        </div>
+      {:else}
+        <div class="chart-carousel-wrapper">
           <div
-            class="shimmer"
-            style="width: 60px; height: 10px; margin-bottom: var(--space-2)"
-          ></div>
-          <div class="shimmer" style="width: 100%; height: 150px"></div>
-        </div>
-      </div>
-    {:else}
-      <div class="chart-carousel-wrapper">
-        <div
-          class="chart-carousel"
-          bind:this={carouselEl}
-          onscroll={handleCarouselScroll}
-        >
-          <div class="chart-carousel-item">
-            <CostChart segments={activeHistory} currency={settings.currency} />
+            class="chart-carousel"
+            bind:this={carouselEl}
+            onscroll={handleCarouselScroll}
+          >
+            <div class="chart-carousel-item">
+              <CostChart
+                series={selected?.charts.cost ?? null}
+                currency={units.currency}
+              />
+            </div>
+            <div class="chart-carousel-item">
+              <DistanceChart
+                series={selected?.charts.distance ?? null}
+                distanceUnit={units.distance_unit}
+              />
+            </div>
+            <div class="chart-carousel-item">
+              <FuelPriceChart
+                series={selected?.charts.fuel_price ?? null}
+                currency={units.currency}
+                volumeUnit={units.volume_unit}
+              />
+            </div>
           </div>
-          <div class="chart-carousel-item">
-            <DistanceChart
-              segments={activeHistory}
-              distanceUnit={settings.distance_unit}
-            />
-          </div>
-          <div class="chart-carousel-item">
-            <FuelPriceChart
-              fillups={getFillups()}
-              currency={settings.currency}
-              volumeUnit={settings.volume_unit}
-            />
+          <div class="carousel-dots">
+            {#each [0, 1, 2] as idx (idx)}
+              <span class="carousel-dot" class:active={activeChartIndex === idx}
+              ></span>
+            {/each}
           </div>
         </div>
-        <div class="carousel-dots">
-          {#each [0, 1, 2] as idx (idx)}
-            <span class="carousel-dot" class:active={activeChartIndex === idx}
-            ></span>
-          {/each}
-        </div>
-      </div>
+      {/if}
     {/if}
 
     <!-- ── Two-column layout (desktop: charts + fill-ups) ── -->
     <div class="dashboard-content">
       <!-- Charts panel (desktop/tablet only, sticky) -->
-      {#if getStatsLoading() && activeHistory.length === 0}
-        <div class="charts-column">
-          {#each Array(3) as _, i (i)}
-            <div class="card skeleton-chart">
-              <div
-                class="shimmer"
-                style="width: 60px; height: 10px; margin-bottom: var(--space-2)"
-              ></div>
-              <div class="shimmer" style="width: 100%; height: 150px"></div>
-            </div>
-          {/each}
-        </div>
-      {:else}
-        <div class="charts-column">
-          <ChartsPanel
-            segments={activeHistory}
-            fillups={getFillups()}
-            distanceUnit={settings.distance_unit}
-            volumeUnit={settings.volume_unit}
-            currency={settings.currency}
-          />
-        </div>
+      {#if getActiveVehicleId() !== null}
+        {#if getStatsLoading() && !selected}
+          <div class="charts-column">
+            {#each Array(3) as _, i (i)}
+              <div class="card skeleton-chart">
+                <div
+                  class="shimmer"
+                  style="width: 60px; height: 10px; margin-bottom: var(--space-2)"
+                ></div>
+                <div class="shimmer" style="width: 100%; height: 150px"></div>
+              </div>
+            {/each}
+          </div>
+        {:else}
+          <div class="charts-column">
+            <ChartsPanel
+              charts={selected?.charts ?? null}
+              distanceUnit={units.distance_unit}
+              volumeUnit={units.volume_unit}
+              currency={units.currency}
+            />
+          </div>
+        {/if}
       {/if}
 
       <!-- Fill-up list column -->
@@ -606,7 +609,7 @@
         {:else}
           <div class="fillup-list">
             {#each getFillups() as fillup, i (fillup.id)}
-              {@const eff = getEfficiencyForFillup(fillup, efficiencyMap)}
+              {@const eff = efficiency?.values[fillup.id] ?? null}
               {@const fillups = getFillups()}
               {@const prev = i < fillups.length - 1 ? fillups[i + 1] : null}
               {@const odoDiff = prev ? fillup.odometer - prev.odometer : null}
@@ -668,8 +671,8 @@
                     <span class="badge" data-testid="efficiency-badge"
                       >{formatEfficiency(
                         eff,
-                        settings.distance_unit,
-                        settings.volume_unit,
+                        efficiency!.distance_unit,
+                        efficiency!.volume_unit,
                         settings.locale,
                       )}</span
                     >
