@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.4.7](https://github.com/simplyRoba/gazel/compare/v1.4.6...v1.4.7) (2026-10-14)
+
+
+### Bug Fixes
+
+* bound dashboard statistics and keep charts stable during pagination ([5852d2a](https://github.com/simplyRoba/gazel/commit/5852d2a04a5725d74ec006dc5d9c5eb03f18c02b))
+
+
+### Dependencies
+
+* bump globals from 17.12.0 to 17.13.0 in /ui ([1aab8bf](https://github.com/simplyRoba/gazel/commit/1aab8bf06def36c8cd7370a02ec3f0277353cf06))
+* bump jsdom from 30.0.1 to 30.1.2 in /ui ([1060a0c](https://github.com/simplyRoba/gazel/commit/1060a0c9831dd6f0efd672ce086d72b3823efc7d))
+* bump prettier in /ui in the prettier group across 1 directory ([ed6a733](https://github.com/simplyRoba/gazel/commit/ed6a733e150be1364646694105b0f47473796465))
+* bump rust-embed from 8.12.0 to 8.13.0 ([02ce8c0](https://github.com/simplyRoba/gazel/commit/02ce8c0d30437c34e8ee160473c48e94f08566af))
+* bump serde_json ([e750438](https://github.com/simplyRoba/gazel/commit/e750438d8246d53033e9af765741bafcfdeebeb8))
+* bump uuid from 1.27.0 to 1.28.0 ([1fb6e95](https://github.com/simplyRoba/gazel/commit/1fb6e95c95f259ee1cecde54f4f51160a1b48197))
+
 ## [1.4.6](https://github.com/simplyRoba/gazel/compare/v1.4.5...v1.4.6) (2026-10-13)
 
 
