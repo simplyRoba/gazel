@@ -167,8 +167,9 @@ async fn callback(
     let Some(query) = CallbackQuery::parse(raw_query.as_deref()) else {
         return failure_redirect(FailureCode::AuthenticationFailed, "/");
     };
-    let Some(returned_state) = query.state.as_deref() else {
-        return failure_redirect(FailureCode::AuthenticationFailed, "/");
+    let (returned_state, code) = match query {
+        CallbackQuery::Success { state, code } => (state, Some(code)),
+        CallbackQuery::ProviderError { state } => (state, None),
     };
     let bound_state = session
         .get::<String>(TRANSACTION_SESSION_KEY)
@@ -176,7 +177,7 @@ async fn callback(
         .ok()
         .flatten();
     let state_matches = bound_state.is_some_and(|bound_state| {
-        CsrfToken::new(bound_state) == CsrfToken::new(returned_state.to_string())
+        CsrfToken::new(bound_state) == CsrfToken::new(returned_state.clone())
     });
     if !state_matches {
         return failure_redirect(FailureCode::AuthenticationFailed, "/");
@@ -184,17 +185,14 @@ async fn callback(
 
     let Some(transaction) = authentication
         .transactions
-        .consume(returned_state, authentication.clock.now())
+        .consume(&returned_state, authentication.clock.now())
         .await
     else {
         return failure_redirect(FailureCode::AuthenticationFailed, "/");
     };
     let _ = session.remove::<String>(TRANSACTION_SESSION_KEY).await;
 
-    if query.error.is_some() {
-        return failure_redirect(FailureCode::AuthenticationFailed, &transaction.return_to);
-    }
-    let Some(code) = query.code else {
+    let Some(code) = code else {
         return failure_redirect(FailureCode::AuthenticationFailed, &transaction.return_to);
     };
 
@@ -260,37 +258,43 @@ fn authenticated_session_is_valid(record: &AuthenticatedSession, now: OffsetDate
 }
 
 #[derive(Debug)]
-struct CallbackQuery {
-    code: Option<String>,
-    state: Option<String>,
-    error: Option<String>,
+enum CallbackQuery {
+    Success { state: String, code: String },
+    ProviderError { state: String },
 }
 
 impl CallbackQuery {
     fn parse(raw_query: Option<&str>) -> Option<Self> {
-        let mut query = Self {
-            code: None,
-            state: None,
-            error: None,
-        };
-        let Some(raw_query) = raw_query else {
-            return Some(query);
-        };
+        let mut state = None;
+        let mut code = None;
+        let mut error = None;
+        let mut error_description = None;
+        let mut error_uri = None;
+        let raw_query = raw_query?;
         for pair in raw_query.split('&') {
             let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
             let key = decode_query_component(key)?;
             let value = decode_query_component(value)?;
             let target = match key.as_str() {
-                "code" => &mut query.code,
-                "state" => &mut query.state,
-                "error" => &mut query.error,
+                "code" => &mut code,
+                "state" => &mut state,
+                "error" => &mut error,
+                "error_description" => &mut error_description,
+                "error_uri" => &mut error_uri,
                 _ => continue,
             };
             if target.replace(value).is_some() {
                 return None;
             }
         }
-        Some(query)
+        let state = state.filter(|state| !state.is_empty())?;
+        match (code, error, error_description, error_uri) {
+            (Some(code), None, None, None) if !code.is_empty() => {
+                Some(Self::Success { state, code })
+            }
+            (None, Some(error), _, _) if !error.is_empty() => Some(Self::ProviderError { state }),
+            _ => None,
+        }
     }
 }
 
@@ -495,19 +499,46 @@ mod tests {
     }
 
     #[test]
-    fn shared_callback_vectors_characterize_stage1_parser_baseline() {
+    fn shared_callback_vectors_validate_success_and_provider_error_shapes() {
         let fixture: serde_json::Value =
             serde_json::from_str(include_str!("../../tests/fixtures/auth/callbacks.json"))
                 .expect("callback fixture should parse");
         for vector in fixture["vectors"].as_array().unwrap() {
-            assert_eq!(
-                CallbackQuery::parse(vector["query"].as_str()).is_some(),
-                vector["baseline"]["gazel_parser"].as_bool().unwrap(),
-                "{} (target shape: {})",
-                vector["id"],
-                vector["target"]["gazel"]
-            );
+            let kind = match CallbackQuery::parse(vector["query"].as_str()) {
+                Some(CallbackQuery::Success { .. }) => "success",
+                Some(CallbackQuery::ProviderError { .. }) => "error",
+                None => "invalid",
+            };
+            assert_eq!(kind, vector["target"]["gazel"], "{}", vector["id"]);
         }
+    }
+
+    #[test]
+    fn callback_shapes_decode_names_and_values_before_validation() {
+        for query in [
+            "error=denied",
+            "error=denied&state=",
+            "state=s&code",
+            "error=&state=s&error_uri=detail",
+            "error=denied&state=s&error_description=&%65rror_description=detail",
+            "error=denied&state=s&error_uri=&%65rror_uri=detail",
+            "code=c&state=s&%63ode=",
+            "error=denied&state=s&%65rror=",
+            "code=c&state=s&%GG=ignored",
+            "code=c&state=s&extra=ok&extra=%FF",
+        ] {
+            assert!(CallbackQuery::parse(Some(query)).is_none(), "{query}");
+        }
+        assert!(matches!(
+            CallbackQuery::parse(Some(
+                "error=denied&state=s&error_description=&error_uri="
+            )),
+            Some(CallbackQuery::ProviderError { state }) if state == "s"
+        ));
+        assert!(matches!(
+            CallbackQuery::parse(Some("%63ode=a%2Bb+c&%73tate=s%2Bt+u&extra=1&extra=2")),
+            Some(CallbackQuery::Success { state, code }) if state == "s+t u" && code == "a+b c"
+        ));
     }
 
     fn transaction(expires_at: OffsetDateTime) -> LoginTransaction {

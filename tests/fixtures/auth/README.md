@@ -19,13 +19,6 @@ and `{code}` with a bound login attempt and `{error_uri}` with an encoded local
 sentinel URL. Target outcomes are `success` (one exchange), `error` (consume
 without exchange), and `invalid` (neither consume nor exchange).
 
-## Characterization during consolidation
-
-Return-target tests in both apps assert the final `target` expectations.
-Callback `baseline` fields still describe existing Gazel behavior; Flowl's
-callback differences are explicit in its test harnesses.
-Tests retry the original callback to distinguish rejection from consumption and
-count provider requests to detect unintended token or error-URI requests.
-
-As each implementation is aligned, replace its baseline assertions with `target`
-expectations. Do not change target expectations just to make a baseline test pass.
+Both apps assert the `target` expectations. Callback tests also retry the
+original valid response to check whether the attempt was consumed, and count
+provider requests to detect unintended token exchanges or error-URI fetches.

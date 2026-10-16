@@ -802,10 +802,10 @@ async fn response_json(response: Response) -> Value {
     serde_json::from_slice(&bytes).expect("response should contain JSON")
 }
 
-// Temporary Stage 1 characterization; target shapes in the fixture are not asserted
-// as implemented. Retry each original binding to distinguish rejection from consumption.
+// Only complete success/provider-error shapes consume a browser-bound attempt.
+// Retry the original binding to distinguish malformed rejection from consumption.
 #[tokio::test]
-async fn shared_callback_vectors_characterize_stage1_bound_attempts() {
+async fn shared_callback_vectors_validate_bound_attempts() {
     let fixture: Value = serde_json::from_str(include_str!("fixtures/auth/callbacks.json"))
         .expect("callback fixture should parse");
     let (provider, _, app) = initialized(ProviderOptions::default()).await;
@@ -831,24 +831,27 @@ async fn shared_callback_vectors_characterize_stage1_bound_attempts() {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::SEE_OTHER, "{}", vector["id"]);
-        let expected = match vector["baseline"]["gazel_outcome"].as_str().unwrap() {
+        let target = vector["target"]["gazel"].as_str().unwrap();
+        let expected = match target {
             "success" => "/settings?tab=data#export",
-            "bound_failure" => {
+            "error" => {
                 "/login?error=authentication_failed&return_to=%2Fsettings%3Ftab%3Ddata%23export"
             }
-            "fallback_failure" => "/login?error=authentication_failed&return_to=%2F",
-            other => panic!("unknown baseline outcome {other}"),
+            "invalid" => "/login?error=authentication_failed&return_to=%2F",
+            other => panic!("unknown target shape {other}"),
         };
         assert_eq!(response_location(&response), expected, "{}", vector["id"]);
+        assert!(!response_location(&response).contains("private-sentinel"));
+        assert!(!response_location(&response).contains(provider.issuer()));
         let after = provider.state.counters.token.load(Ordering::SeqCst);
         assert_eq!(
             after - before,
-            usize::try_from(vector["baseline"]["gazel_token_requests"].as_u64().unwrap()).unwrap(),
+            usize::from(target == "success"),
             "{}",
             vector["id"]
         );
         let retry = callback_request(&app, &attempt, "").await;
-        let consumed = vector["baseline"]["gazel_consumed"].as_bool().unwrap();
+        let consumed = target != "invalid";
         assert_eq!(
             response_location(&retry),
             if consumed {
@@ -1915,6 +1918,30 @@ async fn callbacks_reject_missing_mismatched_and_replayed_state_before_exchange(
         "/login?error=authentication_failed&return_to=%2F"
     );
     assert_eq!(provider.token_count(), 0);
+
+    let other_browser = login_attempt(&app, &provider, "%2Fsettings").await;
+    for query in [
+        format!("code={}&state={}", attempt.state, attempt.state),
+        format!("error=denied&state={}", attempt.state),
+    ] {
+        for cookie in [None, Some(&other_browser.cookie)] {
+            let mut request = Request::builder().uri(format!("/auth/callback?{query}"));
+            if let Some(cookie) = cookie {
+                request = request.header(header::COOKIE, cookie);
+            }
+            let response = app
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::SEE_OTHER);
+            assert_eq!(
+                response_location(&response),
+                "/login?error=authentication_failed&return_to=%2F"
+            );
+            assert_eq!(provider.token_count(), 0);
+        }
+    }
 
     let success = callback_request(&app, &attempt, "").await;
     assert_eq!(response_location(&success), "/settings");
