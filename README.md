@@ -88,7 +88,7 @@ To enable OIDC:
 
 Gazel supports `client_secret_basic` and `client_secret_post`. HTTP is permitted only on `localhost`, `127.0.0.1`, or `::1`; other URLs require HTTPS. The callback and cookie security settings use the configured external origin, not request or forwarded headers. Invalid provider configuration prevents startup.
 
-Provider display names are trimmed, must contain no control characters, and are limited to 80 Unicode scalar values.
+Provider display names are trimmed, must contain no control characters, and are limited to 80 Unicode scalar values. Login return targets must be local UI paths of at most 2,048 UTF-8 bytes before percent-decoding. API, health, and authentication paths or ambiguous encoded paths fall back to `/`.
 
 Important limitations:
 

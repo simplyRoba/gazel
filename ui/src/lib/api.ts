@@ -1,3 +1,5 @@
+import { safeLocalTarget } from "#lib/auth-return.js";
+
 // ── ApiError ──────────────────────────────────────────────
 
 export class ApiError extends Error {
@@ -18,12 +20,17 @@ const authenticationNavigationTargets = new WeakSet<object>();
 export function authenticationLoginUrl(
   location: Pick<Location, "pathname" | "search" | "hash">,
 ): string {
-  const returnTo = `${location.pathname}${location.search}${location.hash}`;
+  const returnTo = safeLocalTarget(
+    `${location.pathname}${location.search}${location.hash}`,
+  );
   return `/login?${new URLSearchParams({ return_to: returnTo })}`;
 }
 
 function navigateToLogin(): void {
   if (typeof window === "undefined") return;
+  const path = window.location.pathname;
+  if (path === "/login" || path === "/auth" || path.startsWith("/auth/"))
+    return;
 
   const targetWindow = window.top ?? window;
   if (authenticationNavigationTargets.has(targetWindow)) return;

@@ -2,13 +2,16 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { fetchAuthConfig, type AuthConfig } from "#lib/api.js";
+  import { safeLocalTarget } from "#lib/auth-return.js";
   import Logo from "#lib/components/Logo.svelte";
   import { t } from "#lib/i18n/index.js";
 
   let config = $state<AuthConfig | null>(null);
   let configFailed = $state(false);
 
-  let returnTo = $derived(page.url.searchParams.get("return_to") ?? "/");
+  let returnTo = $derived(
+    safeLocalTarget(page.url.searchParams.get("return_to")),
+  );
   let error = $derived(page.url.searchParams.get("error"));
   let loggedOut = $derived(page.url.searchParams.get("logged_out") === "1");
   let statusMessage = $derived(

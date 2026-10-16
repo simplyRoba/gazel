@@ -65,10 +65,8 @@ describe("login page", () => {
     expect(screen.queryByLabelText(/password|username|email/i)).toBeNull();
   });
 
-  // Temporary baseline: the page currently forwards even invalid targets. This is
-  // not target conformance; target.gazel becomes authoritative in Stage 5.2.
   it.each(returnVectors.vectors)(
-    "Stage 1 return fixture: $id",
+    "validates shared return target: $id",
     async (vector) => {
       const input = vector.input;
       const value =
@@ -88,12 +86,14 @@ describe("login page", () => {
           Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
       });
       render(LoginPage);
-      await screen.findByRole("button", { name: "Continue with OpenID Connect" });
+      await screen.findByRole("button", {
+        name: "Continue with OpenID Connect",
+      });
       expect(document.querySelector("form")?.getAttribute("action")).toBe(
         "/auth/login",
       );
       expect(document.querySelector("input")?.value).toBe(
-        vector.baseline.gazel_login ? (value ?? "/") : "/",
+        vector.target.gazel ? (value ?? "/") : "/",
       );
     },
   );
@@ -144,7 +144,7 @@ describe("login page", () => {
       ).toBeTruthy();
       const form = document.querySelector("form");
       expect(form?.getAttribute("action")).toBe("/auth/login");
-      expect(form?.querySelector("input")?.value).toBe(returnTo);
+      expect(form?.querySelector("input")?.value).toBe("/");
       expect(document.querySelector('a[href^="http"]')).toBeNull();
     },
   );

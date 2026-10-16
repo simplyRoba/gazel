@@ -4,11 +4,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
 
-// Mock URL.createObjectURL/revokeObjectURL and DOM methods for download tests
-vi.stubGlobal("URL", {
-  createObjectURL: vi.fn(() => "blob:test-url"),
-  revokeObjectURL: vi.fn(),
-});
+// Keep URL parsing available while stubbing download-only methods.
+vi.stubGlobal(
+  "URL",
+  class extends URL {
+    static createObjectURL = vi.fn(() => "blob:test-url");
+    static revokeObjectURL = vi.fn();
+  },
+);
 
 import {
   ApiError,
@@ -204,10 +207,13 @@ describe("Export/Import API", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
     vi.stubGlobal("fetch", mockFetch);
-    vi.stubGlobal("URL", {
-      createObjectURL: vi.fn(() => "blob:test-url"),
-      revokeObjectURL: vi.fn(),
-    });
+    vi.stubGlobal(
+      "URL",
+      class extends URL {
+        static createObjectURL = vi.fn(() => "blob:test-url");
+        static revokeObjectURL = vi.fn();
+      },
+    );
   });
 
   describe("exportAll", () => {
@@ -279,6 +285,40 @@ describe("Export/Import API", () => {
           hash: "#export",
         }),
       ).toBe("/login?return_to=%2Fsettings%3Ftab%3Ddata%23export");
+    });
+
+    it.each(["/login", "/auth", "/auth/callback"])(
+      "does not recursively navigate from %s",
+      async (path) => {
+        const assign = stubBrowserLocation(path);
+        mockFetch.mockResolvedValue({
+          ok: false,
+          status: 401,
+          json: () => Promise.resolve({ code: "AUTHENTICATION_REQUIRED" }),
+        });
+        await expect(fetchAppInfo()).rejects.toMatchObject({ status: 401 });
+        expect(assign).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each(["/api", "/health", "/cars%2Fnew", `/${"a".repeat(2048)}`])(
+      "discards an unsafe expiry target %s",
+      (pathname) => {
+        expect(authenticationLoginUrl({ pathname, search: "", hash: "" })).toBe(
+          "/login?return_to=%2F",
+        );
+      },
+    );
+
+    it("does not treat an application route sharing a prefix as an auth route", async () => {
+      const assign = stubBrowserLocation("/authority");
+      mockFetch.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.resolve({ code: "AUTHENTICATION_REQUIRED" }),
+      });
+      await expect(fetchAppInfo()).rejects.toMatchObject({ status: 401 });
+      expect(assign).toHaveBeenCalledWith("/login?return_to=%2Fauthority");
     });
 
     it("preserves normal typed errors when authentication is not required", async () => {

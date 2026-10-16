@@ -1172,6 +1172,23 @@ async fn login_defaults_invalid_percent_decoded_reserved_and_oversized_targets()
     let attempt = login_attempt(&app, &provider, &oversized).await;
     let response = callback_request(&app, &attempt, "").await;
     assert_eq!(response_location(&response), "/");
+
+    let encoded_boundary = format!("/{}a", "%61".repeat(682));
+    let encoded_oversized = format!("{encoded_boundary}a");
+    for (target, expected) in [
+        ("/cars%2Fnew", "/"),
+        ("/cars%252Fnew", "/"),
+        ("/apiary", "/apiary"),
+        ("/uploads", "/uploads"),
+        ("/settings?label=100%25", "/settings?label=100%25"),
+        (encoded_boundary.as_str(), encoded_boundary.as_str()),
+        (encoded_oversized.as_str(), "/"),
+    ] {
+        let encoded = url::form_urlencoded::byte_serialize(target.as_bytes()).collect::<String>();
+        let attempt = login_attempt(&app, &provider, &encoded).await;
+        let response = callback_request(&app, &attempt, "").await;
+        assert_eq!(response_location(&response), expected, "{target}");
+    }
 }
 
 #[tokio::test]

@@ -336,29 +336,31 @@ pub(crate) fn validate_return_to(value: Option<&str>) -> String {
     let Some(value) = value else {
         return String::from("/");
     };
-    if !value.starts_with('/') || value.starts_with("//") {
+    if value.len() > RETURN_TO_MAX_BYTES || !value.starts_with('/') || value.starts_with("//") {
         return String::from("/");
     }
 
     let Some(decoded) = decode_percent_encoded(value, false) else {
         return String::from("/");
     };
-    if decoded.len() > RETURN_TO_MAX_BYTES
-        || !decoded.starts_with('/')
-        || decoded.starts_with("//")
-        || decoded.contains('\\')
-        || decoded.chars().any(char::is_control)
-    {
+    if decoded.contains('\\') || decoded.chars().any(char::is_control) {
         return String::from("/");
     }
 
-    let path_end = decoded.find(['?', '#']).unwrap_or(decoded.len());
-    let path = &decoded[..path_end];
-    if is_reserved_path(path) || has_dot_segment(path) {
-        String::from("/")
-    } else {
-        value.to_string()
+    let path_end = value.find(['?', '#']).unwrap_or(value.len());
+    let path = &value[..path_end];
+    let Some(decoded_path) = decode_percent_encoded(path, false) else {
+        return String::from("/");
+    };
+    if decoded_path.contains(['%', '?', '#'])
+        || decoded_path.matches('/').count() != path.matches('/').count()
+        || is_reserved_path(&decoded_path)
+        || has_dot_segment(&decoded_path)
+        || url::Url::parse(&format!("https://auth.invalid{value}")).is_err()
+    {
+        return String::from("/");
     }
+    value.to_string()
 }
 
 fn has_dot_segment(path: &str) -> bool {
@@ -442,10 +444,8 @@ fn relative_url_with_query(path: &str, pairs: &[(&str, &str)]) -> String {
 mod tests {
     use super::*;
 
-    // Temporary characterization: these assertions use baseline, NOT target expectations.
-    // Stage 2 replaces the baseline assertions after the acceptance boundary changes.
     #[test]
-    fn shared_return_vectors_characterize_stage1_baseline() {
+    fn shared_return_vectors_follow_the_common_contract() {
         let fixture: serde_json::Value = serde_json::from_str(include_str!(
             "../../tests/fixtures/auth/return-targets.json"
         ))
@@ -467,7 +467,7 @@ mod tests {
                     input["suffix"].as_str().unwrap()
                 ))
             };
-            let expected = if vector["baseline"]["gazel_rust"].as_bool().unwrap() {
+            let expected = if vector["target"]["gazel"].as_bool().unwrap() {
                 value.as_deref().unwrap_or("/")
             } else {
                 "/"
@@ -491,9 +491,6 @@ mod tests {
                 "{}",
                 vector["id"]
             );
-            if vector["baseline"]["gazel_rust"] != vector["target"]["gazel"] {
-                assert_ne!(vector["gap"].as_str().unwrap(), "");
-            }
         }
     }
 
@@ -529,10 +526,7 @@ mod tests {
             "/settings?tab=data#export"
         );
         let encoded_boundary = format!("/{}", "%61".repeat(RETURN_TO_MAX_BYTES - 1));
-        assert_eq!(
-            validate_return_to(Some(&encoded_boundary)),
-            encoded_boundary
-        );
+        assert_eq!(validate_return_to(Some(&encoded_boundary)), "/");
 
         for unsafe_target in [
             "https://attacker.example/",

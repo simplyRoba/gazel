@@ -21,9 +21,9 @@ without exchange), and `invalid` (neither consume nor exchange).
 
 ## Characterization during consolidation
 
-`baseline` fields describe existing Gazel behavior, not the intended contract.
-Flowl's current differences are explicit in its test harnesses. Return validation,
-callback parsing, and login-page validation are not yet equivalent between apps.
+Return-target tests in both apps assert the final `target` expectations.
+Callback `baseline` fields still describe existing Gazel behavior; Flowl's
+callback differences are explicit in its test harnesses.
 Tests retry the original callback to distinguish rejection from consumption and
 count provider requests to detect unintended token or error-URI requests.
 
