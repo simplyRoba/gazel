@@ -21,8 +21,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock};
 
-use super::flow::Clock;
-use crate::config::OidcConfig;
+use super::Clock;
+use super::config::OidcConfig;
 
 const JWKS_REFRESH_COOLDOWN: Duration = Duration::from_secs(30);
 
@@ -91,7 +91,7 @@ impl fmt::Display for OidcStartupError {
 
 impl std::error::Error for OidcStartupError {}
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub(crate) enum ProtocolError {
     Authentication,
     ProviderUnavailable,
@@ -100,17 +100,35 @@ pub(crate) enum ProtocolError {
 #[derive(Clone)]
 pub(crate) struct GuardedHttpClient {
     transport: Arc<dyn ProviderTransport>,
+    policy: UrlPolicy,
 }
 
-type TransportFuture<'a> =
+#[doc(hidden)]
+pub type TransportFuture<'a> =
     Pin<Box<dyn Future<Output = Result<HttpResponse, GuardedHttpError>> + Send + Sync + 'a>>;
 
-// Injection is behind the destination guard; production owns the no-redirect policy.
-trait ProviderTransport: Send + Sync {
+/// Injectable provider I/O, always wrapped in the common destination guard.
+#[doc(hidden)]
+pub trait ProviderTransport: Send + Sync {
     fn send(&self, request: HttpRequest) -> TransportFuture<'_>;
 }
 
-struct ReqwestTransport(reqwest::Client);
+#[doc(hidden)]
+pub struct ReqwestTransport(reqwest::Client);
+
+impl ReqwestTransport {
+    /// Build the redirect-disabled Rustls provider transport.
+    ///
+    /// # Errors
+    /// Returns an error if the HTTP client cannot be built.
+    pub fn new() -> Result<Self, reqwest::Error> {
+        reqwest::ClientBuilder::new()
+            .redirect(reqwest::redirect::Policy::none())
+            .use_rustls_tls()
+            .build()
+            .map(Self)
+    }
+}
 
 impl ProviderTransport for ReqwestTransport {
     fn send(&self, request: HttpRequest) -> TransportFuture<'_> {
@@ -149,19 +167,22 @@ impl fmt::Debug for GuardedHttpClient {
 }
 
 impl GuardedHttpClient {
-    fn new() -> Result<Self, reqwest::Error> {
-        reqwest::ClientBuilder::new()
-            .redirect(reqwest::redirect::Policy::none())
-            .use_rustls_tls()
-            .build()
-            .map(|inner| Self {
-                transport: Arc::new(ReqwestTransport(inner)),
-            })
+    pub(super) fn new(policy: UrlPolicy, transport: Arc<dyn ProviderTransport>) -> Self {
+        Self { transport, policy }
+    }
+
+    // http::Uri drops fragments. Check raw metadata URLs before conversion too.
+    pub(super) fn validate_raw_url(&self, value: &str) -> Result<(), GuardedHttpError> {
+        self.policy
+            .validate(value)
+            .map(|_| ())
+            .map_err(|()| GuardedHttpError::UnsafeUrl)
     }
 }
 
+#[doc(hidden)]
 #[derive(Debug)]
-pub(crate) enum GuardedHttpError {
+pub enum GuardedHttpError {
     UnsafeUrl,
     ServerStatus(http::StatusCode),
     Request,
@@ -201,9 +222,7 @@ impl<'client> AsyncHttpClient<'client> for GuardedHttpClient {
 
     fn call(&'client self, request: HttpRequest) -> Self::Future {
         Box::pin(async move {
-            let url =
-                Url::parse(&request.uri().to_string()).map_err(|_| GuardedHttpError::UnsafeUrl)?;
-            validate_backend_url(&url).map_err(|()| GuardedHttpError::UnsafeUrl)?;
+            self.validate_raw_url(&request.uri().to_string())?;
 
             let response = self.transport.send(request).await?;
             if response.status().is_server_error() || response.status().is_redirection() {
@@ -216,13 +235,13 @@ impl<'client> AsyncHttpClient<'client> for GuardedHttpClient {
 
 // http::Uri discards fragments before AsyncHttpClient::call. Inspect the original
 // JWKS URL in discovery JSON before the library constructs its initial JWKS request.
-struct DiscoveryHttpClient<'a> {
+pub(super) struct DiscoveryHttpClient<'a> {
     http: &'a GuardedHttpClient,
     metadata_pending: AtomicBool,
 }
 
 impl<'a> DiscoveryHttpClient<'a> {
-    fn new(http: &'a GuardedHttpClient) -> Self {
+    pub(super) fn new(http: &'a GuardedHttpClient) -> Self {
         Self {
             http,
             metadata_pending: AtomicBool::new(true),
@@ -244,8 +263,7 @@ impl<'client> AsyncHttpClient<'client> for DiscoveryHttpClient<'client> {
                 && let Ok(value) = serde_json::from_slice::<serde_json::Value>(response.body())
                 && let Some(jwks_uri) = value.get("jwks_uri").and_then(serde_json::Value::as_str)
             {
-                let url = Url::parse(jwks_uri).map_err(|_| GuardedHttpError::UnsafeUrl)?;
-                validate_backend_url(&url).map_err(|()| GuardedHttpError::UnsafeUrl)?;
+                self.http.validate_raw_url(jwks_uri)?;
             }
             Ok(response)
         })
@@ -264,7 +282,7 @@ pub(crate) struct OidcRuntime {
     client_id: ClientId,
     client_secret: ClientSecret,
     callback_url: RedirectUrl,
-    auth_method: ClientAuthMethod,
+    pub(super) auth_method: ClientAuthMethod,
     http: GuardedHttpClient,
     clock: Arc<dyn Clock>,
     cache: RwLock<CacheState>,
@@ -284,11 +302,14 @@ impl OidcRuntime {
     pub(crate) async fn discover(
         config: &OidcConfig,
         clock: Arc<dyn Clock>,
+        transport: Arc<dyn ProviderTransport>,
     ) -> Result<Self, OidcStartupError> {
-        let http = GuardedHttpClient::new().map_err(|_| OidcStartupError::HttpClient)?;
+        let policy = super::app::provider_policy(config);
+        let http = GuardedHttpClient::new(policy, transport);
         let issuer =
             IssuerUrl::new(config.issuer.clone()).map_err(|_| OidcStartupError::InvalidIssuer)?;
-        validate_backend_url(issuer.url()).map_err(|()| OidcStartupError::InvalidIssuer)?;
+        http.validate_raw_url(issuer.as_str())
+            .map_err(|_| OidcStartupError::InvalidIssuer)?;
         let metadata =
             CoreProviderMetadata::discover_async(issuer, &DiscoveryHttpClient::new(&http))
                 .await
@@ -303,7 +324,7 @@ impl OidcRuntime {
         if metadata.issuer().as_str() != config.issuer {
             return Err(OidcStartupError::InvalidIssuer);
         }
-        validate_metadata(&metadata)?;
+        validate_metadata(&metadata, policy)?;
         let auth_method = select_client_auth(metadata.token_endpoint_auth_methods_supported())?;
         let callback_url = RedirectUrl::new(config.callback_url.to_string())
             .map_err(|_| OidcStartupError::InvalidCallback)?;
@@ -362,6 +383,14 @@ impl OidcRuntime {
         let generation = snapshot.generation;
         drop(snapshot);
 
+        self.http
+            .validate_raw_url(
+                client
+                    .token_uri()
+                    .ok_or(ProtocolError::ProviderUnavailable)?
+                    .as_str(),
+            )
+            .map_err(|_| ProtocolError::ProviderUnavailable)?;
         let token_response = client
             .exchange_code(AuthorizationCode::new(code))
             .map_err(|_| ProtocolError::Authentication)?
@@ -415,6 +444,14 @@ impl OidcRuntime {
         }
         drop(current);
 
+        if self
+            .http
+            .validate_raw_url(self.metadata.jwks_uri().as_str())
+            .is_err()
+        {
+            self.record_refresh_failure(stale_generation).await;
+            return Err(ProtocolError::ProviderUnavailable);
+        }
         let Ok(jwks) = CoreJsonWebKeySet::fetch_async(self.metadata.jwks_uri(), &self.http).await
         else {
             self.record_refresh_failure(stale_generation).await;
@@ -465,15 +502,21 @@ fn build_client(
     .set_redirect_uri(callback_url.clone())
 }
 
-fn validate_metadata(metadata: &CoreProviderMetadata) -> Result<(), OidcStartupError> {
-    validate_backend_url(metadata.authorization_endpoint().url())
+fn validate_metadata(
+    metadata: &CoreProviderMetadata,
+    policy: UrlPolicy,
+) -> Result<(), OidcStartupError> {
+    policy
+        .validate(metadata.authorization_endpoint().as_str())
         .map_err(|()| OidcStartupError::UnsafeEndpoint("authorization"))?;
     let token_endpoint = metadata
         .token_endpoint()
         .ok_or(OidcStartupError::MissingTokenEndpoint)?;
-    validate_backend_url(token_endpoint.url())
+    policy
+        .validate(token_endpoint.as_str())
         .map_err(|()| OidcStartupError::UnsafeEndpoint("token"))?;
-    validate_backend_url(metadata.jwks_uri().url())
+    policy
+        .validate(metadata.jwks_uri().as_str())
         .map_err(|()| OidcStartupError::UnsafeEndpoint("JWKS"))?;
 
     let has_code_response = metadata
@@ -548,18 +591,34 @@ fn select_client_auth(
     }
 }
 
-fn validate_backend_url(url: &Url) -> Result<(), ()> {
-    if !url.username().is_empty()
-        || url.password().is_some()
-        || url.fragment().is_some()
-        || url.host().is_none()
-    {
-        return Err(());
-    }
-    match url.scheme() {
-        "https" => Ok(()),
-        "http" if is_loopback(url) => Ok(()),
-        _ => Err(()),
+/// Explicit application transport policy; never inferred from request headers.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum UrlPolicy {
+    HttpsOnly,
+    LoopbackHttp,
+}
+
+impl UrlPolicy {
+    pub(super) fn validate(self, value: &str) -> Result<Url, ()> {
+        let url = Url::parse(value).map_err(|_| ())?;
+        let has_userinfo = value.split_once("://").is_some_and(|(_, remainder)| {
+            let end = remainder.find(['/', '?', '#']).unwrap_or(remainder.len());
+            remainder[..end].contains('@')
+        });
+        if has_userinfo
+            || !url.username().is_empty()
+            || url.password().is_some()
+            || url.fragment().is_some()
+            || url.host().is_none()
+        {
+            return Err(());
+        }
+        match url.scheme() {
+            "https" => Ok(url),
+            "http" if self == Self::LoopbackHttp && is_loopback(&url) => Ok(url),
+            _ => Err(()),
+        }
     }
 }
 
@@ -578,7 +637,7 @@ fn classify_token_error<ErrorType>(
 where
     ErrorType: openidconnect::ErrorResponse + 'static,
 {
-    match error {
+    let category = match error {
         openidconnect::RequestTokenError::ServerResponse(_) => ProtocolError::Authentication,
         // Flattened ID-token deserialization can lose its typed error path. Reparse only
         // the envelope without that field to distinguish an invalid token from service failure.
@@ -588,7 +647,20 @@ where
             ProtocolError::Authentication
         }
         _ => ProtocolError::ProviderUnavailable,
-    }
+    };
+    let status = match error {
+        openidconnect::RequestTokenError::Request(GuardedHttpError::ServerStatus(status)) => {
+            Some(status.as_u16())
+        }
+        _ => None,
+    };
+    tracing::warn!(
+        operation = "token",
+        ?category,
+        status,
+        "OIDC provider failure"
+    );
+    category
 }
 
 fn invalid_id_token_in_recognizable_response(body: &[u8]) -> bool {
@@ -669,9 +741,7 @@ mod tests {
     #[tokio::test]
     async fn every_request_is_guarded_before_injected_transport() {
         let transport = Arc::new(CountingTransport(std::sync::atomic::AtomicUsize::new(0)));
-        let client = GuardedHttpClient {
-            transport: transport.clone(),
-        };
+        let client = GuardedHttpClient::new(UrlPolicy::LoopbackHttp, transport.clone());
         for url in [
             "http://example.com/jwks",
             "https://user:private-sentinel@example.com/token",
@@ -690,7 +760,8 @@ mod tests {
         }
         assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 0);
         assert!(
-            validate_backend_url(&Url::parse("http://127.0.0.1/jwks#private-sentinel").unwrap())
+            client
+                .validate_raw_url("http://127.0.0.1/jwks#private-sentinel")
                 .is_err()
         );
         for url in [
@@ -723,9 +794,10 @@ mod tests {
             }
         }
 
-        let http = GuardedHttpClient {
-            transport: Arc::new(MetadataThenKeys(std::sync::atomic::AtomicUsize::new(0))),
-        };
+        let http = GuardedHttpClient::new(
+            UrlPolicy::HttpsOnly,
+            Arc::new(MetadataThenKeys(std::sync::atomic::AtomicUsize::new(0))),
+        );
         let discovery = DiscoveryHttpClient::new(&http);
         for url in [
             "https://issuer.example/metadata",
@@ -739,9 +811,7 @@ mod tests {
     #[tokio::test]
     async fn library_token_and_refresh_requests_cannot_bypass_guard() {
         let transport = Arc::new(CountingTransport(std::sync::atomic::AtomicUsize::new(0)));
-        let http = GuardedHttpClient {
-            transport: transport.clone(),
-        };
+        let http = GuardedHttpClient::new(UrlPolicy::LoopbackHttp, transport.clone());
         for destination in [
             "http://example.invalid/provider",
             "https://user:private-sentinel@example.com/provider",
@@ -780,6 +850,138 @@ mod tests {
             );
         }
         assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn https_only_policy_rejects_loopback_before_injected_transport() {
+        let transport = Arc::new(CountingTransport(std::sync::atomic::AtomicUsize::new(0)));
+        let http = GuardedHttpClient::new(UrlPolicy::HttpsOnly, transport.clone());
+        for destination in [
+            "http://localhost/jwks",
+            "http://127.0.0.1/token",
+            "http://[::1]/metadata",
+        ] {
+            let request = http::Request::builder()
+                .uri(destination)
+                .body(Vec::new())
+                .unwrap();
+            assert!(matches!(
+                http.call(request).await,
+                Err(GuardedHttpError::UnsafeUrl)
+            ));
+        }
+        assert_eq!(transport.0.load(Ordering::SeqCst), 0);
+    }
+
+    #[tokio::test]
+    async fn initial_metadata_raw_jwks_fragment_is_rejected_before_library_fetch() {
+        struct UnsafeMetadata(std::sync::atomic::AtomicUsize);
+        impl ProviderTransport for UnsafeMetadata {
+            fn send(&self, _: HttpRequest) -> TransportFuture<'_> {
+                self.0.fetch_add(1, Ordering::SeqCst);
+                Box::pin(async {
+                    Ok(http::Response::new(
+                        br#"{"jwks_uri":"https://keys.example/jwks#private-sentinel"}"#.to_vec(),
+                    ))
+                })
+            }
+        }
+        let transport = Arc::new(UnsafeMetadata(std::sync::atomic::AtomicUsize::new(0)));
+        let http = GuardedHttpClient::new(UrlPolicy::HttpsOnly, transport.clone());
+        let discovery = DiscoveryHttpClient::new(&http);
+        let request = http::Request::builder()
+            .uri("https://issuer.example/metadata")
+            .body(Vec::new())
+            .unwrap();
+        assert!(matches!(
+            discovery.call(request).await,
+            Err(GuardedHttpError::UnsafeUrl)
+        ));
+        assert_eq!(transport.0.load(Ordering::SeqCst), 1);
+    }
+
+    fn runtime_with_metadata(
+        metadata: CoreProviderMetadata,
+        transport: Arc<dyn ProviderTransport>,
+    ) -> OidcRuntime {
+        let client_id = ClientId::new(String::from("client"));
+        let client_secret = ClientSecret::new(String::from("private-sentinel"));
+        let callback_url =
+            RedirectUrl::new(String::from("https://app.example/auth/callback")).unwrap();
+        let auth_method = ClientAuthMethod::Basic;
+        let client = build_client(
+            &metadata,
+            &client_id,
+            &client_secret,
+            &callback_url,
+            auth_method,
+        );
+        OidcRuntime {
+            metadata,
+            issuer: String::from("https://issuer.example"),
+            client_id,
+            client_secret,
+            callback_url,
+            auth_method,
+            http: GuardedHttpClient::new(UrlPolicy::LoopbackHttp, transport),
+            clock: Arc::new(super::super::transaction::SystemClock),
+            cache: RwLock::new(CacheState {
+                client,
+                generation: 0,
+                refresh_retry_at: None,
+            }),
+            refresh: Mutex::new(()),
+        }
+    }
+
+    #[tokio::test]
+    async fn runtime_raw_token_and_refresh_urls_are_checked_before_uri_fragment_truncation() {
+        let transport = Arc::new(CountingTransport(std::sync::atomic::AtomicUsize::new(0)));
+        for destination in [
+            "http://127.0.0.1/provider#private-sentinel",
+            "http://127.0.0.1/provider#",
+            "https://user:private-sentinel@example.com/provider",
+            "https://@example.com/provider",
+            "ftp://localhost/provider",
+            "http://example.invalid/provider",
+        ] {
+            let metadata = serde_json::from_value(serde_json::json!({
+                "issuer": "https://issuer.example",
+                "authorization_endpoint": "https://issuer.example/authorize",
+                "token_endpoint": destination, "jwks_uri": destination,
+                "response_types_supported": ["code"], "subject_types_supported": ["public"],
+                "id_token_signing_alg_values_supported": ["RS256"]
+            }))
+            .unwrap();
+            let runtime = runtime_with_metadata(metadata, transport.clone());
+            assert!(
+                matches!(
+                    runtime
+                        .exchange_and_verify(
+                            String::from("private-sentinel"),
+                            &Nonce::new(String::from("nonce")),
+                            PkceCodeVerifier::new("x".repeat(43)),
+                        )
+                        .await,
+                    Err(ProtocolError::ProviderUnavailable)
+                ),
+                "{destination}"
+            );
+            assert!(
+                matches!(
+                    runtime.refresh_for_generation(0).await,
+                    Err(ProtocolError::ProviderUnavailable)
+                ),
+                "{destination}"
+            );
+            let cache = runtime.cache.read().await;
+            assert_eq!(cache.generation, 0);
+            assert!(
+                cache.refresh_retry_at.is_some(),
+                "failed raw refresh enters cooldown"
+            );
+            assert_eq!(transport.0.load(Ordering::SeqCst), 0, "{destination}");
+        }
     }
 
     #[test]

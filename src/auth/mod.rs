@@ -1,21 +1,30 @@
-mod flow;
+pub(crate) mod app;
+pub mod config;
+mod return_to;
+mod routes;
 mod runtime;
 mod session;
-mod session_store;
+mod transaction;
 
 use std::fmt;
 use std::sync::Arc;
 
-use crate::config::OidcConfig;
+use config::OidcConfig;
 
-pub use flow::Clock;
-use flow::{SystemClock, TransactionRegistry};
-pub(crate) use flow::{login_redirect, redirect, validate_return_to};
+pub use app::SESSION_COOKIE_NAME;
+pub(crate) use return_to::validate_return_to;
+pub(crate) use routes::{login_redirect, redirect};
+#[doc(hidden)]
+pub use runtime::{
+    GuardedHttpError, ProviderTransport, ReqwestTransport, TransportFuture, UrlPolicy,
+};
 use runtime::{OidcRuntime, OidcStartupError};
 use session::SessionBackend;
-pub use session::{AuthSessionLayer, CookieKeyError, SESSION_COOKIE_NAME};
+pub use session::{AuthSessionLayer, CookieKeyError};
 #[doc(hidden)]
-pub use session_store::{SessionBarrier, SessionFaults, StoreOperation};
+pub use session::{SessionBarrier, SessionFaults, StoreOperation};
+pub use transaction::Clock;
+use transaction::{SystemClock, TransactionRegistry};
 
 /// Error encountered while preparing enabled authentication before serving traffic.
 #[derive(Debug)]
@@ -103,9 +112,26 @@ impl Authentication {
         clock: Arc<dyn Clock>,
         faults: SessionFaults,
     ) -> Result<Self, AuthenticationStartupError> {
+        let transport = ReqwestTransport::new()
+            .map_err(|_| AuthenticationStartupError::Oidc(OidcStartupError::HttpClient))?;
+        Self::bootstrap_with_dependencies(config, clock, faults, Arc::new(transport)).await
+    }
+
+    /// Prepare authentication with instance-scoped storage and provider dependencies.
+    /// Injected provider I/O remains behind the common destination guard.
+    ///
+    /// # Errors
+    /// Returns the same startup errors as ordinary bootstrap.
+    #[doc(hidden)]
+    pub async fn bootstrap_with_dependencies(
+        config: OidcConfig,
+        clock: Arc<dyn Clock>,
+        faults: SessionFaults,
+        transport: Arc<dyn ProviderTransport>,
+    ) -> Result<Self, AuthenticationStartupError> {
         let sessions = SessionBackend::new(config.secure_cookie(), Arc::clone(&clock), faults)
             .map_err(AuthenticationStartupError::CookieKey)?;
-        let runtime = OidcRuntime::discover(&config, Arc::clone(&clock))
+        let runtime = OidcRuntime::discover(&config, Arc::clone(&clock), transport)
             .await
             .map_err(AuthenticationStartupError::Oidc)?;
         Ok(Self {
@@ -133,12 +159,12 @@ impl Authentication {
     /// server uses one outer session layer around all public and protected
     /// routes instead.
     pub fn protocol_router(self: &Arc<Self>) -> axum::Router {
-        flow::routes(self).layer(self.session_layer())
+        routes::routes(self).layer(self.session_layer())
     }
 
     /// Unlayered protocol routes for deterministic session middleware tests.
     #[doc(hidden)]
     pub fn protocol_routes(self: &Arc<Self>) -> axum::Router {
-        flow::routes(self)
+        routes::routes(self)
     }
 }

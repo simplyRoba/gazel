@@ -1,22 +1,27 @@
+use std::collections::HashMap;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Mutex as IndexMutex};
 use std::task::{Context, Poll};
 
+use async_trait::async_trait;
 use axum::body::Body;
 use axum::http::{Request, header};
 use axum::response::Response;
+use serde::{Deserialize, Serialize};
+use time::{Duration, OffsetDateTime};
+use tokio::sync::{Mutex as AsyncMutex, Semaphore};
 use tower::{Layer, Service};
 use tower_sessions::cookie::{Key, SameSite};
 use tower_sessions::service::PrivateCookie;
-use tower_sessions::{Session, SessionManagerLayer};
+use tower_sessions::session::{Id, Record};
+use tower_sessions::{MemoryStore, Session, SessionManagerLayer, SessionStore, session_store};
 
-use super::Clock;
-use super::session_store::{AuthStore, SessionFaults};
+use super::app::SESSION_COOKIE_NAME;
+use super::{Authentication, Clock};
 
 const COOKIE_KEY_LENGTH: usize = 64;
-pub const SESSION_COOKIE_NAME: &str = "gazel_session";
 
 /// Concrete private-cookie session layer used by the authentication router.
 #[derive(Clone, Debug)]
@@ -73,7 +78,7 @@ pub(super) struct CallbackIntent {
 impl CallbackIntent {
     pub(super) fn failed(target: &str) -> Self {
         Self {
-            target: super::flow::validate_return_to(Some(target)),
+            target: super::return_to::validate_return_to(Some(target)),
             verified: false,
         }
     }
@@ -232,8 +237,8 @@ async fn finalize_response(
         if let Some(intent) = captured.callback {
             // The manager discarded the handler response. Preserve the callback
             // contract and its trusted target even when extensions were lost.
-            *response = super::flow::failure_redirect(
-                super::flow::FailureCode::ProviderUnavailable,
+            *response = super::routes::failure_redirect(
+                super::routes::FailureCode::ProviderUnavailable,
                 &intent.target,
             );
             if current || removal_allowed {
@@ -465,10 +470,8 @@ mod tests {
         );
     }
 
-    async fn owned_session(
-        backend: &SessionBackend,
-    ) -> (Session, Arc<super::super::session_store::Lineage>) {
-        use super::super::session_store::{OWNER_KEY, Owner};
+    async fn owned_session(backend: &SessionBackend) -> (Session, Arc<super::Lineage>) {
+        use super::{OWNER_KEY, Owner};
         let expiry = time::OffsetDateTime::now_utc() + time::Duration::minutes(5);
         let (key, lineage) = backend.store.allocate(expiry);
         let marker = Owner::fresh(key);
@@ -494,11 +497,11 @@ mod tests {
     }
 
     async fn assert_finalizer_rechecks_after_gate(change: FinalizerChange) {
-        use super::super::session_store::{OWNER_KEY, Owner};
+        use super::{OWNER_KEY, Owner};
 
         let backend = SessionBackend::new(
             false,
-            Arc::new(super::super::flow::SystemClock),
+            Arc::new(super::super::transaction::SystemClock),
             SessionFaults::default(),
         )
         .unwrap();
@@ -513,7 +516,10 @@ mod tests {
         assert!(backend.store.current(&stale).await);
         let mut response = Response::builder()
             .status(StatusCode::OK)
-            .header(header::SET_COOKIE, "gazel_session=obsolete; Path=/")
+            .header(
+                header::SET_COOKIE,
+                format!("{SESSION_COOKIE_NAME}=obsolete; Path=/"),
+            )
             .header(header::SET_COOKIE, "unrelated=kept; Path=/")
             .body(Body::empty())
             .unwrap();
@@ -617,10 +623,10 @@ mod tests {
 
     #[tokio::test]
     async fn lost_callback_metadata_revokes_both_old_and_provisional_private_cookies() {
-        use super::super::session_store::{OWNER_KEY, Owner};
+        use super::{OWNER_KEY, Owner};
         let backend = SessionBackend::new(
             false,
-            Arc::new(super::super::flow::SystemClock),
+            Arc::new(super::super::transaction::SystemClock),
             SessionFaults::default(),
         )
         .unwrap();
@@ -685,10 +691,10 @@ mod tests {
 
     #[tokio::test]
     async fn lost_stale_callback_metadata_cannot_revoke_a_newer_revision() {
-        use super::super::session_store::{OWNER_KEY, Owner};
+        use super::{OWNER_KEY, Owner};
         let backend = SessionBackend::new(
             false,
-            Arc::new(super::super::flow::SystemClock),
+            Arc::new(super::super::transaction::SystemClock),
             SessionFaults::default(),
         )
         .unwrap();
@@ -731,7 +737,7 @@ mod tests {
     async fn unrelated_readonly_500_does_not_revoke_or_expire_a_valid_session() {
         let backend = SessionBackend::new(
             false,
-            Arc::new(super::super::flow::SystemClock),
+            Arc::new(super::super::transaction::SystemClock),
             SessionFaults::default(),
         )
         .unwrap();
@@ -840,5 +846,856 @@ mod tests {
             .await
             .expect("request should succeed")
             .status()
+    }
+}
+
+pub(super) const AUTHENTICATED_SESSION_KEY: &str = "authenticated";
+pub(super) const AUTHENTICATED_TTL: Duration = Duration::hours(12);
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub(super) struct AuthenticatedSession {
+    pub(super) authenticated_at: i64,
+    pub(super) expires_at: i64,
+}
+
+impl Authentication {
+    pub(crate) async fn is_authenticated(&self, session: &Session) -> bool {
+        let record = session
+            .get::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
+            .await
+            .ok()
+            .flatten();
+        match record {
+            Some(record) if authenticated_session_is_valid(&record, self.clock.now()) => {
+                self.sessions.store.current(session).await
+            }
+            Some(_) => {
+                let _ = session
+                    .remove::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
+                    .await;
+                false
+            }
+            None => false,
+        }
+    }
+}
+
+fn authenticated_session_is_valid(record: &AuthenticatedSession, now: OffsetDateTime) -> bool {
+    record.expires_at > now.unix_timestamp()
+}
+
+pub(super) const OWNER_KEY: &str = "auth_owner";
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub(super) struct Owner {
+    pub lineage: String,
+    pub revision: String,
+}
+
+impl Owner {
+    pub fn fresh(lineage: String) -> Self {
+        Self {
+            lineage,
+            revision: uuid::Uuid::new_v4().to_string(),
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub(super) struct Authority {
+    pub committed: Option<Record>,
+    pub permit: Option<Owner>,
+    pub creating: bool,
+}
+
+#[derive(Debug)]
+pub(super) struct Lineage {
+    // Protocol coordination and store serialization are distinct: handlers can save
+    // while holding the lifecycle gate; the store never acquires it in reverse.
+    pub gate: AsyncMutex<()>,
+    pub authority: AsyncMutex<Authority>,
+}
+
+#[derive(Default)]
+struct Index {
+    lineages: HashMap<String, (Arc<Lineage>, OffsetDateTime)>,
+    aliases: HashMap<Id, (String, OffsetDateTime)>,
+}
+
+/// Per-instance deterministic storage fault seam. No process environment is used.
+#[doc(hidden)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StoreOperation {
+    Create,
+    Save,
+    Load,
+    Delete,
+}
+
+/// A one-shot failure, optionally after the backing write has happened.
+#[doc(hidden)]
+#[derive(Clone, Debug, Default)]
+pub struct SessionFaults {
+    failure: Arc<IndexMutex<Option<(StoreOperation, bool)>>>,
+    pause: Arc<IndexMutex<Option<(StoreOperation, SessionBarrier)>>>,
+}
+
+/// A deterministic, one-shot store barrier, scoped to one backend instance.
+#[doc(hidden)]
+#[derive(Clone, Debug)]
+pub struct SessionBarrier {
+    entered: Arc<Semaphore>,
+    released: Arc<Semaphore>,
+}
+
+impl SessionBarrier {
+    pub async fn wait_entered(&self) {
+        if let Ok(permit) = self.entered.acquire().await {
+            permit.forget();
+        }
+    }
+
+    pub fn release(&self) {
+        self.released.add_permits(1);
+    }
+}
+
+impl SessionFaults {
+    /// # Panics
+    /// Panics if an earlier test poisoned the fault mutex.
+    pub fn fail_next(&self, operation: StoreOperation, after_write: bool) {
+        *self.failure.lock().expect("fault mutex poisoned") = Some((operation, after_write));
+    }
+
+    /// # Panics
+    /// Panics if an earlier test poisoned the fault mutex.
+    pub fn pause_next(&self, operation: StoreOperation) -> SessionBarrier {
+        let barrier = SessionBarrier {
+            entered: Arc::new(Semaphore::new(0)),
+            released: Arc::new(Semaphore::new(0)),
+        };
+        *self.pause.lock().expect("fault mutex poisoned") = Some((operation, barrier.clone()));
+        barrier
+    }
+
+    async fn checkpoint(&self, operation: StoreOperation) -> Option<bool> {
+        let fault = {
+            let mut fault = self.failure.lock().expect("fault mutex poisoned");
+            if fault.as_ref().is_some_and(|(op, _)| *op == operation) {
+                fault.take().map(|(_, after)| after)
+            } else {
+                None
+            }
+        };
+        let pause = {
+            let mut pause = self.pause.lock().expect("fault mutex poisoned");
+            if pause.as_ref().is_some_and(|(op, _)| *op == operation) {
+                pause.take().map(|(_, barrier)| barrier)
+            } else {
+                None
+            }
+        };
+        if let Some(barrier) = pause {
+            barrier.entered.add_permits(1);
+            barrier
+                .released
+                .acquire()
+                .await
+                .expect("barrier remains open")
+                .forget();
+        }
+        fault
+    }
+}
+
+#[derive(Clone)]
+#[doc(hidden)]
+pub struct AuthStore {
+    backing: MemoryStore,
+    index: Arc<IndexMutex<Index>>,
+    clock: Arc<dyn Clock>,
+    pub faults: SessionFaults,
+}
+
+impl std::fmt::Debug for AuthStore {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AuthStore").finish_non_exhaustive()
+    }
+}
+
+fn owner(record: &Record) -> Option<Owner> {
+    serde_json::from_value(record.data.get(OWNER_KEY)?.clone()).ok()
+}
+
+fn fault_error() -> session_store::Error {
+    session_store::Error::Backend("injected session persistence failure".into())
+}
+
+impl AuthStore {
+    pub(super) fn new(clock: Arc<dyn Clock>, faults: SessionFaults) -> Self {
+        Self {
+            backing: MemoryStore::default(),
+            index: Arc::default(),
+            clock,
+            faults,
+        }
+    }
+
+    fn prune(index: &mut Index, now: OffsetDateTime) {
+        index.aliases.retain(|_, (_, expiry)| *expiry > now);
+        index.lineages.retain(|_, (_, expiry)| *expiry > now);
+    }
+
+    pub(super) fn lineage(&self, key: &str) -> Option<Arc<Lineage>> {
+        let mut index = self.index.lock().expect("session index poisoned");
+        Self::prune(&mut index, self.clock.now());
+        index
+            .lineages
+            .get(key)
+            .map(|(lineage, _)| Arc::clone(lineage))
+    }
+
+    pub(super) fn for_id(&self, id: Id) -> Option<Arc<Lineage>> {
+        let mut index = self.index.lock().expect("session index poisoned");
+        Self::prune(&mut index, self.clock.now());
+        let (key, _) = index.aliases.get(&id)?;
+        index
+            .lineages
+            .get(key)
+            .map(|(lineage, _)| Arc::clone(lineage))
+    }
+
+    pub(super) fn allocate(&self, expiry: OffsetDateTime) -> (String, Arc<Lineage>) {
+        let key = uuid::Uuid::new_v4().to_string();
+        let lineage = Arc::new(Lineage {
+            gate: AsyncMutex::new(()),
+            authority: AsyncMutex::new(Authority::default()),
+        });
+        let mut index = self.index.lock().expect("session index poisoned");
+        Self::prune(&mut index, self.clock.now());
+        index
+            .lineages
+            .insert(key.clone(), (Arc::clone(&lineage), expiry));
+        (key, lineage)
+    }
+
+    pub(super) fn retire_empty(&self, key: &str) {
+        // Called only for an allocation which never acquired a backing record.
+        self.index
+            .lock()
+            .expect("session index poisoned")
+            .lineages
+            .remove(key);
+    }
+
+    fn remember(&self, record: &Record, owner: &Owner) {
+        let mut index = self.index.lock().expect("session index poisoned");
+        // Aliases have the same absolute retirement deadline as the current
+        // generation. Rotation never creates permanent tombstones.
+        for (key, expiry) in index.aliases.values_mut() {
+            if *key == owner.lineage {
+                *expiry = record.expiry_date;
+            }
+        }
+        index
+            .aliases
+            .insert(record.id, (owner.lineage.clone(), record.expiry_date));
+        if let Some((_, expiry)) = index.lineages.get_mut(&owner.lineage) {
+            *expiry = record.expiry_date;
+        }
+    }
+
+    pub(super) async fn current(&self, session: &Session) -> bool {
+        let Some(id) = session.id() else {
+            return false;
+        };
+        let Ok(Some(marker)) = session.get::<Owner>(OWNER_KEY).await else {
+            return false;
+        };
+        self.owns(id, &marker).await
+    }
+
+    pub(super) async fn owns(&self, id: Id, marker: &Owner) -> bool {
+        let Some(lineage) = self.lineage(&marker.lineage) else {
+            return false;
+        };
+        let authority = lineage.authority.lock().await;
+        authority.committed.as_ref().is_some_and(|record| {
+            record.id == id
+                && owner(record).as_ref() == Some(marker)
+                && record.expiry_date > self.clock.now()
+        }) && self.backing.load(&id).await.ok().flatten().is_some()
+    }
+
+    pub(super) async fn rollback_binding(&self, session: &Session, lineage: &Lineage, key: &str) {
+        {
+            let mut authority = lineage.authority.lock().await;
+            authority.permit = authority.committed.as_ref().and_then(owner);
+            authority.creating = false;
+        }
+        // Caller holds the lineage gate. Reload the old committed binding and
+        // its absolute expiry; never roll back using the request's old snapshot.
+        session.clear().await;
+        if session.id().is_some() {
+            let _ = self.refresh(session).await;
+        }
+        if lineage.authority.lock().await.committed.is_none() {
+            self.retire_empty(key);
+        }
+    }
+
+    pub(super) async fn revoke(&self, lineage: &Lineage) -> session_store::Result<()> {
+        let mut authority = lineage.authority.lock().await;
+        authority.permit = None;
+        authority.creating = false;
+        let record = authority.committed.take();
+        if let Some(record) = record {
+            // Keep terminal authority and rotation aliases until their existing
+            // absolute deadline. Delayed requests must not become fresh logins.
+            self.delete_backing(&record.id).await?;
+        }
+        Ok(())
+    }
+
+    async fn delete_backing(&self, id: &Id) -> session_store::Result<()> {
+        let fault = self.faults.checkpoint(StoreOperation::Delete).await;
+        if fault == Some(false) {
+            return Err(fault_error());
+        }
+        self.backing.delete(id).await?;
+        if fault == Some(true) {
+            return Err(fault_error());
+        }
+        Ok(())
+    }
+
+    pub(super) async fn refresh(
+        &self,
+        session: &Session,
+    ) -> Result<(), tower_sessions::session::Error> {
+        session.load().await?;
+        if let Some(lineage) = session.id().and_then(|id| self.for_id(id)) {
+            let authority = lineage.authority.lock().await;
+            if let Some(record) = authority
+                .committed
+                .as_ref()
+                .filter(|record| Some(record.id) == session.id())
+                && session.is_modified()
+            {
+                session.set_expiry(Some(tower_sessions::Expiry::AtDateTime(record.expiry_date)));
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl SessionStore for AuthStore {
+    async fn create(&self, record: &mut Record) -> session_store::Result<()> {
+        self.write(record, true).await
+    }
+
+    async fn save(&self, record: &Record) -> session_store::Result<()> {
+        self.write(&mut record.clone(), false).await
+    }
+
+    async fn load(&self, id: &Id) -> session_store::Result<Option<Record>> {
+        if self.faults.checkpoint(StoreOperation::Load).await.is_some() {
+            return Err(fault_error());
+        }
+        let Some(lineage) = self.for_id(*id) else {
+            return Ok(None);
+        };
+        let authority = lineage.authority.lock().await;
+        if !authority
+            .committed
+            .as_ref()
+            .is_some_and(|record| record.id == *id)
+        {
+            return Ok(None);
+        }
+        self.backing.load(id).await
+    }
+
+    async fn delete(&self, id: &Id) -> session_store::Result<()> {
+        if let Some(lineage) = self.for_id(*id) {
+            let _authority = lineage.authority.lock().await;
+            self.delete_backing(id).await
+        } else {
+            self.delete_backing(id).await
+        }
+    }
+}
+
+impl AuthStore {
+    async fn write(&self, record: &mut Record, create: bool) -> session_store::Result<()> {
+        let operation = if create {
+            StoreOperation::Create
+        } else {
+            StoreOperation::Save
+        };
+        // Pause before validation so a delayed middleware save can lose ownership
+        // while another request progresses. Validation and backing I/O stay atomic.
+        let fault = self.faults.checkpoint(operation).await;
+        let Some(marker) = owner(record) else {
+            return Ok(());
+        };
+        let Some(lineage) = self.lineage(&marker.lineage) else {
+            return Ok(());
+        };
+        let mut authority = lineage.authority.lock().await;
+        if authority.permit.as_ref() != Some(&marker) {
+            return Ok(());
+        }
+        if create {
+            if !authority.creating {
+                return Ok(());
+            }
+        } else if !authority
+            .committed
+            .as_ref()
+            .is_some_and(|old| old.id == record.id)
+            || self.backing.load(&record.id).await?.is_none()
+        {
+            // MemoryStore::save upserts; never let a deleted alias reach it.
+            return Ok(());
+        }
+        if !create
+            && authority.committed.as_ref().is_some_and(|old| {
+                old.id == record.id
+                    && old.data == record.data
+                    && old.expiry_date == record.expiry_date
+            })
+        {
+            // The manager auto-saves explicitly persisted sessions. Existence was
+            // checked above; an exact duplicate is not another backing write.
+            return Ok(());
+        }
+        if fault == Some(false) {
+            return Err(fault_error());
+        }
+        if create {
+            self.backing.create(record).await?;
+        } else {
+            self.backing.save(record).await?;
+        }
+        if fault == Some(true) {
+            if create {
+                self.backing.delete(&record.id).await?;
+            } else if let Some(old) = &authority.committed {
+                self.backing.save(old).await?;
+            }
+            return Err(fault_error());
+        }
+        authority.committed = Some(record.clone());
+        authority.creating = false;
+        self.remember(record, &marker);
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod store_tests {
+    use std::sync::Arc;
+
+    use time::{Duration, OffsetDateTime};
+    use tower_sessions::{Expiry, Session, SessionStore};
+
+    use super::super::transaction::SystemClock;
+    use super::Clock;
+    use super::{
+        AUTHENTICATED_TTL, AuthStore, AuthenticatedSession, Lineage, OWNER_KEY, Owner,
+        SessionFaults, StoreOperation, authenticated_session_is_valid,
+    };
+
+    async fn seed(store: &AuthStore) -> (Session, Arc<Lineage>, Owner) {
+        let expiry = OffsetDateTime::now_utc() + Duration::minutes(5);
+        let (key, lineage) = store.allocate(expiry);
+        let marker = Owner::fresh(key);
+        let session = Session::new(
+            None,
+            Arc::new(store.clone()),
+            Some(Expiry::AtDateTime(expiry)),
+        );
+        {
+            let mut authority = lineage.authority.lock().await;
+            authority.permit = Some(marker.clone());
+            authority.creating = true;
+        }
+        session.insert(OWNER_KEY, &marker).await.unwrap();
+        session.insert("oidc_transaction", "prior").await.unwrap();
+        session.save().await.unwrap();
+        (session, lineage, marker)
+    }
+
+    fn independent(store: &AuthStore, original: &Session) -> Session {
+        Session::new(original.id(), Arc::new(store.clone()), None)
+    }
+
+    async fn rebind(session: &Session, lineage: &Lineage, marker: Owner, state: &str) {
+        lineage.authority.lock().await.permit = Some(marker.clone());
+        session.insert(OWNER_KEY, marker).await.unwrap();
+        session.insert("oidc_transaction", state).await.unwrap();
+        session.save().await.unwrap();
+    }
+
+    #[tokio::test]
+    async fn independent_preloaded_snapshots_cannot_overwrite_a_newer_binding() {
+        let faults = SessionFaults::default();
+        let store = AuthStore::new(Arc::new(SystemClock), faults.clone());
+        let (original, lineage, marker) = seed(&store).await;
+        let older = independent(&store, &original);
+        let newer = independent(&store, &original);
+        for session in [&older, &newer] {
+            assert_eq!(
+                session
+                    .get::<String>("oidc_transaction")
+                    .await
+                    .unwrap()
+                    .as_deref(),
+                Some("prior")
+            );
+        }
+        let pause = faults.pause_next(StoreOperation::Save);
+        faults.fail_next(StoreOperation::Save, true);
+        let task = tokio::spawn(async move { older.save().await });
+        pause.wait_entered().await;
+        let next = Owner::fresh(marker.lineage);
+        rebind(&newer, &lineage, next, "winner").await;
+        pause.release();
+        task.await.unwrap().unwrap();
+        assert!(store.current(&newer).await);
+        let loaded = independent(&store, &original);
+        assert_eq!(
+            loaded
+                .get::<String>("oidc_transaction")
+                .await
+                .unwrap()
+                .as_deref(),
+            Some("winner")
+        );
+    }
+
+    #[tokio::test]
+    async fn authoritative_reload_restores_data_and_absolute_expiry_before_mutation() {
+        let store = AuthStore::new(Arc::new(SystemClock), SessionFaults::default());
+        let (original, lineage, marker) = seed(&store).await;
+        let stale = independent(&store, &original);
+        stale.load().await.unwrap();
+        stale.insert("outdated", true).await.unwrap();
+        let next = Owner::fresh(marker.lineage);
+        rebind(&original, &lineage, next.clone(), "winner").await;
+        let expiry = lineage
+            .authority
+            .lock()
+            .await
+            .committed
+            .as_ref()
+            .unwrap()
+            .expiry_date;
+        store.refresh(&stale).await.unwrap();
+        assert_eq!(stale.get::<Owner>(OWNER_KEY).await.unwrap(), Some(next));
+        assert!(stale.get::<bool>("outdated").await.unwrap().is_none());
+        assert_eq!(stale.expiry(), Some(Expiry::AtDateTime(expiry)));
+        stale.save().await.unwrap();
+        assert_eq!(
+            lineage
+                .authority
+                .lock()
+                .await
+                .committed
+                .as_ref()
+                .unwrap()
+                .expiry_date,
+            expiry
+        );
+    }
+
+    #[tokio::test]
+    async fn deletion_and_revocation_never_upsert_aliases_or_allow_stale_creates() {
+        let store = AuthStore::new(Arc::new(SystemClock), SessionFaults::default());
+        let (original, lineage, marker) = seed(&store).await;
+        let stale = independent(&store, &original);
+        stale.load().await.unwrap();
+        let old_id = original.id().unwrap();
+        lineage.authority.lock().await.creating = true;
+        original.cycle_id().await.unwrap();
+        original.save().await.unwrap();
+        assert_ne!(original.id(), Some(old_id));
+        assert!(
+            store.for_id(old_id).is_some(),
+            "rotation alias permits logout"
+        );
+        stale.save().await.unwrap();
+        assert!(store.backing.load(&old_id).await.unwrap().is_none());
+        store.revoke(&lineage).await.unwrap();
+        assert!(!store.current(&original).await);
+        // Both a cached save and a completely independent create retain the revoked
+        // ownership marker but cannot persist any usable record.
+        original.save().await.unwrap();
+        let late = Session::new(None, Arc::new(store.clone()), None);
+        late.insert(OWNER_KEY, marker).await.unwrap();
+        late.insert("authenticated", true).await.unwrap();
+        late.save().await.unwrap();
+        assert!(
+            store
+                .backing
+                .load(&late.id().unwrap())
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert!(store.load(&original.id().unwrap()).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn create_retains_backing_memory_store_collision_semantics() {
+        let store = AuthStore::new(Arc::new(SystemClock), SessionFaults::default());
+        let (first, lineage, _) = seed(&store).await;
+        let mut collision = lineage.authority.lock().await.committed.clone().unwrap();
+        let (key, next) = store.allocate(collision.expiry_date);
+        let marker = Owner::fresh(key);
+        collision
+            .data
+            .insert(OWNER_KEY.into(), serde_json::to_value(&marker).unwrap());
+        {
+            let mut authority = next.authority.lock().await;
+            authority.permit = Some(marker);
+            authority.creating = true;
+        }
+        store.create(&mut collision).await.unwrap();
+        assert_ne!(Some(collision.id), first.id());
+        assert!(store.current(&first).await);
+    }
+
+    #[tokio::test]
+    async fn exact_generation_duplicates_skip_backend_failures_but_real_changes_persist() {
+        for after_write in [false, true] {
+            let faults = SessionFaults::default();
+            let store = AuthStore::new(Arc::new(SystemClock), faults.clone());
+            let (session, lineage, _) = seed(&store).await;
+            let record = lineage.authority.lock().await.committed.clone().unwrap();
+            faults.fail_next(StoreOperation::Save, after_write);
+            session.save().await.unwrap();
+            let saved = store.backing.load(&record.id).await.unwrap().unwrap();
+            assert_eq!(saved.data, record.data);
+            assert_eq!(saved.expiry_date, record.expiry_date);
+            session.insert("real_change", true).await.unwrap();
+            session.save().await.unwrap();
+            assert_eq!(
+                store.backing.load(&record.id).await.unwrap().unwrap().data["real_change"],
+                true
+            );
+            // Even a duplicate must not recreate an absent backing record.
+            store.backing.delete(&record.id).await.unwrap();
+            session.save().await.unwrap();
+            assert!(store.backing.load(&record.id).await.unwrap().is_none());
+        }
+    }
+
+    #[tokio::test]
+    async fn delete_serializes_against_an_independently_cached_save() {
+        let faults = SessionFaults::default();
+        let store = AuthStore::new(Arc::new(SystemClock), faults.clone());
+        let (session, lineage, _) = seed(&store).await;
+        let stale = independent(&store, &session);
+        stale.load().await.unwrap();
+        stale.insert("real_change", true).await.unwrap();
+        let id = session.id().unwrap();
+        let pause = faults.pause_next(StoreOperation::Delete);
+        let delete = {
+            let store = store.clone();
+            tokio::spawn(async move { store.delete(&id).await })
+        };
+        pause.wait_entered().await;
+        assert!(
+            lineage.authority.try_lock().is_err(),
+            "deletion holds the same authority lock as writes across backing I/O"
+        );
+        let saving = faults.pause_next(StoreOperation::Save);
+        let save = tokio::spawn(async move { stale.save().await });
+        saving.wait_entered().await;
+        saving.release();
+        assert!(
+            !save.is_finished(),
+            "delete holds backing serialization across I/O"
+        );
+        pause.release();
+        delete.await.unwrap().unwrap();
+        save.await.unwrap().unwrap();
+        assert!(store.backing.load(&id).await.unwrap().is_none());
+    }
+
+    #[tokio::test]
+    async fn failed_create_removes_the_direct_provisional_identifier_and_allocation() {
+        for after_write in [false, true] {
+            let faults = SessionFaults::default();
+            let store = AuthStore::new(Arc::new(SystemClock), faults.clone());
+            let expiry = OffsetDateTime::now_utc() + Duration::minutes(5);
+            let (key, lineage) = store.allocate(expiry);
+            let marker = Owner::fresh(key.clone());
+            {
+                let mut authority = lineage.authority.lock().await;
+                authority.permit = Some(marker.clone());
+                authority.creating = true;
+            }
+            let mut proposed = tower_sessions::session::Record {
+                id: tower_sessions::session::Id::default(),
+                data: std::collections::HashMap::default(),
+                expiry_date: expiry,
+            };
+            proposed
+                .data
+                .insert(OWNER_KEY.into(), serde_json::to_value(marker).unwrap());
+            faults.fail_next(StoreOperation::Create, after_write);
+            assert!(store.create(&mut proposed).await.is_err());
+            assert!(store.backing.load(&proposed.id).await.unwrap().is_none());
+            assert!(lineage.authority.lock().await.committed.is_none());
+            let session = Session::new(None, Arc::new(store.clone()), None);
+            store.rollback_binding(&session, &lineage, &key).await;
+            assert!(store.lineage(&key).is_none());
+            let index = store.index.lock().unwrap();
+            assert!(index.lineages.is_empty());
+            assert!(index.aliases.is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn failed_rotated_auth_create_cleans_the_exact_provisional_id() {
+        for after_write in [false, true] {
+            let faults = SessionFaults::default();
+            let store = AuthStore::new(Arc::new(SystemClock), faults.clone());
+            let (session, lineage, previous) = seed(&store).await;
+            let old_id = session.id().unwrap();
+            let marker = Owner::fresh(previous.lineage);
+            {
+                let mut authority = lineage.authority.lock().await;
+                authority.permit = Some(marker.clone());
+                authority.creating = true;
+            }
+            session.cycle_id().await.unwrap();
+            let mut proposed = tower_sessions::session::Record {
+                id: tower_sessions::session::Id::default(),
+                data: std::collections::HashMap::from([
+                    (OWNER_KEY.into(), serde_json::to_value(marker).unwrap()),
+                    (
+                        "authenticated".into(),
+                        serde_json::json!({"authenticated_at": 1, "expires_at": i64::MAX}),
+                    ),
+                ]),
+                expiry_date: OffsetDateTime::now_utc() + Duration::hours(12),
+            };
+            faults.fail_next(StoreOperation::Create, after_write);
+            assert!(store.create(&mut proposed).await.is_err());
+            store.revoke(&lineage).await.unwrap();
+            for id in [old_id, proposed.id] {
+                assert!(store.backing.load(&id).await.unwrap().is_none());
+                assert!(store.load(&id).await.unwrap().is_none());
+            }
+            session.save().await.unwrap();
+            assert!(
+                store
+                    .backing
+                    .load(&session.id().unwrap())
+                    .await
+                    .unwrap()
+                    .is_none()
+            );
+        }
+    }
+
+    #[derive(Debug)]
+    struct MutableClock(std::sync::Mutex<OffsetDateTime>);
+    impl super::Clock for MutableClock {
+        fn now(&self) -> OffsetDateTime {
+            *self.0.lock().unwrap()
+        }
+    }
+
+    #[tokio::test]
+    async fn coordination_records_and_rotation_aliases_retire_at_absolute_deadline() {
+        for ttl in [Duration::minutes(5), Duration::hours(12)] {
+            assert_terminal_retirement(ttl).await;
+        }
+    }
+
+    async fn assert_terminal_retirement(ttl: Duration) {
+        let clock = Arc::new(MutableClock(std::sync::Mutex::new(
+            OffsetDateTime::now_utc(),
+        )));
+        let store = AuthStore::new(clock.clone(), SessionFaults::default());
+        let (session, lineage, marker) = seed(&store).await;
+        let old_id = session.id().unwrap();
+        let expiry = clock.now() + ttl;
+        lineage.authority.lock().await.creating = true;
+        session.cycle_id().await.unwrap();
+        session.set_expiry(Some(Expiry::AtDateTime(expiry)));
+        session.save().await.unwrap();
+        let rotated_id = session.id().unwrap();
+        let expiry = lineage
+            .authority
+            .lock()
+            .await
+            .committed
+            .as_ref()
+            .unwrap()
+            .expiry_date;
+        {
+            let index = store.index.lock().unwrap();
+            assert_eq!(index.lineages.len(), 1);
+            assert_eq!(index.aliases.len(), 2);
+        }
+        store.revoke(&lineage).await.unwrap();
+        assert!(
+            store.for_id(old_id).is_some(),
+            "revocation keeps the alias deadline"
+        );
+        assert!(store.for_id(rotated_id).is_some());
+        assert!(store.backing.load(&old_id).await.unwrap().is_none());
+        assert!(store.backing.load(&rotated_id).await.unwrap().is_none());
+        *clock.0.lock().unwrap() = expiry - Duration::nanoseconds(1);
+        assert!(store.lineage(&marker.lineage).is_some());
+        assert!(store.for_id(old_id).is_some());
+        *clock.0.lock().unwrap() = expiry;
+        assert!(store.lineage(&marker.lineage).is_none());
+        assert!(store.for_id(session.id().unwrap()).is_none());
+        {
+            let index = store.index.lock().unwrap();
+            assert!(index.aliases.is_empty());
+            assert!(index.lineages.is_empty());
+        }
+        // Pruning terminal coordination must never re-authorize an old marker.
+        session.save().await.unwrap();
+        assert!(store.backing.load(&rotated_id).await.unwrap().is_none());
+        let stale_create = Session::new(None, Arc::new(store.clone()), None);
+        stale_create.insert(OWNER_KEY, marker).await.unwrap();
+        stale_create.save().await.unwrap();
+        assert!(
+            store
+                .backing
+                .load(&stale_create.id().unwrap())
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let index = store.index.lock().unwrap();
+        assert!(index.lineages.is_empty());
+        assert!(index.aliases.is_empty());
+    }
+
+    #[test]
+    fn authenticated_session_expires_at_exactly_twelve_hours() {
+        let start = OffsetDateTime::UNIX_EPOCH;
+        let expires_at = start + AUTHENTICATED_TTL;
+        let record = AuthenticatedSession {
+            authenticated_at: start.unix_timestamp(),
+            expires_at: expires_at.unix_timestamp(),
+        };
+
+        assert!(authenticated_session_is_valid(
+            &record,
+            expires_at - Duration::seconds(1)
+        ));
+        assert!(!authenticated_session_is_valid(&record, expires_at));
     }
 }

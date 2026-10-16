@@ -1,114 +1,20 @@
-use std::collections::HashMap;
-use std::fmt;
 use std::sync::Arc;
-use std::time::Instant;
 
 use axum::Router;
 use axum::extract::{Extension, RawQuery, State};
 use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::Response;
 use axum::routing::{get, post};
-use openidconnect::{CsrfToken, Nonce, PkceCodeVerifier};
-use serde::{Deserialize, Serialize};
-use time::{Duration, OffsetDateTime};
-use tokio::sync::Mutex;
+use openidconnect::CsrfToken;
 use tower_sessions::{Expiry, Session};
 
 use super::Authentication;
+use super::return_to::{SafeReturnTo, decode_query_component, return_to_from_query};
 use super::runtime::ProtocolError;
+use super::session::{AUTHENTICATED_SESSION_KEY, AUTHENTICATED_TTL, AuthenticatedSession};
+use super::transaction::{LoginTransaction, TRANSACTION_TTL};
 
-pub(crate) const RETURN_TO_MAX_BYTES: usize = 2_048;
-const TRANSACTION_TTL: Duration = Duration::minutes(5);
-const MAX_PENDING_LOGIN_TRANSACTIONS: usize = 1_024;
-const AUTHENTICATED_TTL: Duration = Duration::hours(12);
 const TRANSACTION_SESSION_KEY: &str = "oidc_transaction";
-const AUTHENTICATED_SESSION_KEY: &str = "authenticated";
-
-/// Time source used for transaction and authenticated-session expiry.
-pub trait Clock: Send + Sync {
-    /// Return the current UTC time.
-    fn now(&self) -> OffsetDateTime;
-
-    /// Return the current process-local monotonic time.
-    #[doc(hidden)]
-    fn monotonic_now(&self) -> Instant {
-        Instant::now()
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct SystemClock;
-
-impl Clock for SystemClock {
-    fn now(&self) -> OffsetDateTime {
-        OffsetDateTime::now_utc()
-    }
-}
-
-pub(crate) struct LoginTransaction {
-    pub(crate) nonce: Nonce,
-    pub(crate) pkce_verifier: PkceCodeVerifier,
-    pub(crate) return_to: String,
-    pub(crate) expires_at: OffsetDateTime,
-}
-
-impl fmt::Debug for LoginTransaction {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("LoginTransaction")
-            .field("nonce", &"[REDACTED]")
-            .field("pkce_verifier", &"[REDACTED]")
-            .field("return_to", &self.return_to)
-            .field("expires_at", &self.expires_at)
-            .finish()
-    }
-}
-
-#[derive(Clone, Debug, Deserialize, Serialize)]
-struct AuthenticatedSession {
-    authenticated_at: i64,
-    expires_at: i64,
-}
-
-#[derive(Default)]
-pub(crate) struct TransactionRegistry {
-    entries: Mutex<HashMap<String, LoginTransaction>>,
-}
-
-impl fmt::Debug for TransactionRegistry {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("TransactionRegistry")
-            .finish_non_exhaustive()
-    }
-}
-
-impl TransactionRegistry {
-    async fn replace(
-        &self,
-        old_state: Option<&str>,
-        state: String,
-        transaction: LoginTransaction,
-        now: OffsetDateTime,
-    ) -> Result<(), ()> {
-        let mut entries = self.entries.lock().await;
-        entries.retain(|_, transaction| transaction.expires_at > now);
-        if entries.len() >= MAX_PENDING_LOGIN_TRANSACTIONS {
-            return Err(());
-        }
-        if let Some(old_state) = old_state {
-            entries.remove(old_state);
-        }
-        entries.insert(state, transaction);
-        Ok(())
-    }
-
-    async fn consume(&self, state: &str, now: OffsetDateTime) -> Option<LoginTransaction> {
-        let mut entries = self.entries.lock().await;
-        entries.retain(|_, transaction| transaction.expires_at > now);
-        entries.remove(state)
-    }
-}
 
 pub(crate) fn routes(authentication: &Arc<Authentication>) -> Router {
     Router::new()
@@ -133,7 +39,7 @@ async fn login(
     // the ORIGINAL request revision: reloading must not promote a stale request.
     let known = original_id.and_then(|id| store.for_id(id));
     let Ok(snapshot) = session
-        .get::<super::session_store::Owner>(super::session_store::OWNER_KEY)
+        .get::<super::session::Owner>(super::session::OWNER_KEY)
         .await
     else {
         return failure_redirect(FailureCode::ProviderUnavailable, &return_to);
@@ -181,7 +87,7 @@ async fn login(
             LoginTransaction {
                 nonce,
                 pkce_verifier,
-                return_to: return_to.clone(),
+                return_to: SafeReturnTo::new(Some(&return_to)),
                 expires_at,
             },
             now,
@@ -195,7 +101,7 @@ async fn login(
         return failure_redirect(FailureCode::ProviderUnavailable, &return_to);
     }
 
-    let marker = super::session_store::Owner::fresh(key.clone());
+    let marker = super::session::Owner::fresh(key.clone());
     {
         let mut authority = lineage.authority.lock().await;
         authority.permit = Some(marker.clone());
@@ -203,9 +109,7 @@ async fn login(
     }
     session.set_expiry(Some(Expiry::AtDateTime(expires_at)));
     let saved = async {
-        session
-            .insert(super::session_store::OWNER_KEY, marker)
-            .await?;
+        session.insert(super::session::OWNER_KEY, marker).await?;
         session
             .insert(TRANSACTION_SESSION_KEY, &state_secret)
             .await?;
@@ -289,7 +193,10 @@ async fn complete_callback(
     drop(gate);
 
     let Some(code) = code else {
-        return callback_failure(FailureCode::AuthenticationFailed, &transaction.return_to);
+        return callback_failure(
+            FailureCode::AuthenticationFailed,
+            transaction.return_to.as_str(),
+        );
     };
 
     match authentication
@@ -299,20 +206,32 @@ async fn complete_callback(
     {
         Ok(()) => {}
         Err(ProtocolError::Authentication) => {
-            return callback_failure(FailureCode::AuthenticationFailed, &transaction.return_to);
+            return callback_failure(
+                FailureCode::AuthenticationFailed,
+                transaction.return_to.as_str(),
+            );
         }
         Err(ProtocolError::ProviderUnavailable) => {
-            return callback_failure(FailureCode::ProviderUnavailable, &transaction.return_to);
+            return callback_failure(
+                FailureCode::ProviderUnavailable,
+                transaction.return_to.as_str(),
+            );
         }
     }
 
-    persist_callback(authentication, session, &lineage, &transaction.return_to).await
+    persist_callback(
+        authentication,
+        session,
+        &lineage,
+        transaction.return_to.as_str(),
+    )
+    .await
 }
 
 async fn persist_callback(
     authentication: &Authentication,
     session: &Session,
-    lineage: &super::session_store::Lineage,
+    lineage: &super::session::Lineage,
     return_to: &str,
 ) -> Response {
     let store = &authentication.sessions.store;
@@ -329,7 +248,7 @@ async fn persist_callback(
     let now = authentication.clock.now();
     let expires_at = now + AUTHENTICATED_TTL;
     let previous = match session
-        .get::<super::session_store::Owner>(super::session_store::OWNER_KEY)
+        .get::<super::session::Owner>(super::session::OWNER_KEY)
         .await
     {
         Ok(Some(previous)) => previous,
@@ -339,7 +258,7 @@ async fn persist_callback(
     if !store.current(session).await {
         return callback_failure(FailureCode::AuthenticationFailed, return_to);
     }
-    let marker = super::session_store::Owner::fresh(previous.lineage);
+    let marker = super::session::Owner::fresh(previous.lineage);
     {
         let mut authority = lineage.authority.lock().await;
         authority.permit = Some(marker.clone());
@@ -349,9 +268,7 @@ async fn persist_callback(
         session.cycle_id().await?;
         session.clear().await;
         session.set_expiry(Some(Expiry::AtDateTime(expires_at)));
-        session
-            .insert(super::session_store::OWNER_KEY, marker)
-            .await?;
+        session.insert(super::session::OWNER_KEY, marker).await?;
         session
             .insert(
                 AUTHENTICATED_SESSION_KEY,
@@ -377,28 +294,6 @@ async fn persist_callback(
         .extensions_mut()
         .insert(super::session::CallbackIntent::verified(return_to));
     response
-}
-
-impl Authentication {
-    pub(crate) async fn is_authenticated(&self, session: &Session) -> bool {
-        let record = session
-            .get::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
-            .await
-            .ok()
-            .flatten();
-        match record {
-            Some(record) if authenticated_session_is_valid(&record, self.clock.now()) => {
-                self.sessions.store.current(session).await
-            }
-            Some(_) => {
-                let _ = session
-                    .remove::<AuthenticatedSession>(AUTHENTICATED_SESSION_KEY)
-                    .await;
-                false
-            }
-            None => false,
-        }
-    }
 }
 
 async fn logout(
@@ -453,10 +348,6 @@ async fn logout(
         super::session::removal_cookie(authentication.config.secure_cookie()),
     );
     response
-}
-
-fn authenticated_session_is_valid(record: &AuthenticatedSession, now: OffsetDateTime) -> bool {
-    record.expires_at > now.unix_timestamp()
 }
 
 #[derive(Debug)]
@@ -546,42 +437,6 @@ pub(crate) fn redirect(location: &str) -> Response {
     }
 }
 
-pub(crate) fn validate_return_to(value: Option<&str>) -> String {
-    let Some(value) = value else {
-        return String::from("/");
-    };
-    if value.len() > RETURN_TO_MAX_BYTES || !value.starts_with('/') || value.starts_with("//") {
-        return String::from("/");
-    }
-
-    let Some(decoded) = decode_percent_encoded(value, false) else {
-        return String::from("/");
-    };
-    if decoded.contains('\\') || decoded.chars().any(char::is_control) {
-        return String::from("/");
-    }
-
-    let path_end = value.find(['?', '#']).unwrap_or(value.len());
-    let path = &value[..path_end];
-    let Some(decoded_path) = decode_percent_encoded(path, false) else {
-        return String::from("/");
-    };
-    if decoded_path.contains(['%', '?', '#'])
-        || decoded_path.matches('/').count() != path.matches('/').count()
-        || is_reserved_path(&decoded_path)
-        || has_dot_segment(&decoded_path)
-        || url::Url::parse(&format!("https://auth.invalid{value}")).is_err()
-    {
-        return String::from("/");
-    }
-    value.to_string()
-}
-
-fn has_dot_segment(path: &str) -> bool {
-    path.split('/')
-        .any(|segment| segment == "." || segment == "..")
-}
-
 pub(crate) fn login_redirect(return_to: &str) -> Response {
     let location = relative_url_with_query("/login", &[("return_to", return_to)]);
     let mut response = redirect(&location);
@@ -589,58 +444,6 @@ pub(crate) fn login_redirect(return_to: &str) -> Response {
         .headers_mut()
         .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
     response
-}
-
-fn is_reserved_path(path: &str) -> bool {
-    ["/api", "/auth", "/health", "/login"]
-        .iter()
-        .any(|reserved| path == *reserved || path.starts_with(&format!("{reserved}/")))
-}
-
-fn return_to_from_query(raw_query: Option<&str>) -> String {
-    let Some(raw_query) = raw_query else {
-        return String::from("/");
-    };
-    for pair in raw_query.split('&') {
-        let (key, value) = pair.split_once('=').unwrap_or((pair, ""));
-        if decode_query_component(key).as_deref() == Some("return_to") {
-            return validate_return_to(decode_query_component(value).as_deref());
-        }
-    }
-    String::from("/")
-}
-
-fn decode_query_component(value: &str) -> Option<String> {
-    decode_percent_encoded(value, true)
-}
-
-fn decode_percent_encoded(value: &str, plus_as_space: bool) -> Option<String> {
-    let bytes = value.as_bytes();
-    let mut decoded = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-    while index < bytes.len() {
-        match bytes[index] {
-            b'+' if plus_as_space => decoded.push(b' '),
-            b'%' => {
-                let high = *bytes.get(index + 1)?;
-                let low = *bytes.get(index + 2)?;
-                decoded.push(hex(high)? << 4 | hex(low)?);
-                index += 2;
-            }
-            byte => decoded.push(byte),
-        }
-        index += 1;
-    }
-    String::from_utf8(decoded).ok()
-}
-
-fn hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte - b'0'),
-        b'a'..=b'f' => Some(byte - b'a' + 10),
-        b'A'..=b'F' => Some(byte - b'A' + 10),
-        _ => None,
-    }
 }
 
 fn relative_url_with_query(path: &str, pairs: &[(&str, &str)]) -> String {
@@ -663,56 +466,6 @@ mod tests {
     use super::*;
 
     #[test]
-    fn shared_return_vectors_follow_the_common_contract() {
-        let fixture: serde_json::Value = serde_json::from_str(include_str!(
-            "../../tests/fixtures/auth/return-targets.json"
-        ))
-        .expect("return fixture should parse");
-        for vector in fixture["vectors"].as_array().unwrap() {
-            let input = &vector["input"];
-            let value = if input.is_null() {
-                None
-            } else if let Some(value) = input.as_str() {
-                Some(value.to_owned())
-            } else {
-                Some(format!(
-                    "{}{}{}",
-                    input["prefix"].as_str().unwrap(),
-                    input["repeat"]
-                        .as_str()
-                        .unwrap()
-                        .repeat(input["count"].as_u64().unwrap().try_into().unwrap()),
-                    input["suffix"].as_str().unwrap()
-                ))
-            };
-            let expected = if vector["target"]["gazel"].as_bool().unwrap() {
-                value.as_deref().unwrap_or("/")
-            } else {
-                "/"
-            };
-            assert_eq!(
-                validate_return_to(value.as_deref()),
-                expected,
-                "{}",
-                vector["id"]
-            );
-
-            // Exercise exactly one form decoding, including wire size > serialized size.
-            let wire = value.as_ref().map(|value| {
-                url::form_urlencoded::Serializer::new(String::new())
-                    .append_pair("return_to", value)
-                    .finish()
-            });
-            assert_eq!(
-                return_to_from_query(wire.as_deref()),
-                expected,
-                "{}",
-                vector["id"]
-            );
-        }
-    }
-
-    #[test]
     fn shared_callback_vectors_validate_success_and_provider_error_shapes() {
         let fixture: serde_json::Value =
             serde_json::from_str(include_str!("../../tests/fixtures/auth/callbacks.json"))
@@ -723,7 +476,12 @@ mod tests {
                 Some(CallbackQuery::ProviderError { .. }) => "error",
                 None => "invalid",
             };
-            assert_eq!(kind, vector["target"]["gazel"], "{}", vector["id"]);
+            assert_eq!(
+                kind,
+                vector["target"][super::super::app::FIXTURE_APP],
+                "{}",
+                vector["id"]
+            );
         }
     }
 
@@ -753,187 +511,5 @@ mod tests {
             CallbackQuery::parse(Some("%63ode=a%2Bb+c&%73tate=s%2Bt+u&extra=1&extra=2")),
             Some(CallbackQuery::Success { state, code }) if state == "s+t u" && code == "a+b c"
         ));
-    }
-
-    fn transaction(expires_at: OffsetDateTime) -> LoginTransaction {
-        LoginTransaction {
-            nonce: Nonce::new(String::from("nonce")),
-            pkce_verifier: PkceCodeVerifier::new("x".repeat(43)),
-            return_to: String::from("/settings"),
-            expires_at,
-        }
-    }
-
-    #[test]
-    fn return_target_validation_rejects_ambiguous_or_reserved_locations() {
-        assert_eq!(
-            validate_return_to(Some("/settings?tab=data#export")),
-            "/settings?tab=data#export"
-        );
-        let encoded_boundary = format!("/{}", "%61".repeat(RETURN_TO_MAX_BYTES - 1));
-        assert_eq!(validate_return_to(Some(&encoded_boundary)), "/");
-
-        for unsafe_target in [
-            "https://attacker.example/",
-            "//attacker.example/",
-            "%2Fsettings",
-            "/x/../auth/login",
-            "/x/%2e%2e/auth/login",
-            "/./settings",
-            "/\\attacker",
-            "/foo%5Cbar",
-            "/settings%0Aheader",
-            "/%61pi/vehicles",
-            "/api",
-            "/auth/login",
-            "/health",
-            "/login",
-        ] {
-            assert_eq!(validate_return_to(Some(unsafe_target)), "/");
-        }
-        assert_eq!(
-            validate_return_to(Some(&format!("/{}", "%61".repeat(RETURN_TO_MAX_BYTES)))),
-            "/"
-        );
-        assert_eq!(validate_return_to(None), "/");
-    }
-
-    #[tokio::test]
-    async fn transaction_registry_expires_at_exactly_five_minutes() {
-        let registry = TransactionRegistry::default();
-        let start = OffsetDateTime::UNIX_EPOCH;
-        let expires_at = start + TRANSACTION_TTL;
-
-        registry
-            .replace(
-                None,
-                String::from("before-boundary"),
-                transaction(expires_at),
-                start,
-            )
-            .await
-            .unwrap();
-        assert!(
-            registry
-                .consume("before-boundary", expires_at - Duration::nanoseconds(1))
-                .await
-                .is_some()
-        );
-
-        registry
-            .replace(
-                None,
-                String::from("at-boundary"),
-                transaction(expires_at),
-                start,
-            )
-            .await
-            .unwrap();
-        assert!(registry.consume("at-boundary", expires_at).await.is_none());
-    }
-
-    async fn full_registry(start: OffsetDateTime) -> TransactionRegistry {
-        let registry = TransactionRegistry::default();
-        for index in 0..MAX_PENDING_LOGIN_TRANSACTIONS {
-            registry
-                .replace(
-                    None,
-                    index.to_string(),
-                    transaction(start + TRANSACTION_TTL),
-                    start,
-                )
-                .await
-                .unwrap();
-        }
-        registry
-    }
-
-    #[tokio::test]
-    async fn transaction_capacity_accepts_last_slot_and_preserves_all_entries_on_rejection() {
-        let start = OffsetDateTime::UNIX_EPOCH;
-        // Every insertion, including the transition from 1,023 to 1,024, must succeed.
-        let registry = full_registry(start).await;
-        for old_state in [None, Some("0")] {
-            assert_eq!(
-                registry
-                    .replace(
-                        old_state,
-                        String::from("rejected"),
-                        transaction(start + TRANSACTION_TTL + Duration::seconds(1)),
-                        start + Duration::seconds(1)
-                    )
-                    .await,
-                Err(())
-            );
-            let entries = registry.entries.lock().await;
-            assert_eq!(entries.len(), MAX_PENDING_LOGIN_TRANSACTIONS);
-            for index in 0..MAX_PENDING_LOGIN_TRANSACTIONS {
-                let old = &entries[&index.to_string()];
-                assert_eq!(old.expires_at, start + TRANSACTION_TTL);
-                assert_eq!(old.return_to, "/settings");
-                assert_eq!(old.nonce.secret(), "nonce");
-                assert_eq!(old.pkce_verifier.secret(), &"x".repeat(43));
-            }
-        }
-        assert!(registry.consume("0", start).await.is_some());
-        registry
-            .replace(
-                None,
-                String::from("recovered"),
-                transaction(start + TRANSACTION_TTL),
-                start,
-            )
-            .await
-            .unwrap();
-        assert_eq!(
-            registry.entries.lock().await.len(),
-            MAX_PENDING_LOGIN_TRANSACTIONS
-        );
-    }
-
-    #[tokio::test]
-    async fn transaction_capacity_prunes_before_replacement_at_exact_five_minutes() {
-        let start = OffsetDateTime::UNIX_EPOCH;
-        let registry = full_registry(start).await;
-        let expires_at = start + TRANSACTION_TTL;
-        assert!(
-            registry
-                .replace(
-                    Some("0"),
-                    String::from("too-early"),
-                    transaction(expires_at + TRANSACTION_TTL),
-                    expires_at - Duration::nanoseconds(1)
-                )
-                .await
-                .is_err()
-        );
-        registry
-            .replace(
-                Some("0"),
-                String::from("fresh"),
-                transaction(expires_at + TRANSACTION_TTL),
-                expires_at,
-            )
-            .await
-            .unwrap();
-        let entries = registry.entries.lock().await;
-        assert_eq!(entries.len(), 1);
-        assert_eq!(entries["fresh"].expires_at, expires_at + TRANSACTION_TTL);
-    }
-
-    #[test]
-    fn authenticated_session_expires_at_exactly_twelve_hours() {
-        let start = OffsetDateTime::UNIX_EPOCH;
-        let expires_at = start + AUTHENTICATED_TTL;
-        let record = AuthenticatedSession {
-            authenticated_at: start.unix_timestamp(),
-            expires_at: expires_at.unix_timestamp(),
-        };
-
-        assert!(authenticated_session_is_valid(
-            &record,
-            expires_at - Duration::seconds(1)
-        ));
-        assert!(!authenticated_session_is_valid(&record, expires_at));
     }
 }

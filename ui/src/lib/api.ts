@@ -1,4 +1,7 @@
-import { safeLocalTarget } from "#lib/auth-return.js";
+import { loginUrl, parseAuthConfig } from "#lib/auth-core.js";
+import type { AuthConfig } from "#lib/auth-core.js";
+
+export type { AuthConfig } from "#lib/auth-core.js";
 
 // ── ApiError ──────────────────────────────────────────────
 
@@ -20,10 +23,7 @@ const authenticationNavigationTargets = new WeakSet<object>();
 export function authenticationLoginUrl(
   location: Pick<Location, "pathname" | "search" | "hash">,
 ): string {
-  const returnTo = safeLocalTarget(
-    `${location.pathname}${location.search}${location.hash}`,
-  );
-  return `/login?${new URLSearchParams({ return_to: returnTo })}`;
+  return loginUrl(`${location.pathname}${location.search}${location.hash}`);
 }
 
 function navigateToLogin(): void {
@@ -82,9 +82,6 @@ async function request<T>(
 
 // ── App info types ───────────────────────────────────────
 
-export type AuthConfig =
-  { enabled: false } | { enabled: true; provider_name: string };
-
 export interface AppInfo {
   version: string;
   repository: string;
@@ -101,38 +98,9 @@ export async function fetchAuthConfig(
   if (!response.ok) throw new Error("Auth configuration unavailable");
 
   const value: unknown = await response.json();
-  if (!isAuthConfig(value)) throw new Error("Invalid auth configuration");
-  return value;
-}
-
-function isAuthConfig(value: unknown): value is AuthConfig {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-
-  const record = value as Record<string, unknown>;
-  const keys = Object.keys(record).sort();
-  if (record.enabled === false) {
-    return keys.length === 1 && keys[0] === "enabled";
-  }
-  if (
-    record.enabled !== true ||
-    keys.length !== 2 ||
-    keys[0] !== "enabled" ||
-    keys[1] !== "provider_name" ||
-    typeof record.provider_name !== "string"
-  ) {
-    return false;
-  }
-
-  const providerName = record.provider_name;
-  return (
-    providerName === providerName.trim() &&
-    providerName.length > 0 &&
-    [...providerName].length <= 80 &&
-    ![...providerName].some((character) => {
-      const codePoint = character.codePointAt(0) ?? 0;
-      return codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f);
-    })
-  );
+  const config = parseAuthConfig(value);
+  if (!config) throw new Error("Invalid auth configuration");
+  return config;
 }
 
 // ── App info API functions ──────────────────────────────
