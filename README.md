@@ -77,7 +77,7 @@ docker compose up -d
 
 ## Security
 
-Built-in authentication is disabled by default. Keep Gazel on a trusted network, place it behind an authenticating proxy, or enable OIDC.
+Built-in authentication is disabled by default. Keep Gazel on a trusted network, place it behind an authenticating proxy, or enable OIDC. The enable flag accepts only `true` or `false` and must be valid UTF-8. Other authentication settings must also be valid UTF-8 when enabled; they are ignored when disabled.
 
 To enable OIDC:
 
@@ -86,7 +86,9 @@ To enable OIDC:
 3. Set `GAZEL_AUTH_ENABLED=true` and the required OIDC variables above.
 4. Restart Gazel.
 
-Gazel supports `client_secret_basic` and `client_secret_post`. Use HTTPS outside local loopback development. Invalid provider configuration prevents startup.
+Gazel supports `client_secret_basic` and `client_secret_post`. HTTP is permitted only on `localhost`, `127.0.0.1`, or `::1`; other URLs require HTTPS. The callback and cookie security settings use the configured external origin, not request or forwarded headers. Invalid provider configuration prevents startup.
+
+Provider display names are trimmed, must contain no control characters, and are limited to 80 Unicode scalar values.
 
 Important limitations:
 

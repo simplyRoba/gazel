@@ -293,7 +293,7 @@ mod tests {
         fn get(&self, key: &str) -> Result<Option<String>, std::env::VarError> {
             if key == self.invalid_key {
                 Err(std::env::VarError::NotUnicode(std::ffi::OsString::from(
-                    "invalid",
+                    "private-value-sentinel",
                 )))
             } else {
                 self.inner.get(key)
@@ -362,6 +362,7 @@ mod tests {
         };
         let error = Config::load_from(&invalid_flag).expect_err("invalid flag should fail");
         assert!(error.to_string().contains("GAZEL_AUTH_ENABLED"));
+        assert!(!error.to_string().contains("private-value-sentinel"));
 
         for key in [
             "GAZEL_EXTERNAL_URL",
@@ -376,17 +377,44 @@ mod tests {
             };
             let error = Config::load_from(&source).expect_err("invalid auth value should fail");
             assert!(error.to_string().contains(key));
+            assert!(!error.to_string().contains("private-value-sentinel"));
         }
     }
 
     #[test]
-    fn explicit_false_ignores_non_unicode_auth_only_values() {
-        let source = NonUnicodeConfigSource {
-            inner: mock(&[("GAZEL_AUTH_ENABLED", "false")]),
-            invalid_key: "GAZEL_OIDC_PROVIDER_NAME",
-        };
-        let config = Config::load_from(&source).expect("disabled auth value should be ignored");
-        assert!(config.auth.is_none());
+    fn disabled_auth_ignores_non_unicode_oidc_values() {
+        for flag in [None, Some("false")] {
+            for key in [
+                "GAZEL_EXTERNAL_URL",
+                "GAZEL_OIDC_ISSUER",
+                "GAZEL_OIDC_CLIENT_ID",
+                "GAZEL_OIDC_CLIENT_SECRET",
+                "GAZEL_OIDC_PROVIDER_NAME",
+            ] {
+                let source = NonUnicodeConfigSource {
+                    inner: flag
+                        .map_or_else(|| mock(&[]), |flag| mock(&[("GAZEL_AUTH_ENABLED", flag)])),
+                    invalid_key: key,
+                };
+                let config = Config::load_from(&source).expect("disabled OIDC value is ignored");
+                assert!(config.auth.is_none(), "{key}");
+            }
+        }
+    }
+
+    #[test]
+    fn enabled_auth_preserves_unrelated_configuration_fallbacks() {
+        for key in ["GAZEL_PORT", "GAZEL_DB_PATH", "GAZEL_LOG_LEVEL"] {
+            let source = NonUnicodeConfigSource {
+                inner: enabled_source(),
+                invalid_key: key,
+            };
+            let config = Config::load_from(&source).expect("ordinary settings stay lenient");
+            assert!(config.auth.is_some());
+            assert_eq!(config.port, 4110);
+            assert_eq!(config.db_path, "/data/gazel.db");
+            assert_eq!(config.log_level, "info");
+        }
     }
 
     #[test]
@@ -423,7 +451,13 @@ mod tests {
         ] {
             let mut entries = enabled_entries();
             entries.insert("GAZEL_EXTERNAL_URL".to_string(), external_url.to_string());
-            Config::load_from(&MockConfigSource(entries)).expect("external URL should be valid");
+            let config = Config::load_from(&MockConfigSource(entries))
+                .expect("external URL should be valid");
+            assert_eq!(
+                config.auth.unwrap().secure_cookie(),
+                external_url.starts_with("https:"),
+                "{external_url}"
+            );
         }
 
         for issuer in [
@@ -457,6 +491,9 @@ mod tests {
                 "relative/path",
                 "ftp://example.com",
                 "http://example.com",
+                "http://localhost.example",
+                "http://127.0.0.2",
+                "http://[::2]",
                 "https://user@example.com",
                 "https://example.com?query=value",
                 "https://example.com#fragment",
@@ -535,6 +572,27 @@ mod tests {
         let error = Config::load_from(&MockConfigSource(entries))
             .expect_err("overlength provider name should fail");
         assert!(error.to_string().contains("GAZEL_OIDC_PROVIDER_NAME"));
+    }
+
+    #[test]
+    fn provider_name_uses_unicode_scalars_and_rejects_controls() {
+        for (name, valid) in [
+            ("é".repeat(80), true),
+            ("é".repeat(81), false),
+            ("🌱".repeat(80), true),
+            ("🌱".repeat(81), false),
+            (String::from("before\u{0085}after"), false),
+            (String::from("before\u{009f}after"), false),
+            (String::from("before\0after"), false),
+        ] {
+            let mut entries = enabled_entries();
+            entries.insert("GAZEL_OIDC_PROVIDER_NAME".to_string(), name.clone());
+            assert_eq!(
+                Config::load_from(&MockConfigSource(entries)).is_ok(),
+                valid,
+                "{name:?}"
+            );
+        }
     }
 
     #[test]
