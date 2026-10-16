@@ -88,7 +88,9 @@ To enable OIDC:
 
 Gazel supports `client_secret_basic` and `client_secret_post`. HTTP is permitted only on `localhost`, `127.0.0.1`, or `::1`; other URLs require HTTPS. The callback and cookie security settings use the configured external origin, not request or forwarded headers. Startup requires an exact issuer, standalone `code` support, and compatible signing keys; advertising `none` is rejected even alongside signed algorithms.
 
-Provider display names are trimmed, must contain no control characters, and are limited to 80 Unicode scalar values. Login return targets must be local UI paths of at most 2,048 UTF-8 bytes before percent-decoding. API, health, and authentication paths or ambiguous encoded paths fall back to `/`. Non-5xx OAuth rejections and invalid tokens use `authentication_failed`; transport, 5xx, malformed service responses, and redirects use `provider_unavailable`.
+Provider display names are trimmed, must contain no control characters, and are limited to 80 Unicode scalar values. Login return targets must be local UI paths of at most 2,048 UTF-8 bytes after one query-form decode, before validation-only percent-decoding. Accepted serialization is preserved: `/vehicles?label=a%20b&ratio=100%25#history` is valid; `/api`, `/login`, and `/vehicles/%2e%2e/login` fall back to `/`. Non-5xx OAuth rejections and invalid tokens use `authentication_failed`; transport, 5xx, malformed service responses, and redirects use `provider_unavailable`.
+
+Login waits for the provider button; signing out uses a local `POST /auth/logout`. All `/auth` responses and authentication-required responses use `Cache-Control: no-store`. Public `/auth/config` is exactly `{ "enabled": false }` or `{ "enabled": true, "provider_name": "OpenID Connect" }` with the configured label. Deploy or roll back the backend and embedded frontend together; do not disable authentication as a rollback shortcut.
 
 Important limitations:
 
