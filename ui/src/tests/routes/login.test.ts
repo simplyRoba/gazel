@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "../../routes/login/+page.svelte";
+import returnVectors from "../../../../tests/fixtures/auth/return-targets.json";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -63,6 +64,39 @@ describe("login page", () => {
     expect(form?.querySelector("input")?.value).toBe("/");
     expect(screen.queryByLabelText(/password|username|email/i)).toBeNull();
   });
+
+  // Temporary baseline: the page currently forwards even invalid targets. This is
+  // not target conformance; target.gazel becomes authoritative in Stage 5.2.
+  it.each(returnVectors.vectors)(
+    "Stage 1 return fixture: $id",
+    async (vector) => {
+      const input = vector.input;
+      const value =
+        input === null
+          ? null
+          : typeof input === "string"
+            ? input
+            : input.prefix + input.repeat.repeat(input.count) + input.suffix;
+      setUrl(
+        value === null
+          ? "/login"
+          : `/login?${new URLSearchParams({ return_to: value })}`,
+      );
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+      });
+      render(LoginPage);
+      await screen.findByRole("button", { name: "Continue with OpenID Connect" });
+      expect(document.querySelector("form")?.getAttribute("action")).toBe(
+        "/auth/login",
+      );
+      expect(document.querySelector("input")?.value).toBe(
+        vector.baseline.gazel_login ? (value ?? "/") : "/",
+      );
+    },
+  );
 
   it("propagates decoded return_to as encoded auth-login query data", async () => {
     setUrl("/login?return_to=%2Fsettings%3Ftab%3Ddata%23export");

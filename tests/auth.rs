@@ -202,6 +202,19 @@ impl MockProvider {
         &self.state.issuer
     }
 
+    // Bind shared callback templates to this local provider, including a counted
+    // error-URI sentinel so the harness can prove that detail values cause no I/O.
+    fn callback_vector_query(&self, query: &str, attempt: &LoginAttempt) -> String {
+        let error_uri = url::form_urlencoded::byte_serialize(
+            format!("{}redirect-target", self.issuer()).as_bytes(),
+        )
+        .collect::<String>();
+        query
+            .replace("{code}", &attempt.state)
+            .replace("{state}", &attempt.state)
+            .replace("{error_uri}", &error_uri)
+    }
+
     fn config(&self) -> OidcConfig {
         OidcConfig {
             external_url: url::Url::parse("https://gazel.example/").expect("URL should parse"),
@@ -787,6 +800,80 @@ async fn response_json(response: Response) -> Value {
         .expect("response body should be readable")
         .to_bytes();
     serde_json::from_slice(&bytes).expect("response should contain JSON")
+}
+
+// Temporary Stage 1 characterization; target shapes in the fixture are not asserted
+// as implemented. Retry each original binding to distinguish rejection from consumption.
+#[tokio::test]
+async fn shared_callback_vectors_characterize_stage1_bound_attempts() {
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/auth/callbacks.json"))
+        .expect("callback fixture should parse");
+    let (provider, _, app) = initialized(ProviderOptions::default()).await;
+    for vector in fixture["vectors"].as_array().unwrap() {
+        let attempt = login_attempt(&app, &provider, "%2Fsettings%3Ftab%3Ddata%23export").await;
+        let before = provider.state.counters.token.load(Ordering::SeqCst);
+        let query = vector["query"]
+            .as_str()
+            .map(|query| provider.callback_vector_query(query, &attempt));
+        let uri = query.map_or_else(
+            || String::from("/auth/callback"),
+            |query| format!("/auth/callback?{query}"),
+        );
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(uri)
+                    .header(header::COOKIE, &attempt.cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER, "{}", vector["id"]);
+        let expected = match vector["baseline"]["gazel_outcome"].as_str().unwrap() {
+            "success" => "/settings?tab=data#export",
+            "bound_failure" => {
+                "/login?error=authentication_failed&return_to=%2Fsettings%3Ftab%3Ddata%23export"
+            }
+            "fallback_failure" => "/login?error=authentication_failed&return_to=%2F",
+            other => panic!("unknown baseline outcome {other}"),
+        };
+        assert_eq!(response_location(&response), expected, "{}", vector["id"]);
+        let after = provider.state.counters.token.load(Ordering::SeqCst);
+        assert_eq!(
+            after - before,
+            usize::try_from(vector["baseline"]["gazel_token_requests"].as_u64().unwrap()).unwrap(),
+            "{}",
+            vector["id"]
+        );
+        let retry = callback_request(&app, &attempt, "").await;
+        let consumed = vector["baseline"]["gazel_consumed"].as_bool().unwrap();
+        assert_eq!(
+            response_location(&retry),
+            if consumed {
+                "/login?error=authentication_failed&return_to=%2F"
+            } else {
+                "/settings?tab=data#export"
+            },
+            "{} (retry original binding)",
+            vector["id"]
+        );
+        assert_eq!(
+            provider.state.counters.token.load(Ordering::SeqCst) - after,
+            usize::from(!consumed),
+            "{}",
+            vector["id"]
+        );
+        assert_eq!(
+            provider
+                .state
+                .counters
+                .redirect_target
+                .load(Ordering::SeqCst),
+            0
+        );
+    }
 }
 
 #[tokio::test]

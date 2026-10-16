@@ -442,6 +442,77 @@ fn relative_url_with_query(path: &str, pairs: &[(&str, &str)]) -> String {
 mod tests {
     use super::*;
 
+    // Temporary characterization: these assertions use baseline, NOT target expectations.
+    // Stage 2 replaces the baseline assertions after the acceptance boundary changes.
+    #[test]
+    fn shared_return_vectors_characterize_stage1_baseline() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/auth/return-targets.json"
+        ))
+        .expect("return fixture should parse");
+        for vector in fixture["vectors"].as_array().unwrap() {
+            let input = &vector["input"];
+            let value = if input.is_null() {
+                None
+            } else if let Some(value) = input.as_str() {
+                Some(value.to_owned())
+            } else {
+                Some(format!(
+                    "{}{}{}",
+                    input["prefix"].as_str().unwrap(),
+                    input["repeat"]
+                        .as_str()
+                        .unwrap()
+                        .repeat(input["count"].as_u64().unwrap().try_into().unwrap()),
+                    input["suffix"].as_str().unwrap()
+                ))
+            };
+            let expected = if vector["baseline"]["gazel_rust"].as_bool().unwrap() {
+                value.as_deref().unwrap_or("/")
+            } else {
+                "/"
+            };
+            assert_eq!(
+                validate_return_to(value.as_deref()),
+                expected,
+                "{}",
+                vector["id"]
+            );
+
+            // Exercise exactly one form decoding, including wire size > serialized size.
+            let wire = value.as_ref().map(|value| {
+                url::form_urlencoded::Serializer::new(String::new())
+                    .append_pair("return_to", value)
+                    .finish()
+            });
+            assert_eq!(
+                return_to_from_query(wire.as_deref()),
+                expected,
+                "{}",
+                vector["id"]
+            );
+            if vector["baseline"]["gazel_rust"] != vector["target"]["gazel"] {
+                assert_ne!(vector["gap"].as_str().unwrap(), "");
+            }
+        }
+    }
+
+    #[test]
+    fn shared_callback_vectors_characterize_stage1_parser_baseline() {
+        let fixture: serde_json::Value =
+            serde_json::from_str(include_str!("../../tests/fixtures/auth/callbacks.json"))
+                .expect("callback fixture should parse");
+        for vector in fixture["vectors"].as_array().unwrap() {
+            assert_eq!(
+                CallbackQuery::parse(vector["query"].as_str()).is_some(),
+                vector["baseline"]["gazel_parser"].as_bool().unwrap(),
+                "{} (target shape: {})",
+                vector["id"],
+                vector["target"]["gazel"]
+            );
+        }
+    }
+
     fn transaction(expires_at: OffsetDateTime) -> LoginTransaction {
         LoginTransaction {
             nonce: Nonce::new(String::from("nonce")),
