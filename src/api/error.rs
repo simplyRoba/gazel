@@ -1,6 +1,6 @@
 use axum::Json;
 use axum::extract::rejection::JsonRejection;
-use axum::http::StatusCode;
+use axum::http::{HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use serde::de::DeserializeOwned;
@@ -32,7 +32,14 @@ impl IntoResponse for ApiError {
         };
 
         let message = default_message(code);
-        (status, Json(json!({ "code": code, "message": message }))).into_response()
+        let mut response =
+            (status, Json(json!({ "code": code, "message": message }))).into_response();
+        if status == StatusCode::UNAUTHORIZED && code == "AUTHENTICATION_REQUIRED" {
+            response
+                .headers_mut()
+                .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+        }
+        response
     }
 }
 
@@ -212,6 +219,7 @@ mod tests {
         let response = ApiError::Unauthorized("AUTHENTICATION_REQUIRED").into_response();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
         assert!(response.headers().get("location").is_none());
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
         let bytes = response
             .into_body()
             .collect()
@@ -225,6 +233,23 @@ mod tests {
                 "message": "Authentication is required."
             })
         );
+    }
+
+    #[test]
+    fn other_errors_do_not_acquire_auth_cache_policy() {
+        for error in [
+            ApiError::Unauthorized("OTHER_ERROR"),
+            ApiError::BadRequest("AUTHENTICATION_REQUIRED"),
+            ApiError::InternalError("INTERNAL_ERROR"),
+        ] {
+            assert!(
+                error
+                    .into_response()
+                    .headers()
+                    .get(header::CACHE_CONTROL)
+                    .is_none()
+            );
+        }
     }
 
     #[test]

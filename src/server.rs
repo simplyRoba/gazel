@@ -33,7 +33,21 @@ pub fn router(state: AppState) -> Router {
         Some(authentication) => enabled_router(&state, &authentication),
         None => disabled_router(state),
     };
-    router.layer(middleware::from_fn(access_log))
+    router
+        .layer(middleware::from_fn(auth_no_store))
+        .layer(middleware::from_fn(access_log))
+}
+
+async fn auth_no_store(request: Request<Body>, next: Next) -> Response {
+    let path = request.uri().path();
+    let is_auth = path == "/auth" || path.starts_with("/auth/");
+    let mut response = next.run(request).await;
+    if is_auth {
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    }
+    response
 }
 
 fn disabled_router(state: AppState) -> Router {
@@ -247,5 +261,49 @@ async fn shutdown_signal() {
     tokio::select! {
         () = ctrl_c => { info!("Received SIGINT, shutting down"); }
         () = terminate => { info!("Received SIGTERM, shutting down"); }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn auth_no_store_wraps_inner_middleware_errors_and_fallbacks() {
+        for status in [StatusCode::INTERNAL_SERVER_ERROR, StatusCode::NOT_FOUND] {
+            let app = Router::new()
+                .fallback(|| async { StatusCode::OK })
+                .layer(middleware::from_fn(
+                    move |_: Request<Body>, _: Next| async move {
+                        (
+                            status,
+                            [(header::CACHE_CONTROL, "public, max-age=60")],
+                            "inner error",
+                        )
+                    },
+                ))
+                .layer(middleware::from_fn(auth_no_store));
+            for path in ["/auth", "/auth/config", "/auth/unknown", "/authentic"] {
+                let response = app
+                    .clone()
+                    .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                    .await
+                    .unwrap();
+                assert_eq!(response.status(), status);
+                assert_eq!(
+                    response.headers()[header::CACHE_CONTROL],
+                    if path == "/authentic" {
+                        "public, max-age=60"
+                    } else {
+                        "no-store"
+                    }
+                );
+                let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                    .await
+                    .unwrap();
+                assert_eq!(bytes, "inner error");
+            }
+        }
     }
 }

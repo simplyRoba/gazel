@@ -19,6 +19,7 @@ use super::runtime::ProtocolError;
 
 pub(crate) const RETURN_TO_MAX_BYTES: usize = 2_048;
 const TRANSACTION_TTL: Duration = Duration::minutes(5);
+const MAX_PENDING_LOGIN_TRANSACTIONS: usize = 1_024;
 const AUTHENTICATED_TTL: Duration = Duration::hours(12);
 const TRANSACTION_SESSION_KEY: &str = "oidc_transaction";
 const AUTHENTICATED_SESSION_KEY: &str = "authenticated";
@@ -89,13 +90,17 @@ impl TransactionRegistry {
         state: String,
         transaction: LoginTransaction,
         now: OffsetDateTime,
-    ) {
+    ) -> Result<(), ()> {
         let mut entries = self.entries.lock().await;
         entries.retain(|_, transaction| transaction.expires_at > now);
+        if entries.len() >= MAX_PENDING_LOGIN_TRANSACTIONS {
+            return Err(());
+        }
         if let Some(old_state) = old_state {
             entries.remove(old_state);
         }
         entries.insert(state, transaction);
+        Ok(())
     }
 
     async fn consume(&self, state: &str, now: OffsetDateTime) -> Option<LoginTransaction> {
@@ -132,7 +137,7 @@ async fn login(
     let state_secret = state.secret().clone();
     let now = authentication.clock.now();
     let expires_at = now + TRANSACTION_TTL;
-    authentication
+    if authentication
         .transactions
         .replace(
             old_state.as_deref(),
@@ -145,7 +150,11 @@ async fn login(
             },
             now,
         )
-        .await;
+        .await
+        .is_err()
+    {
+        return failure_redirect(FailureCode::ProviderUnavailable, &return_to);
+    }
 
     session.set_expiry(Some(Expiry::AtDateTime(expires_at)));
     if session
@@ -374,7 +383,11 @@ fn has_dot_segment(path: &str) -> bool {
 
 pub(crate) fn login_redirect(return_to: &str) -> Response {
     let location = relative_url_with_query("/login", &[("return_to", return_to)]);
-    redirect(&location)
+    let mut response = redirect(&location);
+    response
+        .headers_mut()
+        .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    response
 }
 
 fn is_reserved_path(path: &str) -> bool {
@@ -597,7 +610,8 @@ mod tests {
                 transaction(expires_at),
                 start,
             )
-            .await;
+            .await
+            .unwrap();
         assert!(
             registry
                 .consume("before-boundary", expires_at - Duration::nanoseconds(1))
@@ -612,8 +626,98 @@ mod tests {
                 transaction(expires_at),
                 start,
             )
-            .await;
+            .await
+            .unwrap();
         assert!(registry.consume("at-boundary", expires_at).await.is_none());
+    }
+
+    async fn full_registry(start: OffsetDateTime) -> TransactionRegistry {
+        let registry = TransactionRegistry::default();
+        for index in 0..MAX_PENDING_LOGIN_TRANSACTIONS {
+            registry
+                .replace(
+                    None,
+                    index.to_string(),
+                    transaction(start + TRANSACTION_TTL),
+                    start,
+                )
+                .await
+                .unwrap();
+        }
+        registry
+    }
+
+    #[tokio::test]
+    async fn transaction_capacity_accepts_last_slot_and_preserves_all_entries_on_rejection() {
+        let start = OffsetDateTime::UNIX_EPOCH;
+        // Every insertion, including the transition from 1,023 to 1,024, must succeed.
+        let registry = full_registry(start).await;
+        for old_state in [None, Some("0")] {
+            assert_eq!(
+                registry
+                    .replace(
+                        old_state,
+                        String::from("rejected"),
+                        transaction(start + TRANSACTION_TTL + Duration::seconds(1)),
+                        start + Duration::seconds(1)
+                    )
+                    .await,
+                Err(())
+            );
+            let entries = registry.entries.lock().await;
+            assert_eq!(entries.len(), MAX_PENDING_LOGIN_TRANSACTIONS);
+            for index in 0..MAX_PENDING_LOGIN_TRANSACTIONS {
+                let old = &entries[&index.to_string()];
+                assert_eq!(old.expires_at, start + TRANSACTION_TTL);
+                assert_eq!(old.return_to, "/settings");
+                assert_eq!(old.nonce.secret(), "nonce");
+                assert_eq!(old.pkce_verifier.secret(), &"x".repeat(43));
+            }
+        }
+        assert!(registry.consume("0", start).await.is_some());
+        registry
+            .replace(
+                None,
+                String::from("recovered"),
+                transaction(start + TRANSACTION_TTL),
+                start,
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            registry.entries.lock().await.len(),
+            MAX_PENDING_LOGIN_TRANSACTIONS
+        );
+    }
+
+    #[tokio::test]
+    async fn transaction_capacity_prunes_before_replacement_at_exact_five_minutes() {
+        let start = OffsetDateTime::UNIX_EPOCH;
+        let registry = full_registry(start).await;
+        let expires_at = start + TRANSACTION_TTL;
+        assert!(
+            registry
+                .replace(
+                    Some("0"),
+                    String::from("too-early"),
+                    transaction(expires_at + TRANSACTION_TTL),
+                    expires_at - Duration::nanoseconds(1)
+                )
+                .await
+                .is_err()
+        );
+        registry
+            .replace(
+                Some("0"),
+                String::from("fresh"),
+                transaction(expires_at + TRANSACTION_TTL),
+                expires_at,
+            )
+            .await
+            .unwrap();
+        let entries = registry.entries.lock().await;
+        assert_eq!(entries.len(), 1);
+        assert_eq!(entries["fresh"].expires_at, expires_at + TRANSACTION_TTL);
     }
 
     #[test]
