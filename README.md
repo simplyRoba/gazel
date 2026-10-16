@@ -86,9 +86,9 @@ To enable OIDC:
 3. Set `GAZEL_AUTH_ENABLED=true` and the required OIDC variables above.
 4. Restart Gazel.
 
-Gazel supports `client_secret_basic` and `client_secret_post`. HTTP is permitted only on `localhost`, `127.0.0.1`, or `::1`; other URLs require HTTPS. The callback and cookie security settings use the configured external origin, not request or forwarded headers. Invalid provider configuration prevents startup.
+Gazel supports `client_secret_basic` and `client_secret_post`. HTTP is permitted only on `localhost`, `127.0.0.1`, or `::1`; other URLs require HTTPS. The callback and cookie security settings use the configured external origin, not request or forwarded headers. Startup requires an exact issuer, standalone `code` support, and compatible signing keys; advertising `none` is rejected even alongside signed algorithms.
 
-Provider display names are trimmed, must contain no control characters, and are limited to 80 Unicode scalar values. Login return targets must be local UI paths of at most 2,048 UTF-8 bytes before percent-decoding. API, health, and authentication paths or ambiguous encoded paths fall back to `/`.
+Provider display names are trimmed, must contain no control characters, and are limited to 80 Unicode scalar values. Login return targets must be local UI paths of at most 2,048 UTF-8 bytes before percent-decoding. API, health, and authentication paths or ambiguous encoded paths fall back to `/`. Non-5xx OAuth rejections and invalid tokens use `authentication_failed`; transport, 5xx, malformed service responses, and redirects use `provider_unavailable`.
 
 Important limitations:
 

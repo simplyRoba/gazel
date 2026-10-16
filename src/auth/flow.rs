@@ -201,7 +201,7 @@ async fn callback(
         .exchange_and_verify(code, &transaction.nonce, transaction.pkce_verifier)
         .await
     {
-        Ok(_) => {}
+        Ok(()) => {}
         Err(ProtocolError::Authentication) => {
             return failure_redirect(FailureCode::AuthenticationFailed, &transaction.return_to);
         }

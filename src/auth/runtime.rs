@@ -17,6 +17,7 @@ use std::future::Future;
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::pin::Pin;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
 use tokio::sync::{Mutex, RwLock};
 
@@ -51,7 +52,7 @@ impl ClientAuthMethod {
 
 #[derive(Debug)]
 pub enum OidcStartupError {
-    HttpClient(reqwest::Error),
+    HttpClient,
     InvalidIssuer,
     Discovery,
     UnsafeEndpoint(&'static str),
@@ -65,7 +66,7 @@ pub enum OidcStartupError {
 impl fmt::Display for OidcStartupError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::HttpClient(_) => formatter.write_str("failed to build the guarded OIDC client"),
+            Self::HttpClient => formatter.write_str("failed to build the guarded OIDC client"),
             Self::InvalidIssuer => formatter.write_str("the configured OIDC issuer is invalid"),
             Self::Discovery => formatter.write_str("OIDC discovery or JWKS retrieval failed"),
             Self::UnsafeEndpoint(name) => {
@@ -88,14 +89,7 @@ impl fmt::Display for OidcStartupError {
     }
 }
 
-impl std::error::Error for OidcStartupError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::HttpClient(error) => Some(error),
-            _ => None,
-        }
-    }
-}
+impl std::error::Error for OidcStartupError {}
 
 #[derive(Debug)]
 pub(crate) enum ProtocolError {
@@ -105,7 +99,47 @@ pub(crate) enum ProtocolError {
 
 #[derive(Clone)]
 pub(crate) struct GuardedHttpClient {
-    inner: reqwest::Client,
+    transport: Arc<dyn ProviderTransport>,
+}
+
+type TransportFuture<'a> =
+    Pin<Box<dyn Future<Output = Result<HttpResponse, GuardedHttpError>> + Send + Sync + 'a>>;
+
+// Injection is behind the destination guard; production owns the no-redirect policy.
+trait ProviderTransport: Send + Sync {
+    fn send(&self, request: HttpRequest) -> TransportFuture<'_>;
+}
+
+struct ReqwestTransport(reqwest::Client);
+
+impl ProviderTransport for ReqwestTransport {
+    fn send(&self, request: HttpRequest) -> TransportFuture<'_> {
+        Box::pin(async move {
+            let response = self
+                .0
+                .execute(request.try_into().map_err(|_| GuardedHttpError::Request)?)
+                .await
+                .map_err(|_| GuardedHttpError::Request)?;
+            if response.status().is_server_error() || response.status().is_redirection() {
+                return Err(GuardedHttpError::ServerStatus(response.status()));
+            }
+            let mut builder = http::Response::builder()
+                .status(response.status())
+                .version(response.version());
+            for (name, value) in response.headers() {
+                builder = builder.header(name, value);
+            }
+            builder
+                .body(
+                    response
+                        .bytes()
+                        .await
+                        .map_err(|_| GuardedHttpError::Request)?
+                        .to_vec(),
+                )
+                .map_err(|_| GuardedHttpError::Http)
+        })
+    }
 }
 
 impl fmt::Debug for GuardedHttpClient {
@@ -118,8 +152,11 @@ impl GuardedHttpClient {
     fn new() -> Result<Self, reqwest::Error> {
         reqwest::ClientBuilder::new()
             .redirect(reqwest::redirect::Policy::none())
+            .use_rustls_tls()
             .build()
-            .map(|inner| Self { inner })
+            .map(|inner| Self {
+                transport: Arc::new(ReqwestTransport(inner)),
+            })
     }
 }
 
@@ -127,8 +164,8 @@ impl GuardedHttpClient {
 pub(crate) enum GuardedHttpError {
     UnsafeUrl,
     ServerStatus(http::StatusCode),
-    Request(Box<reqwest::Error>),
-    Http(http::Error),
+    Request,
+    Http,
 }
 
 impl fmt::Display for GuardedHttpError {
@@ -136,52 +173,23 @@ impl fmt::Display for GuardedHttpError {
         match self {
             Self::UnsafeUrl => formatter.write_str("refused unsafe OIDC transport URL"),
             Self::ServerStatus(status) => write!(formatter, "OIDC server returned {status}"),
-            Self::Request(_) => formatter.write_str("OIDC HTTP request failed"),
-            Self::Http(_) => formatter.write_str("OIDC HTTP response conversion failed"),
+            Self::Request => formatter.write_str("OIDC HTTP request failed"),
+            Self::Http => formatter.write_str("OIDC HTTP response conversion failed"),
         }
     }
 }
 
-impl std::error::Error for GuardedHttpError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            Self::Request(error) => Some(error),
-            Self::Http(error) => Some(error),
-            Self::UnsafeUrl | Self::ServerStatus(_) => None,
-        }
-    }
-}
-
-fn safe_request_error(error: &GuardedHttpError) -> String {
-    match error {
-        GuardedHttpError::Request(error) => std::error::Error::source(error.as_ref()).map_or_else(
-            || String::from("request failed"),
-            std::string::ToString::to_string,
-        ),
-        _ => error.to_string(),
-    }
-}
+impl std::error::Error for GuardedHttpError {}
 
 fn safe_discovery_error(error: &openidconnect::DiscoveryError<GuardedHttpError>) -> String {
     match error {
-        openidconnect::DiscoveryError::Request(error) => {
-            format!("request failed: {}", safe_request_error(error))
-        }
-        openidconnect::DiscoveryError::Parse(error) => {
-            format!("invalid response: {error}")
-        }
-        openidconnect::DiscoveryError::Validation(error) => {
-            format!("validation failed: {error}")
-        }
-        openidconnect::DiscoveryError::UrlParse(error) => {
-            format!("invalid URL: {error}")
-        }
-        openidconnect::DiscoveryError::Response(status, _, detail) => {
-            format!("HTTP {status}: {detail}")
-        }
-        openidconnect::DiscoveryError::Other(error) => {
-            format!("discovery failed: {error}")
-        }
+        openidconnect::DiscoveryError::Request(GuardedHttpError::ServerStatus(status))
+        | openidconnect::DiscoveryError::Response(status, _, _) => format!("HTTP {status}"),
+        openidconnect::DiscoveryError::Request(_) => String::from("transport failure"),
+        openidconnect::DiscoveryError::Parse(_) => String::from("parsing failure"),
+        openidconnect::DiscoveryError::Validation(_) => String::from("validation failure"),
+        openidconnect::DiscoveryError::UrlParse(_) => String::from("invalid URL"),
+        openidconnect::DiscoveryError::Other(_) => String::from("discovery failure"),
         _ => String::from("OIDC discovery failed"),
     }
 }
@@ -197,34 +205,49 @@ impl<'client> AsyncHttpClient<'client> for GuardedHttpClient {
                 Url::parse(&request.uri().to_string()).map_err(|_| GuardedHttpError::UnsafeUrl)?;
             validate_backend_url(&url).map_err(|()| GuardedHttpError::UnsafeUrl)?;
 
-            let response = self
-                .inner
-                .execute(
-                    request
-                        .try_into()
-                        .map_err(|error| GuardedHttpError::Request(Box::new(error)))?,
-                )
-                .await
-                .map_err(|error| GuardedHttpError::Request(Box::new(error)))?;
-            if response.status().is_server_error() {
+            let response = self.transport.send(request).await?;
+            if response.status().is_server_error() || response.status().is_redirection() {
                 return Err(GuardedHttpError::ServerStatus(response.status()));
             }
+            Ok(response)
+        })
+    }
+}
 
-            let mut builder = http::Response::builder()
-                .status(response.status())
-                .version(response.version());
-            for (name, value) in response.headers() {
-                builder = builder.header(name, value);
+// http::Uri discards fragments before AsyncHttpClient::call. Inspect the original
+// JWKS URL in discovery JSON before the library constructs its initial JWKS request.
+struct DiscoveryHttpClient<'a> {
+    http: &'a GuardedHttpClient,
+    metadata_pending: AtomicBool,
+}
+
+impl<'a> DiscoveryHttpClient<'a> {
+    fn new(http: &'a GuardedHttpClient) -> Self {
+        Self {
+            http,
+            metadata_pending: AtomicBool::new(true),
+        }
+    }
+}
+
+impl<'client> AsyncHttpClient<'client> for DiscoveryHttpClient<'client> {
+    type Error = GuardedHttpError;
+    type Future = TransportFuture<'client>;
+
+    fn call(&'client self, request: HttpRequest) -> Self::Future {
+        // Discovery fetches metadata first and JWKS second. Only the metadata's
+        // jwks_uri selects a destination; a JWKS extension with that name does not.
+        let is_metadata = self.metadata_pending.swap(false, Ordering::AcqRel);
+        Box::pin(async move {
+            let response = self.http.call(request).await?;
+            if is_metadata
+                && let Ok(value) = serde_json::from_slice::<serde_json::Value>(response.body())
+                && let Some(jwks_uri) = value.get("jwks_uri").and_then(serde_json::Value::as_str)
+            {
+                let url = Url::parse(jwks_uri).map_err(|_| GuardedHttpError::UnsafeUrl)?;
+                validate_backend_url(&url).map_err(|()| GuardedHttpError::UnsafeUrl)?;
             }
-            builder
-                .body(
-                    response
-                        .bytes()
-                        .await
-                        .map_err(|error| GuardedHttpError::Request(Box::new(error)))?
-                        .to_vec(),
-                )
-                .map_err(GuardedHttpError::Http)
+            Ok(response)
         })
     }
 }
@@ -237,6 +260,7 @@ struct CacheState {
 
 pub(crate) struct OidcRuntime {
     metadata: CoreProviderMetadata,
+    issuer: String,
     client_id: ClientId,
     client_secret: ClientSecret,
     callback_url: RedirectUrl,
@@ -251,16 +275,6 @@ impl fmt::Debug for OidcRuntime {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("OidcRuntime")
-            .field("issuer", self.metadata.issuer())
-            .field(
-                "authorization_endpoint",
-                self.metadata.authorization_endpoint(),
-            )
-            .field("token_endpoint", &self.metadata.token_endpoint())
-            .field("jwks_uri", self.metadata.jwks_uri())
-            .field("client_id", &self.client_id)
-            .field("client_secret", &"[REDACTED]")
-            .field("callback_url", &self.callback_url)
             .field("auth_method", &self.auth_method)
             .finish_non_exhaustive()
     }
@@ -271,19 +285,24 @@ impl OidcRuntime {
         config: &OidcConfig,
         clock: Arc<dyn Clock>,
     ) -> Result<Self, OidcStartupError> {
-        let http = GuardedHttpClient::new().map_err(OidcStartupError::HttpClient)?;
+        let http = GuardedHttpClient::new().map_err(|_| OidcStartupError::HttpClient)?;
         let issuer =
             IssuerUrl::new(config.issuer.clone()).map_err(|_| OidcStartupError::InvalidIssuer)?;
-        let metadata = CoreProviderMetadata::discover_async(issuer, &http)
-            .await
-            .map_err(|error| {
-                tracing::error!(
-                    error = %safe_discovery_error(&error),
-                    "OIDC discovery failed"
-                );
-                OidcStartupError::Discovery
-            })?;
+        validate_backend_url(issuer.url()).map_err(|()| OidcStartupError::InvalidIssuer)?;
+        let metadata =
+            CoreProviderMetadata::discover_async(issuer, &DiscoveryHttpClient::new(&http))
+                .await
+                .map_err(|error| {
+                    tracing::error!(
+                        error = %safe_discovery_error(&error),
+                        "OIDC discovery failed"
+                    );
+                    OidcStartupError::Discovery
+                })?;
 
+        if metadata.issuer().as_str() != config.issuer {
+            return Err(OidcStartupError::InvalidIssuer);
+        }
         validate_metadata(&metadata)?;
         let auth_method = select_client_auth(metadata.token_endpoint_auth_methods_supported())?;
         let callback_url = RedirectUrl::new(config.callback_url.to_string())
@@ -300,6 +319,7 @@ impl OidcRuntime {
 
         Ok(Self {
             metadata,
+            issuer: config.issuer.clone(),
             client_id,
             client_secret,
             callback_url,
@@ -336,7 +356,7 @@ impl OidcRuntime {
         code: String,
         nonce: &Nonce,
         pkce_verifier: PkceCodeVerifier,
-    ) -> Result<String, ProtocolError> {
+    ) -> Result<(), ProtocolError> {
         let snapshot = self.cache.read().await;
         let client = snapshot.client.clone();
         let generation = snapshot.generation;
@@ -353,12 +373,26 @@ impl OidcRuntime {
             .id_token()
             .ok_or(ProtocolError::Authentication)?;
 
-        match verify_token(&client, id_token, &token_response, nonce) {
-            Ok(subject) => Ok(subject),
+        match verify_token(
+            &client,
+            id_token,
+            &token_response,
+            nonce,
+            &self.issuer,
+            &self.client_id,
+        ) {
+            Ok(()) => Ok(()),
             Err(error) if eligible_for_refresh(&error) => {
                 let client = self.refresh_for_generation(generation).await?;
-                verify_token(&client, id_token, &token_response, nonce)
-                    .map_err(|_| ProtocolError::Authentication)
+                verify_token(
+                    &client,
+                    id_token,
+                    &token_response,
+                    nonce,
+                    &self.issuer,
+                    &self.client_id,
+                )
+                .map_err(|_| ProtocolError::Authentication)
             }
             Err(_) => Err(ProtocolError::Authentication),
         }
@@ -470,6 +504,9 @@ fn validate_signing_keys(
     jwks: &CoreJsonWebKeySet,
     algorithms: &[CoreJwsSigningAlgorithm],
 ) -> Result<(), OidcStartupError> {
+    if algorithms.contains(&CoreJwsSigningAlgorithm::None) {
+        return Err(OidcStartupError::UnusableSigningKeys);
+    }
     let usable = algorithms.iter().any(|algorithm| {
         jwks.keys()
             .iter()
@@ -542,9 +579,29 @@ where
     ErrorType: openidconnect::ErrorResponse + 'static,
 {
     match error {
-        openidconnect::RequestTokenError::Request(_) => ProtocolError::ProviderUnavailable,
-        _ => ProtocolError::Authentication,
+        openidconnect::RequestTokenError::ServerResponse(_) => ProtocolError::Authentication,
+        // Flattened ID-token deserialization can lose its typed error path. Reparse only
+        // the envelope without that field to distinguish an invalid token from service failure.
+        openidconnect::RequestTokenError::Parse(_, body)
+            if invalid_id_token_in_recognizable_response(body) =>
+        {
+            ProtocolError::Authentication
+        }
+        _ => ProtocolError::ProviderUnavailable,
     }
+}
+
+fn invalid_id_token_in_recognizable_response(body: &[u8]) -> bool {
+    let Ok(mut value) = serde_json::from_slice::<serde_json::Value>(body) else {
+        return false;
+    };
+    let Some(object) = value.as_object_mut() else {
+        return false;
+    };
+    if object.remove("id_token").is_none() {
+        return false;
+    }
+    serde_json::from_value::<openidconnect::core::CoreTokenResponse>(value).is_ok()
 }
 
 fn verify_token(
@@ -552,9 +609,21 @@ fn verify_token(
     id_token: &CoreIdToken,
     token_response: &openidconnect::core::CoreTokenResponse,
     nonce: &Nonce,
-) -> Result<String, ClaimsVerificationError> {
+    issuer: &str,
+    client_id: &ClientId,
+) -> Result<(), ClaimsVerificationError> {
     let verifier = client.id_token_verifier();
     let claims = id_token.claims(&verifier, nonce)?;
+    if claims.issuer().as_str() != issuer
+        || claims.issue_time().timestamp() <= 0
+        || claims
+            .authorized_party()
+            .is_some_and(|party| party != client_id)
+    {
+        return Err(ClaimsVerificationError::Other(String::from(
+            "invalid claims",
+        )));
+    }
     if let Some(expected_hash) = claims.access_token_hash() {
         let actual_hash = AccessTokenHash::from_token(
             token_response.access_token(),
@@ -565,14 +634,14 @@ fn verify_token(
                 .signing_key(&verifier)
                 .map_err(ClaimsVerificationError::SignatureVerification)?,
         )
-        .map_err(|error| ClaimsVerificationError::Other(error.to_string()))?;
+        .map_err(|_| ClaimsVerificationError::Other(String::from("invalid access token hash")))?;
         if actual_hash != *expected_hash {
             return Err(ClaimsVerificationError::Other(String::from(
                 "invalid access token hash",
             )));
         }
     }
-    Ok(claims.subject().to_string())
+    Ok(())
 }
 
 fn eligible_for_refresh(error: &ClaimsVerificationError) -> bool {
@@ -588,6 +657,131 @@ fn eligible_for_refresh(error: &ClaimsVerificationError) -> bool {
 mod tests {
     use super::*;
 
+    struct CountingTransport(std::sync::atomic::AtomicUsize);
+
+    impl ProviderTransport for CountingTransport {
+        fn send(&self, _: HttpRequest) -> TransportFuture<'_> {
+            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            Box::pin(async { Ok(http::Response::new(Vec::new())) })
+        }
+    }
+
+    #[tokio::test]
+    async fn every_request_is_guarded_before_injected_transport() {
+        let transport = Arc::new(CountingTransport(std::sync::atomic::AtomicUsize::new(0)));
+        let client = GuardedHttpClient {
+            transport: transport.clone(),
+        };
+        for url in [
+            "http://example.com/jwks",
+            "https://user:private-sentinel@example.com/token",
+            "http://127.0.0.2/token",
+            "ftp://localhost/discovery",
+        ] {
+            let request = http::Request::builder()
+                .method(http::Method::POST)
+                .uri(url)
+                .body(Vec::new())
+                .unwrap();
+            assert!(
+                matches!(client.call(request).await, Err(GuardedHttpError::UnsafeUrl)),
+                "{url}"
+            );
+        }
+        assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+        assert!(
+            validate_backend_url(&Url::parse("http://127.0.0.1/jwks#private-sentinel").unwrap())
+                .is_err()
+        );
+        for url in [
+            "https://example.com/token",
+            "http://localhost/jwks",
+            "http://127.0.0.1/token",
+            "http://[::1]/jwks",
+        ] {
+            let request = http::Request::builder().uri(url).body(Vec::new()).unwrap();
+            assert!(client.call(request).await.is_ok());
+        }
+        assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 4);
+    }
+
+    #[tokio::test]
+    async fn discovery_guard_does_not_treat_jwks_extensions_as_metadata() {
+        struct MetadataThenKeys(std::sync::atomic::AtomicUsize);
+
+        impl ProviderTransport for MetadataThenKeys {
+            fn send(&self, _: HttpRequest) -> TransportFuture<'_> {
+                let first = self.0.fetch_add(1, Ordering::SeqCst) == 0;
+                Box::pin(async move {
+                    let body = if first {
+                        serde_json::json!({"jwks_uri": "https://keys.example/jwks"})
+                    } else {
+                        serde_json::json!({"keys": [], "jwks_uri": "http://unsafe.invalid"})
+                    };
+                    Ok(http::Response::new(serde_json::to_vec(&body).unwrap()))
+                })
+            }
+        }
+
+        let http = GuardedHttpClient {
+            transport: Arc::new(MetadataThenKeys(std::sync::atomic::AtomicUsize::new(0))),
+        };
+        let discovery = DiscoveryHttpClient::new(&http);
+        for url in [
+            "https://issuer.example/metadata",
+            "https://keys.example/jwks",
+        ] {
+            let request = http::Request::builder().uri(url).body(Vec::new()).unwrap();
+            assert!(discovery.call(request).await.is_ok());
+        }
+    }
+
+    #[tokio::test]
+    async fn library_token_and_refresh_requests_cannot_bypass_guard() {
+        let transport = Arc::new(CountingTransport(std::sync::atomic::AtomicUsize::new(0)));
+        let http = GuardedHttpClient {
+            transport: transport.clone(),
+        };
+        for destination in [
+            "http://example.invalid/provider",
+            "https://user:private-sentinel@example.com/provider",
+        ] {
+            let metadata: CoreProviderMetadata = serde_json::from_value(serde_json::json!({
+                "issuer": "https://issuer.example",
+                "authorization_endpoint": "https://issuer.example/authorize",
+                "token_endpoint": destination,
+                "jwks_uri": destination,
+                "response_types_supported": ["code"],
+                "subject_types_supported": ["public"],
+                "id_token_signing_alg_values_supported": ["RS256"]
+            }))
+            .unwrap();
+            let client = build_client(
+                &metadata,
+                &ClientId::new(String::from("client")),
+                &ClientSecret::new(String::from("private-sentinel")),
+                &RedirectUrl::new(String::from("https://app.example/auth/callback")).unwrap(),
+                ClientAuthMethod::Basic,
+            );
+            let error = client
+                .exchange_code(AuthorizationCode::new(String::from("private-sentinel")))
+                .unwrap()
+                .request_async(&http)
+                .await
+                .unwrap_err();
+            assert!(matches!(
+                classify_token_error(&error),
+                ProtocolError::ProviderUnavailable
+            ));
+            assert!(
+                CoreJsonWebKeySet::fetch_async(metadata.jwks_uri(), &http)
+                    .await
+                    .is_err()
+            );
+        }
+        assert_eq!(transport.0.load(std::sync::atomic::Ordering::SeqCst), 0);
+    }
+
     #[test]
     fn safe_discovery_error_omits_response_body() {
         let error = openidconnect::DiscoveryError::<GuardedHttpError>::Response(
@@ -598,20 +792,18 @@ mod tests {
 
         let diagnostic = safe_discovery_error(&error);
 
-        assert_eq!(diagnostic, "HTTP 400 Bad Request: unexpected content type");
+        assert_eq!(diagnostic, "HTTP 400 Bad Request");
         assert!(!diagnostic.contains("do-not-log"));
     }
 
     #[test]
-    fn safe_discovery_error_preserves_validation_detail() {
+    fn safe_discovery_error_omits_validation_detail() {
         let error = openidconnect::DiscoveryError::<GuardedHttpError>::Validation(String::from(
             "unexpected issuer URI `https://wrong.example` (expected `https://issuer.example`)",
         ));
 
         let diagnostic = safe_discovery_error(&error);
 
-        assert!(diagnostic.contains("validation failed"));
-        assert!(diagnostic.contains("wrong.example"));
-        assert!(diagnostic.contains("issuer.example"));
+        assert_eq!(diagnostic, "validation failure");
     }
 }
