@@ -93,7 +93,9 @@ Provider display names are trimmed, must contain no control characters, and are 
 Important limitations:
 
 - Every authenticated identity accesses the same shared Gazel data.
-- Sessions expire after 12 hours and are lost when Gazel restarts.
+- Sessions expire after 12 non-sliding hours. Sessions, cookie keys, and pending logins are process-local and lost on restart; use one instance or sticky routing, not a shared session assumption.
+- At most 1,024 logins may be pending for five minutes. At capacity, new logins return `provider_unavailable` without replacing existing attempts.
+- Failed login persistence returns `provider_unavailable`; failed authenticated completion revokes provisional access. Failed logout still expires the cookie but returns HTTP 500, not a success redirect.
 - Signing out ends only the Gazel session, not the provider session.
 
 ## Development

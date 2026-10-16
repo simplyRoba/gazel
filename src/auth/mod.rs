@@ -1,6 +1,7 @@
 mod flow;
 mod runtime;
 mod session;
+mod session_store;
 
 use std::fmt;
 use std::sync::Arc;
@@ -13,6 +14,8 @@ pub(crate) use flow::{login_redirect, redirect, validate_return_to};
 use runtime::{OidcRuntime, OidcStartupError};
 use session::SessionBackend;
 pub use session::{AuthSessionLayer, CookieKeyError, SESSION_COOKIE_NAME};
+#[doc(hidden)]
+pub use session_store::{SessionBarrier, SessionFaults, StoreOperation};
 
 /// Error encountered while preparing enabled authentication before serving traffic.
 #[derive(Debug)]
@@ -87,7 +90,20 @@ impl Authentication {
         config: OidcConfig,
         clock: Arc<dyn Clock>,
     ) -> Result<Self, AuthenticationStartupError> {
-        let sessions = SessionBackend::new(config.secure_cookie())
+        Self::bootstrap_with_session_faults(config, clock, SessionFaults::default()).await
+    }
+
+    /// Prepare authentication with per-instance storage fault injection.
+    ///
+    /// # Errors
+    /// Returns the same startup errors as ordinary bootstrap.
+    #[doc(hidden)]
+    pub async fn bootstrap_with_session_faults(
+        config: OidcConfig,
+        clock: Arc<dyn Clock>,
+        faults: SessionFaults,
+    ) -> Result<Self, AuthenticationStartupError> {
+        let sessions = SessionBackend::new(config.secure_cookie(), Arc::clone(&clock), faults)
             .map_err(AuthenticationStartupError::CookieKey)?;
         let runtime = OidcRuntime::discover(&config, Arc::clone(&clock))
             .await
@@ -120,7 +136,9 @@ impl Authentication {
         flow::routes(self).layer(self.session_layer())
     }
 
-    pub(crate) fn protocol_routes(self: &Arc<Self>) -> axum::Router {
+    /// Unlayered protocol routes for deterministic session middleware tests.
+    #[doc(hidden)]
+    pub fn protocol_routes(self: &Arc<Self>) -> axum::Router {
         flow::routes(self)
     }
 }

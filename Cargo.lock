@@ -914,6 +914,7 @@ dependencies = [
 name = "gazel"
 version = "1.4.7"
 dependencies = [
+ "async-trait",
  "axum",
  "base64 0.23.1",
  "chrono",

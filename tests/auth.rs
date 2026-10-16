@@ -177,6 +177,9 @@ struct TokenRequest {
     form: HashMap<String, String>,
 }
 
+#[path = "auth/lifecycle.rs"]
+mod lifecycle;
+
 #[derive(Debug)]
 struct ProviderState {
     issuer: String,
@@ -185,6 +188,7 @@ struct ProviderState {
     token_requests: Mutex<Vec<TokenRequest>>,
     expected_logins: Mutex<HashMap<String, (String, String)>>,
     token_barrier: Mutex<Option<Arc<Barrier>>>,
+    token_gate: Mutex<Option<Arc<lifecycle::TokenGate>>>,
 }
 
 struct MockProvider {
@@ -208,6 +212,7 @@ impl MockProvider {
             token_requests: Mutex::new(Vec::new()),
             expected_logins: Mutex::new(HashMap::new()),
             token_barrier: Mutex::new(None),
+            token_gate: Mutex::new(None),
         });
         let router = Router::new()
             .route("/.well-known/openid-configuration", get(discovery))
@@ -487,6 +492,7 @@ async fn token(
             .map(ToOwned::to_owned),
         form: form.clone(),
     });
+    lifecycle::wait_token_gate(&state).await;
     let barrier = state.token_barrier.lock().await.clone();
     if let Some(barrier) = barrier {
         barrier.wait().await;
@@ -744,7 +750,7 @@ fn jwks_value(key_id: &str, rollover: bool) -> Value {
     .expect("JWKS should serialize")
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct LoginAttempt {
     cookie: String,
     state: String,

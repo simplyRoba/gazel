@@ -6,14 +6,12 @@ use axum::extract::State;
 use axum::http::{HeaderValue, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
 use sqlx::SqlitePool;
-use time::{Duration, OffsetDateTime};
 use tokio::net::TcpListener;
 use tower_sessions::Session;
-use tower_sessions::cookie::{Cookie, SameSite};
 use tracing::{debug, info};
 
 use crate::api::error::ApiError;
@@ -74,7 +72,6 @@ fn enabled_router(state: &AppState, authentication: &Arc<Authentication>) -> Rou
 
     let pool = state.pool.clone();
     let provider_name = authentication.config().provider_name.clone();
-    let secure_cookie = authentication.config().secure_cookie();
     let login_authentication = Arc::clone(authentication);
     let mut public = Router::new()
         .route("/health", get(move || health(pool)))
@@ -88,10 +85,6 @@ fn enabled_router(state: &AppState, authentication: &Arc<Authentication>) -> Rou
         .route(
             "/login",
             get(move |session| login_page(Arc::clone(&login_authentication), session)),
-        )
-        .route(
-            "/auth/logout",
-            post(move |session| logout(session, secure_cookie)),
         )
         .merge(authentication.protocol_routes());
 
@@ -133,30 +126,6 @@ async fn login_page(authentication: Arc<Authentication>, session: Session) -> Re
     } else {
         index_handler().await
     }
-}
-
-async fn logout(session: Session, secure_cookie: bool) -> Response {
-    let mut response = match session.flush().await {
-        Ok(()) => crate::auth::redirect("/login?logged_out=1"),
-        Err(error) => {
-            tracing::error!(%error, "Failed to flush authentication session during logout");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    };
-    let removal = Cookie::build((crate::auth::SESSION_COOKIE_NAME, ""))
-        .http_only(true)
-        .secure(secure_cookie)
-        .same_site(SameSite::Lax)
-        .path("/")
-        .max_age(Duration::ZERO)
-        .expires(OffsetDateTime::UNIX_EPOCH)
-        .build()
-        .to_string();
-    response.headers_mut().append(
-        header::SET_COOKIE,
-        HeaderValue::from_str(&removal).expect("static session removal cookie should be valid"),
-    );
-    response
 }
 
 fn disabled_auth_config() -> Json<serde_json::Value> {
