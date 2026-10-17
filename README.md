@@ -73,11 +73,11 @@ docker compose up -d
 | `GAZEL_OIDC_ISSUER`        | —                | Required OIDC issuer/discovery URL.                                  |
 | `GAZEL_OIDC_CLIENT_ID`     | —                | Required confidential-client ID.                                     |
 | `GAZEL_OIDC_CLIENT_SECRET` | —                | Required confidential-client secret.                                 |
-| `GAZEL_OIDC_PROVIDER_NAME` | `OpenID Connect` | Optional display name used by the login button.                      |
+| `GAZEL_OIDC_PROVIDER_NAME` | `OpenID Connect` | Login button name. Trimmed, non-empty, no control characters, at most 80 Unicode code points. |
 
 ## Security
 
-Built-in authentication is disabled by default. Keep Gazel on a trusted network, place it behind an authenticating proxy, or enable OIDC. The enable flag accepts only `true` or `false` and must be valid UTF-8. Other authentication settings must also be valid UTF-8 when enabled; they are ignored when disabled.
+Authentication is disabled by default. Enable OIDC or use an authenticating reverse proxy before exposing Gazel outside a trusted network.
 
 To enable OIDC:
 
@@ -86,19 +86,15 @@ To enable OIDC:
 3. Set `GAZEL_AUTH_ENABLED=true` and the required OIDC variables above.
 4. Restart Gazel.
 
-Gazel supports `client_secret_basic` and `client_secret_post`. HTTP is permitted only on `localhost`, `127.0.0.1`, or `::1`; other URLs require HTTPS. The callback and cookie security settings use the configured external origin, not request or forwarded headers. Startup requires an exact issuer, standalone `code` support, and compatible signing keys; advertising `none` is rejected even alongside signed algorithms.
+Gazel supports `client_secret_basic` and `client_secret_post`. Use the issuer exactly as advertised by your provider, including any trailing slash. With OIDC enabled, invalid settings or failed provider discovery prevent startup.
 
-Provider display names are trimmed, must contain no control characters, and are limited to 80 Unicode scalar values. Login return targets must be local UI paths of at most 2,048 UTF-8 bytes after one query-form decode, before validation-only percent-decoding. Accepted serialization is preserved: `/vehicles?label=a%20b&ratio=100%25#history` is valid; `/api`, `/login`, and `/vehicles/%2e%2e/login` fall back to `/`. Non-5xx OAuth rejections and invalid tokens use `authentication_failed`; transport, 5xx, malformed service responses, and redirects use `provider_unavailable`.
+Set `GAZEL_EXTERNAL_URL` to the public origin, with no path, query, or fragment. Terminate HTTPS at your reverse proxy; Gazel serves HTTP internally. Public and provider URLs require HTTPS, with a publicly trusted certificate for the provider. HTTP is allowed on `localhost`, `127.0.0.1`, and `::1` for development.
 
-Login waits for the provider button; signing out uses a local `POST /auth/logout`. All `/auth` responses and authentication-required responses use `Cache-Control: no-store`. Public `/auth/config` is exactly `{ "enabled": false }` or `{ "enabled": true, "provider_name": "OpenID Connect" }` with the configured label. Deploy or roll back the backend and embedded frontend together; do not disable authentication as a rollback shortcut.
-
-Important limitations:
-
-- Every authenticated identity accesses the same shared Gazel data.
-- Sessions expire after 12 non-sliding hours. Sessions, cookie keys, and pending logins are process-local and lost on restart; use one instance or sticky routing, not a shared session assumption.
-- At most 1,024 logins may be pending for five minutes. At capacity, new logins return `provider_unavailable` without replacing existing attempts.
-- Failed login persistence returns `provider_unavailable`; failed authenticated completion revokes provisional access. Failed logout still expires the cookie but returns HTTP 500, not a success redirect.
+- All signed-in users share the same data. Restrict access to the OIDC client at your provider.
+- Sessions end 12 hours after login or on restart. Use one instance or sticky routing; instances do not share sessions.
 - Signing out ends only the Gazel session, not the provider session.
+
+Update or roll back the complete application image, including its embedded UI. Keep authentication enabled.
 
 ## Development
 
