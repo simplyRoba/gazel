@@ -17,15 +17,11 @@ pub trait AuthConfigSource {
 pub struct OidcConfig {
     /// Normalized public origin used for browser redirects.
     pub external_url: Url,
-    /// Callback URL registered with the OIDC provider.
     pub callback_url: Url,
     /// Exact validated OIDC issuer identifier used for discovery.
     pub issuer: String,
-    /// Confidential-client identifier.
     pub client_id: String,
-    /// Confidential-client secret.
     pub client_secret: String,
-    /// Human-readable provider label shown on the login page.
     pub provider_name: String,
 }
 

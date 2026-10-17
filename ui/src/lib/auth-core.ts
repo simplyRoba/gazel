@@ -9,7 +9,6 @@ export interface DisabledAuthConfig {
 
 export type AuthConfig = EnabledAuthConfig | DisabledAuthConfig;
 
-/** Decodes only the public, normalized authentication configuration contract. */
 export function parseAuthConfig(value: unknown): AuthConfig | null {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return null;

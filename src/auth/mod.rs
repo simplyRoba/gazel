@@ -26,7 +26,6 @@ pub use session::{SessionBarrier, SessionFaults, StoreOperation};
 pub use transaction::Clock;
 use transaction::{SystemClock, TransactionRegistry};
 
-/// Error encountered while preparing enabled authentication before serving traffic.
 #[derive(Debug)]
 pub enum AuthenticationStartupError {
     CookieKey(CookieKeyError),
@@ -51,7 +50,6 @@ impl std::error::Error for AuthenticationStartupError {
     }
 }
 
-/// Process-local state required whenever built-in authentication is enabled.
 #[derive(Clone)]
 pub struct Authentication {
     config: OidcConfig,
@@ -88,8 +86,6 @@ impl Authentication {
         Self::bootstrap_with_clock(config, Arc::new(SystemClock)).await
     }
 
-    /// Prepare authentication state with an explicit time source.
-    ///
     /// # Errors
     ///
     /// Returns an error when a secure private-cookie key cannot be generated or
@@ -102,8 +98,6 @@ impl Authentication {
         Self::bootstrap_with_session_faults(config, clock, SessionFaults::default()).await
     }
 
-    /// Prepare authentication with per-instance storage fault injection.
-    ///
     /// # Errors
     /// Returns the same startup errors as ordinary bootstrap.
     #[doc(hidden)]
@@ -117,7 +111,6 @@ impl Authentication {
         Self::bootstrap_with_dependencies(config, clock, faults, Arc::new(transport)).await
     }
 
-    /// Prepare authentication with instance-scoped storage and provider dependencies.
     /// Injected provider I/O remains behind the common destination guard.
     ///
     /// # Errors
@@ -143,26 +136,20 @@ impl Authentication {
         })
     }
 
-    /// Validated OIDC configuration retained for startup and request handling.
     pub fn config(&self) -> &OidcConfig {
         &self.config
     }
 
-    /// Build the private, process-local session layer.
     pub fn session_layer(&self) -> AuthSessionLayer {
         self.sessions.layer()
     }
 
-    /// Build the public OIDC protocol routes with their private session layer.
-    ///
-    /// This is primarily useful for focused protocol tests. The application
-    /// server uses one outer session layer around all public and protected
-    /// routes instead.
+    /// Includes session middleware; do not combine with another session layer.
     pub fn protocol_router(self: &Arc<Self>) -> axum::Router {
         routes::routes(self).layer(self.session_layer())
     }
 
-    /// Unlayered protocol routes for deterministic session middleware tests.
+    /// Routes without session middleware.
     #[doc(hidden)]
     pub fn protocol_routes(self: &Arc<Self>) -> axum::Router {
         routes::routes(self)

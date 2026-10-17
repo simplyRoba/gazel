@@ -161,7 +161,6 @@ mod tests {
     #[tokio::test]
     async fn transaction_capacity_accepts_last_slot_and_preserves_all_entries_on_rejection() {
         let start = OffsetDateTime::UNIX_EPOCH;
-        // Every insertion, including the transition from 1,023 to 1,024, must succeed.
         let registry = full_registry(start).await;
         for old_state in [None, Some("0")] {
             assert_eq!(

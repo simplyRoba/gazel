@@ -1,5 +1,3 @@
-//! Gazel-owned authentication policy and configuration-source adapter.
-
 use super::config::{AuthConfigSource, OidcConfig};
 use super::runtime::UrlPolicy;
 

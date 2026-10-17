@@ -739,7 +739,7 @@ async fn mutate_after_callback(
         *failure.provisional.lock().unwrap() = Some(session.clone());
         match failure.mode {
             PostHandlerFailureMode::SaveBeforeWrite | PostHandlerFailureMode::SaveAfterWrite => {
-                // A REAL nonduplicate write, not the manager's idempotent auto-save.
+                // Force a backing write rather than an idempotent duplicate save.
                 session.insert("test_post_handler", true).await.unwrap();
                 failure.faults.fail_next(
                     StoreOperation::Save,

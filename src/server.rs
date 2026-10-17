@@ -21,11 +21,6 @@ use crate::embedded::{
 };
 use crate::state::AppState;
 
-/// Build the application router.
-///
-/// Disabled mode preserves the existing API and SPA fallback. Enabled mode
-/// composes exact public login resources separately from one protected API and
-/// application router, all under a single private session layer.
 pub fn router(state: AppState) -> Router {
     let router = match state.auth.clone() {
         Some(authentication) => enabled_router(&state, &authentication),

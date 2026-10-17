@@ -234,8 +234,6 @@ impl MockProvider {
         &self.state.issuer
     }
 
-    // Bind shared callback templates to this local provider, including a counted
-    // error-URI sentinel so the harness can prove that detail values cause no I/O.
     fn callback_vector_query(&self, query: &str, attempt: &LoginAttempt) -> String {
         let error_uri = url::form_urlencoded::byte_serialize(
             format!("{}redirect-target", self.issuer()).as_bytes(),
@@ -1611,7 +1609,6 @@ async fn auth_no_store_preserves_other_routes_cache_policies() {
     assert_eq!(callback.headers()[header::CACHE_CONTROL], "no-store");
     let cookie = response_cookie(&callback);
     for (app, enabled_mode) in [(&disabled, false), (&enabled, true)] {
-        // Documents and assets retain their app-owned cache policy.
         for path in [
             "/",
             "/login",
@@ -1646,7 +1643,6 @@ async fn auth_no_store_preserves_other_routes_cache_policies() {
             );
         }
     }
-    // Authenticated unknown auth paths still use the SPA fallback, now no-store.
     for path in ["/auth", "/auth/unknown"] {
         let response = enabled
             .clone()
@@ -2204,8 +2200,6 @@ async fn pending_capacity_preserves_bindings_expiry_and_authenticated_short_circ
     let authenticated = callback_request(&app, &authenticated_attempt, "").await;
     let authenticated_cookie = response_cookie(&authenticated);
 
-    // Each login is a real request with a new browser cookie; no token signing
-    // or exchange is needed to fill pending capacity.
     let mut pending = Vec::new();
     for _ in 0..1_024 {
         pending.push(login_attempt(&app, &provider, "%2Foriginal").await);
@@ -2232,7 +2226,6 @@ async fn pending_capacity_preserves_bindings_expiry_and_authenticated_short_circ
                 format!("/login?error=provider_unavailable&return_to={expected}")
             );
             assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
-            // No binding write, expiry extension, or replacement cookie.
             assert!(response.headers().get(header::SET_COOKIE).is_none());
         }
     }
@@ -2254,7 +2247,6 @@ async fn pending_capacity_preserves_bindings_expiry_and_authenticated_short_circ
     let old_callback = callback_request(&app, &pending[0], "").await;
     assert_eq!(response_location(&old_callback), "/original");
     assert_eq!(provider.token_count(), 2);
-    // Consumption frees precisely one slot; filling it saturates again.
     let _recovered = login_attempt(&app, &provider, "%2Frecovered").await;
     let rejected = app
         .clone()
