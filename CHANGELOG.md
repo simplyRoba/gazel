@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.5.0](https://github.com/simplyRoba/gazel/compare/v1.4.7...v1.5.0) (2026-10-17)
+
+
+### Features
+
+* **auth:** add optional automatic OIDC redirect ([aa518a3](https://github.com/simplyRoba/gazel/commit/aa518a3b5207392365dcc4551d5162cfb8bbb96e))
+
+
+### Code Refactoring
+
+* **auth:** unify and harden OIDC authentication ([#208](https://github.com/simplyRoba/gazel/issues/208)) ([6d415ae](https://github.com/simplyRoba/gazel/commit/6d415aeba7ad2480cbcfa097a8435cd45e86ca4f))
+
+
+### Dependencies
+
+* bump @testing-library/user-event from 14.6.7 to 14.6.8 in /ui ([4465816](https://github.com/simplyRoba/gazel/commit/446581620abaac29e6d792a4663a44bebf9acad4))
+* bump tokio from 1.53.2 to 1.53.3 in the tokio group ([6c1c985](https://github.com/simplyRoba/gazel/commit/6c1c98592e38f5b6e8ced1e1e35836c53fd049b4))
+* bump typescript-eslint ([a781358](https://github.com/simplyRoba/gazel/commit/a781358b652963c65c409caf1f9f3b177801ea10))
+* bump vitest from 5.0.3 to 5.0.4 in /ui ([feaff36](https://github.com/simplyRoba/gazel/commit/feaff36b35c30a9907a0aee672b9e622fa9ef117))
+
 ## [1.4.7](https://github.com/simplyRoba/gazel/compare/v1.4.6...v1.4.7) (2026-10-14)
 
 
