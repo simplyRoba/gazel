@@ -73,7 +73,7 @@ docker compose up -d
 | `GAZEL_OIDC_ISSUER`        | —                | Required OIDC issuer/discovery URL.                                  |
 | `GAZEL_OIDC_CLIENT_ID`     | —                | Required confidential-client ID.                                     |
 | `GAZEL_OIDC_CLIENT_SECRET` | —                | Required confidential-client secret.                                 |
-| `GAZEL_OIDC_PROVIDER_NAME` | `OpenID Connect` | Login button name. Trimmed, non-empty, no control characters, at most 80 Unicode code points. |
+| `GAZEL_OIDC_PROVIDER_NAME` | `OpenID Connect` | Name shown on the login button. |
 
 ## Security
 
