@@ -215,6 +215,33 @@ fn safe_discovery_error(error: &openidconnect::DiscoveryError<GuardedHttpError>)
     }
 }
 
+fn refresh_failure_context(
+    error: &openidconnect::DiscoveryError<GuardedHttpError>,
+) -> (&'static str, Option<u16>) {
+    use openidconnect::DiscoveryError;
+    match error {
+        DiscoveryError::Request(GuardedHttpError::UnsafeUrl) | DiscoveryError::UrlParse(_) => {
+            ("url_policy", None)
+        }
+        DiscoveryError::Request(GuardedHttpError::ServerStatus(status))
+        | DiscoveryError::Response(status, _, _) => ("http_status", Some(status.as_u16())),
+        DiscoveryError::Request(_) => ("transport", None),
+        DiscoveryError::Parse(_) => ("parsing", None),
+        DiscoveryError::Validation(_) => ("validation", None),
+        // DiscoveryError is non-exhaustive; never format unknown library details.
+        _ => ("fallback", None),
+    }
+}
+
+fn log_refresh_failure(category: &'static str, status: Option<u16>) {
+    tracing::warn!(
+        operation = "jwks_refresh",
+        category,
+        status,
+        "OIDC provider failure"
+    );
+}
+
 impl<'client> AsyncHttpClient<'client> for GuardedHttpClient {
     type Error = GuardedHttpError;
     type Future =
@@ -449,17 +476,24 @@ impl OidcRuntime {
             .validate_raw_url(self.metadata.jwks_uri().as_str())
             .is_err()
         {
+            log_refresh_failure("url_policy", None);
             self.record_refresh_failure(stale_generation).await;
             return Err(ProtocolError::ProviderUnavailable);
         }
-        let Ok(jwks) = CoreJsonWebKeySet::fetch_async(self.metadata.jwks_uri(), &self.http).await
-        else {
-            self.record_refresh_failure(stale_generation).await;
-            return Err(ProtocolError::ProviderUnavailable);
+        let jwks = match CoreJsonWebKeySet::fetch_async(self.metadata.jwks_uri(), &self.http).await
+        {
+            Ok(jwks) => jwks,
+            Err(error) => {
+                let (category, status) = refresh_failure_context(&error);
+                log_refresh_failure(category, status);
+                self.record_refresh_failure(stale_generation).await;
+                return Err(ProtocolError::ProviderUnavailable);
+            }
         };
         if validate_signing_keys(&jwks, self.metadata.id_token_signing_alg_values_supported())
             .is_err()
         {
+            log_refresh_failure("validation", None);
             self.record_refresh_failure(stale_generation).await;
             return Err(ProtocolError::ProviderUnavailable);
         }
@@ -981,6 +1015,130 @@ mod tests {
                 "failed raw refresh enters cooldown"
             );
             assert_eq!(transport.0.load(Ordering::SeqCst), 0, "{destination}");
+        }
+    }
+
+    #[derive(Clone, Default)]
+    struct CapturedDiagnostics(Arc<std::sync::Mutex<Vec<u8>>>);
+
+    impl std::io::Write for CapturedDiagnostics {
+        fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+            self.0.lock().unwrap().extend_from_slice(bytes);
+            Ok(bytes.len())
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn refresh_url_policy_and_transport_failures_emit_safe_context_once() {
+        use tracing::instrument::WithSubscriber;
+
+        struct FailedTransport(bool);
+        impl ProviderTransport for FailedTransport {
+            fn send(&self, _: HttpRequest) -> TransportFuture<'_> {
+                let response_failure = self.0;
+                Box::pin(async move {
+                    if response_failure {
+                        Ok(http::Response::builder()
+                            .status(http::StatusCode::BAD_REQUEST)
+                            .body(b"private-sentinel".to_vec())
+                            .unwrap())
+                    } else {
+                        Err(GuardedHttpError::Request)
+                    }
+                })
+            }
+        }
+
+        for (destination, category, status) in [
+            (
+                "https://keys.example/jwks#private-sentinel",
+                "url_policy",
+                None,
+            ),
+            (
+                "https://keys.example/jwks?private-sentinel",
+                "transport",
+                None,
+            ),
+            (
+                "https://keys.example/jwks?private-sentinel",
+                "http_status",
+                Some(400),
+            ),
+        ] {
+            let metadata = serde_json::from_value(serde_json::json!({
+                "issuer": "https://issuer.example",
+                "authorization_endpoint": "https://issuer.example/authorize",
+                "token_endpoint": "https://issuer.example/token", "jwks_uri": destination,
+                "response_types_supported": ["code"], "subject_types_supported": ["public"],
+                "id_token_signing_alg_values_supported": ["RS256"]
+            }))
+            .unwrap();
+            let runtime =
+                runtime_with_metadata(metadata, Arc::new(FailedTransport(status.is_some())));
+            let captured = CapturedDiagnostics::default();
+            let writer = captured.clone();
+            let subscriber = tracing_subscriber::fmt()
+                .without_time()
+                .with_ansi(false)
+                .with_writer(move || writer.clone())
+                .finish();
+            async {
+                for _ in 0..2 {
+                    assert!(matches!(
+                        runtime.refresh_for_generation(0).await,
+                        Err(ProtocolError::ProviderUnavailable)
+                    ));
+                }
+            }
+            .with_subscriber(subscriber)
+            .await;
+            let diagnostics = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
+            assert_eq!(diagnostics.matches("jwks_refresh").count(), 1);
+            assert!(diagnostics.contains(&format!("category=\"{category}\"")));
+            if let Some(status) = status {
+                assert!(diagnostics.contains(&format!("status={status}")));
+            } else {
+                assert!(!diagnostics.contains("status="));
+            }
+            assert!(!diagnostics.contains("private-sentinel"));
+            assert!(!diagnostics.contains("https://"));
+            let cache = runtime.cache.read().await;
+            assert_eq!(cache.generation, 0);
+            assert!(cache.refresh_retry_at.is_some());
+        }
+    }
+
+    #[test]
+    fn refresh_discovery_context_uses_only_typed_status_and_fixed_categories() {
+        use openidconnect::DiscoveryError;
+        for (error, expected) in [
+            (
+                DiscoveryError::Response(
+                    http::StatusCode::BAD_REQUEST,
+                    b"private-sentinel".to_vec(),
+                    String::from("private-sentinel"),
+                ),
+                ("http_status", Some(400)),
+            ),
+            (
+                DiscoveryError::Validation(String::from("private-sentinel")),
+                ("validation", None),
+            ),
+            (
+                DiscoveryError::Other(String::from("private-sentinel")),
+                ("fallback", None),
+            ),
+            (
+                DiscoveryError::Request(GuardedHttpError::Http),
+                ("transport", None),
+            ),
+        ] {
+            assert_eq!(refresh_failure_context(&error), expected);
         }
     }
 

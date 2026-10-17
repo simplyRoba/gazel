@@ -73,6 +73,7 @@ enum JwksMode {
     Unusable,
     EncryptionOnly,
     WrongAlgorithm,
+    Malformed,
     ServerUnavailable,
     Redirect,
 }
@@ -455,17 +456,23 @@ async fn jwks(State(state): State<Arc<ProviderState>>) -> Response {
             Json(value).into_response()
         }
         JwksMode::Unusable => Json(json!({
-            "keys": [{ "kty": "unsupported", "kid": "bad", "use": "enc" }]
+            "keys": [{ "kty": "unsupported", "kid": "private-sentinel", "use": "enc" }]
         }))
         .into_response(),
+        JwksMode::Malformed => (
+            [(header::CONTENT_TYPE, "application/json")],
+            "{private-sentinel",
+        )
+            .into_response(),
         JwksMode::ServerUnavailable => (
             StatusCode::SERVICE_UNAVAILABLE,
-            "provider temporarily unavailable",
+            "private-sentinel provider temporarily unavailable",
         )
             .into_response(),
         JwksMode::Redirect => (
             StatusCode::FOUND,
             [(header::LOCATION, format!("{}redirect-target", state.issuer))],
+            "private-sentinel",
         )
             .into_response(),
     }
@@ -2493,6 +2500,142 @@ impl std::io::Write for CapturedDiagnostics {
     }
 }
 
+fn diagnostic_subscriber(captured: &CapturedDiagnostics) -> impl tracing::Subscriber + Send + Sync {
+    let writer = captured.clone();
+    tracing_subscriber::fmt()
+        .with_env_filter("gazel=trace")
+        .without_time()
+        .with_ansi(false)
+        .with_writer(move || writer.clone())
+        .finish()
+}
+
+fn assert_safe_diagnostics(captured: &CapturedDiagnostics, expected: &str) -> String {
+    let diagnostics = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
+    assert!(diagnostics.contains(expected), "{diagnostics}");
+    for sensitive in ["private-sentinel", CLIENT_SECRET, "http://", "https://"] {
+        assert!(!diagnostics.contains(sensitive), "{diagnostics}");
+    }
+    diagnostics
+}
+
+#[tokio::test]
+async fn bootstrap_fails_closed_for_unreachable_discovery_with_safe_diagnostics() {
+    let provider = MockProvider::start(ProviderOptions::default()).await;
+    let mut config = provider.config();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    config.issuer = format!("http://{}/", listener.local_addr().unwrap());
+    drop(listener);
+    let captured = CapturedDiagnostics::default();
+    let error = Authentication::bootstrap(config)
+        .with_subscriber(diagnostic_subscriber(&captured))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("discovery"));
+    assert_safe_diagnostics(&captured, "transport failure");
+    assert_eq!(provider.discovery_count(), 0);
+    assert_eq!(provider.jwks_count(), 0);
+}
+
+#[tokio::test]
+async fn bootstrap_initial_jwks_failures_emit_safe_transport_status_and_parsing_diagnostics() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let unreachable = format!(
+        "http://{}/jwks?private-sentinel",
+        listener.local_addr().unwrap()
+    );
+    drop(listener);
+    for (options, expected, jwks_count) in [
+        (
+            ProviderOptions {
+                jwks_endpoint: Some(unreachable),
+                ..ProviderOptions::default()
+            },
+            "transport failure",
+            0,
+        ),
+        (
+            ProviderOptions {
+                jwks_mode: JwksMode::ServerUnavailable,
+                ..ProviderOptions::default()
+            },
+            "HTTP 503",
+            1,
+        ),
+        (
+            ProviderOptions {
+                jwks_mode: JwksMode::Malformed,
+                ..ProviderOptions::default()
+            },
+            "parsing failure",
+            1,
+        ),
+        (
+            ProviderOptions {
+                issuer_override: Some(String::from("https://private-sentinel.example/")),
+                ..ProviderOptions::default()
+            },
+            "validation failure",
+            0,
+        ),
+    ] {
+        let provider = MockProvider::start(options).await;
+        let captured = CapturedDiagnostics::default();
+        let error = Authentication::bootstrap(provider.config())
+            .with_subscriber(diagnostic_subscriber(&captured))
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("discovery"));
+        assert_safe_diagnostics(&captured, expected);
+        assert_eq!(provider.discovery_count(), 1);
+        assert_eq!(provider.jwks_count(), jwks_count);
+        assert_eq!(provider.token_count(), 0);
+        assert_eq!(provider.redirect_count(), 0);
+    }
+}
+
+#[tokio::test]
+async fn actual_refresh_failures_emit_safe_categories_and_only_retained_status() {
+    for (mode, category, status) in [
+        (JwksMode::Redirect, "http_status", Some(302)),
+        (JwksMode::ServerUnavailable, "http_status", Some(503)),
+        (JwksMode::Malformed, "parsing", None),
+        (JwksMode::Empty, "validation", None),
+        (JwksMode::Unusable, "validation", None),
+    ] {
+        let (provider, _, app) = initialized(ProviderOptions::default()).await;
+        provider
+            .set_options(|options| {
+                options.jwks_mode = mode;
+                options.signing_key_version = SigningKeyVersion::Rotated;
+            })
+            .await;
+        let captured = CapturedDiagnostics::default();
+        async {
+            for _ in 0..2 {
+                let attempt = login_attempt(&app, &provider, "%2Ffailed").await;
+                assert_eq!(
+                    response_location(&callback_request(&app, &attempt, "").await),
+                    "/login?error=provider_unavailable&return_to=%2Ffailed"
+                );
+            }
+        }
+        .with_subscriber(diagnostic_subscriber(&captured))
+        .await;
+        let diagnostics = assert_safe_diagnostics(&captured, "operation=\"jwks_refresh\"");
+        assert_eq!(diagnostics.matches("jwks_refresh").count(), 1);
+        assert!(diagnostics.contains(&format!("category=\"{category}\"")));
+        if let Some(status) = status {
+            assert!(diagnostics.contains(&format!("status={status}")));
+        } else {
+            assert!(!diagnostics.contains("status="));
+        }
+        assert_eq!(provider.discovery_count(), 1);
+        assert_eq!(provider.jwks_count(), 2);
+        assert_eq!(provider.redirect_count(), 0);
+    }
+}
+
 #[tokio::test]
 async fn provider_diagnostics_never_include_sensitive_bodies_queries_or_validation() {
     let captured = CapturedDiagnostics::default();
@@ -2906,6 +3049,7 @@ async fn failed_refresh_keeps_usable_keys_and_never_follows_redirects() {
         JwksMode::Redirect,
         JwksMode::Empty,
         JwksMode::Unusable,
+        JwksMode::Malformed,
         JwksMode::ServerUnavailable,
     ] {
         let (provider, _, app) = initialized(ProviderOptions::default()).await;

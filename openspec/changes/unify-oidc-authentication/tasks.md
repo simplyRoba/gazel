@@ -61,8 +61,8 @@ Commit the planning artifacts separately before implementation. For each coheren
 
 - [x] 8.1 Match frontend label validation to the backend's Unicode whitespace rules without rejecting backend-valid U+FEFF labels. Add shared backend-output/frontend-decoder fixtures covering normalization, controls, scalar limits, and leading/trailing U+FEFF; verify both applications consume the same cases.
 - [x] 8.2 Strictly form-decode raw login queries once before frontend target validation. Add shared wire-level fixtures for malformed UTF-8, malformed escapes, encoded parameter names, duplicates, valid replacement characters, and preserved serialization; verify Rust, pure frontend helpers, and both login pages agree.
-- [ ] 8.3 Retain fixed safe operation/category/status context for failed JWKS refreshes and test its omission of sensitive text. Add Gazel-local bootstrap tests for unreachable discovery/initial JWKS, initial JWKS service failure, and malformed initial JWKS JSON; mirror shared runtime changes into Flowl.
-- [ ] 8.4 Rerun the ordered full gates, strict OpenSpec validation, bidirectional parity and regression probes in both repositories; review updated verification evidence and confirm all findings are resolved without changing application policies or archiving.
+- [x] 8.3 Retain fixed safe operation/category/status context for failed JWKS refreshes and test its omission of sensitive text. Add Gazel-local bootstrap tests for unreachable discovery/initial JWKS, initial JWKS service failure, and malformed initial JWKS JSON; mirror shared runtime changes into Flowl.
+- [x] 8.4 Rerun the ordered full gates, strict OpenSpec validation, bidirectional parity and regression probes in both repositories; review updated verification evidence and confirm all findings are resolved without changing application policies or archiving.
 
 ## Workflow follow-up
 
