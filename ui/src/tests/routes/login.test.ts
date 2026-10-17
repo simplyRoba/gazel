@@ -1,6 +1,8 @@
 import { cleanup, render, screen } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "../../routes/login/+page.svelte";
+import returnVectors from "../../../../tests/fixtures/auth/return-targets.json";
+import queryVectors from "../../../../tests/fixtures/auth/return-queries.json";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -64,6 +66,83 @@ describe("login page", () => {
     expect(screen.queryByLabelText(/password|username|email/i)).toBeNull();
   });
 
+  it.each(returnVectors.vectors)(
+    "validates shared return target: $id",
+    async (vector) => {
+      const input = vector.input;
+      const value =
+        input === null
+          ? null
+          : typeof input === "string"
+            ? input
+            : input.prefix + input.repeat.repeat(input.count) + input.suffix;
+      setUrl(
+        value === null
+          ? "/login"
+          : `/login?${new URLSearchParams({ return_to: value })}`,
+      );
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+      });
+      render(LoginPage);
+      await screen.findByRole("button", {
+        name: "Continue with OpenID Connect",
+      });
+      expect(document.querySelector("form")?.getAttribute("action")).toBe(
+        "/auth/login",
+      );
+      expect(document.querySelector("input")?.value).toBe(
+        vector.target.gazel ? (value ?? "/") : "/",
+      );
+    },
+  );
+
+  it.each(queryVectors.vectors)(
+    "uses strict raw query decoding in the provider form: $id",
+    async (vector) => {
+      setUrl(`/login?${vector.query}`);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+      });
+
+      render(LoginPage);
+      await screen.findByRole("button", {
+        name: "Continue with OpenID Connect",
+      });
+      expect(document.querySelector("form")?.getAttribute("action")).toBe(
+        "/auth/login",
+      );
+      expect(document.querySelector("input")?.value).toBe(vector.target.gazel);
+    },
+  );
+
+  it.each([
+    "\ufeffProvider",
+    "Provider\ufeff",
+    "Pro\ufeffvider",
+    "\ufeff",
+    "$$",
+    "$&",
+    "$`",
+    "$'",
+  ])("renders a backend-valid provider label %j", async (providerName) => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ enabled: true, provider_name: providerName }),
+    });
+
+    render(LoginPage);
+    const button = await screen.findByRole("button");
+    // Accessibility-name matching normalizes whitespace, so assert the raw text.
+    expect(button.textContent).toContain(`Continue with ${providerName}`);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("propagates decoded return_to as encoded auth-login query data", async () => {
     setUrl("/login?return_to=%2Fsettings%3Ftab%3Ddata%23export");
     mockFetch.mockResolvedValue({
@@ -110,7 +189,7 @@ describe("login page", () => {
       ).toBeTruthy();
       const form = document.querySelector("form");
       expect(form?.getAttribute("action")).toBe("/auth/login");
-      expect(form?.querySelector("input")?.value).toBe(returnTo);
+      expect(form?.querySelector("input")?.value).toBe("/");
       expect(document.querySelector('a[href^="http"]')).toBeNull();
     },
   );

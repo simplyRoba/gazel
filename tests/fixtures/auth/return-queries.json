@@ -1,0 +1,138 @@
+{
+  "vectors": [
+    { "id": "absent", "query": "", "target": { "gazel": "/", "flowl": "/" } },
+    {
+      "id": "unknown-only",
+      "query": "other=%FF",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "encoded-name",
+      "query": "%72eturn%5Fto=%2Fsettings",
+      "target": { "gazel": "/settings", "flowl": "/settings" }
+    },
+    {
+      "id": "first-recognized-wins",
+      "query": "return_to=%2Fsettings&%72eturn_to=%2Fother",
+      "target": { "gazel": "/settings", "flowl": "/settings" }
+    },
+    {
+      "id": "invalid-first-wins",
+      "query": "return_to=https%3A%2F%2Fevil.invalid&return_to=%2Fsettings",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "empty-first-wins",
+      "query": "return_to=&return_to=%2Fsettings",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "missing-equals-first-wins",
+      "query": "return_to&return_to=%2Fsettings",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "malformed-utf8-ff",
+      "query": "return_to=%2F%FF&return_to=%2Fsettings",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "malformed-utf8-truncated",
+      "query": "return_to=%2F%E2%82",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "malformed-utf8-overlong",
+      "query": "return_to=%2F%C0%AF",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "malformed-utf8-surrogate",
+      "query": "return_to=%2F%ED%A0%80",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "malformed-percent",
+      "query": "return_to=%2Fsettings%",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "short-percent",
+      "query": "return_to=%2Fsettings%2",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "nonhex-percent",
+      "query": "return_to=%2Fsettings%GG",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "malformed-unknown-names-ignored",
+      "query": "return%FF_to=%FF&return_to%=%GG&%72eturn_to=%2Fsettings",
+      "target": { "gazel": "/settings", "flowl": "/settings" }
+    },
+    {
+      "id": "malformed-unknown-values-ignored",
+      "query": "unknown=%FF%&return_to=%2Fsettings&other=%GG",
+      "target": { "gazel": "/settings", "flowl": "/settings" }
+    },
+    {
+      "id": "plus-in-name-not-recognized",
+      "query": "return+to=%2Fother&return_to=%2Fsettings",
+      "target": { "gazel": "/settings", "flowl": "/settings" }
+    },
+    {
+      "id": "name-decoded-only-once",
+      "query": "%2572eturn_to=%2Fother&return_to=%2Fsettings",
+      "target": { "gazel": "/settings", "flowl": "/settings" }
+    },
+    {
+      "id": "plus-as-space",
+      "query": "return_to=%2Fsettings%3Fq%3Da+b%2Bc",
+      "target": { "gazel": "/settings?q=a b+c", "flowl": "/settings?q=a b+c" }
+    },
+    {
+      "id": "raw-equals-in-value",
+      "query": "return_to=/settings?q=a=b",
+      "target": { "gazel": "/settings?q=a=b", "flowl": "/settings?q=a=b" }
+    },
+    {
+      "id": "replacement-character",
+      "query": "return_to=%2F%EF%BF%BD",
+      "target": { "gazel": "/�", "flowl": "/�" }
+    },
+    {
+      "id": "raw-replacement-character",
+      "query": "return_to=/�",
+      "target": { "gazel": "/�", "flowl": "/�" }
+    },
+    {
+      "id": "preserve-escaped-serialization",
+      "query": "return_to=%2F%2573ettings%3Flabel%3D100%2525%26next%3Da%252Fb%23part%2520one",
+      "target": {
+        "gazel": "/%73ettings?label=100%25&next=a%2Fb#part%20one",
+        "flowl": "/%73ettings?label=100%25&next=a%2Fb#part%20one"
+      }
+    },
+    {
+      "id": "uploads-policy",
+      "query": "return_to=%2Fuploads%2Fphoto%3Fsize%3Dlarge%23preview",
+      "target": { "gazel": "/uploads/photo?size=large#preview", "flowl": "/" }
+    },
+    {
+      "id": "uploads-prefix-boundary",
+      "query": "return_to=%2Fuploadsary",
+      "target": { "gazel": "/uploadsary", "flowl": "/uploadsary" }
+    },
+    {
+      "id": "reserved-encoded",
+      "query": "return_to=%2F%2561pi%2Fdata",
+      "target": { "gazel": "/", "flowl": "/" }
+    },
+    {
+      "id": "decoded-control",
+      "query": "return_to=%2Fsettings%3Fq%3D%250A",
+      "target": { "gazel": "/", "flowl": "/" }
+    }
+  ]
+}

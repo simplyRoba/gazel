@@ -22,7 +22,7 @@ export function t(
 
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      value = value.replace(`{${k}}`, String(v));
+      value = value.replace(`{${k}}`, () => String(v));
     }
   }
 
@@ -41,7 +41,7 @@ export function tWithLocale(
 
   if (params) {
     for (const [k, v] of Object.entries(params)) {
-      value = value.replace(`{${k}}`, String(v));
+      value = value.replace(`{${k}}`, () => String(v));
     }
   }
 

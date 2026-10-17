@@ -6,14 +6,12 @@ use axum::extract::State;
 use axum::http::{HeaderValue, Request, StatusCode, header};
 use axum::middleware::{self, Next};
 use axum::response::{IntoResponse, Response};
-use axum::routing::{get, post};
+use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
 use sqlx::SqlitePool;
-use time::{Duration, OffsetDateTime};
 use tokio::net::TcpListener;
 use tower_sessions::Session;
-use tower_sessions::cookie::{Cookie, SameSite};
 use tracing::{debug, info};
 
 use crate::api::error::ApiError;
@@ -23,17 +21,26 @@ use crate::embedded::{
 };
 use crate::state::AppState;
 
-/// Build the application router.
-///
-/// Disabled mode preserves the existing API and SPA fallback. Enabled mode
-/// composes exact public login resources separately from one protected API and
-/// application router, all under a single private session layer.
 pub fn router(state: AppState) -> Router {
     let router = match state.auth.clone() {
         Some(authentication) => enabled_router(&state, &authentication),
         None => disabled_router(state),
     };
-    router.layer(middleware::from_fn(access_log))
+    router
+        .layer(middleware::from_fn(auth_no_store))
+        .layer(middleware::from_fn(access_log))
+}
+
+async fn auth_no_store(request: Request<Body>, next: Next) -> Response {
+    let path = request.uri().path();
+    let is_auth = path == "/auth" || path.starts_with("/auth/");
+    let mut response = next.run(request).await;
+    if is_auth {
+        response
+            .headers_mut()
+            .insert(header::CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    }
+    response
 }
 
 fn disabled_router(state: AppState) -> Router {
@@ -60,7 +67,6 @@ fn enabled_router(state: &AppState, authentication: &Arc<Authentication>) -> Rou
 
     let pool = state.pool.clone();
     let provider_name = authentication.config().provider_name.clone();
-    let secure_cookie = authentication.config().secure_cookie();
     let login_authentication = Arc::clone(authentication);
     let mut public = Router::new()
         .route("/health", get(move || health(pool)))
@@ -74,10 +80,6 @@ fn enabled_router(state: &AppState, authentication: &Arc<Authentication>) -> Rou
         .route(
             "/login",
             get(move |session| login_page(Arc::clone(&login_authentication), session)),
-        )
-        .route(
-            "/auth/logout",
-            post(move |session| logout(session, secure_cookie)),
         )
         .merge(authentication.protocol_routes());
 
@@ -119,30 +121,6 @@ async fn login_page(authentication: Arc<Authentication>, session: Session) -> Re
     } else {
         index_handler().await
     }
-}
-
-async fn logout(session: Session, secure_cookie: bool) -> Response {
-    let mut response = match session.flush().await {
-        Ok(()) => crate::auth::redirect("/login?logged_out=1"),
-        Err(error) => {
-            tracing::error!(%error, "Failed to flush authentication session during logout");
-            StatusCode::INTERNAL_SERVER_ERROR.into_response()
-        }
-    };
-    let removal = Cookie::build((crate::auth::SESSION_COOKIE_NAME, ""))
-        .http_only(true)
-        .secure(secure_cookie)
-        .same_site(SameSite::Lax)
-        .path("/")
-        .max_age(Duration::ZERO)
-        .expires(OffsetDateTime::UNIX_EPOCH)
-        .build()
-        .to_string();
-    response.headers_mut().append(
-        header::SET_COOKIE,
-        HeaderValue::from_str(&removal).expect("static session removal cookie should be valid"),
-    );
-    response
 }
 
 fn disabled_auth_config() -> Json<serde_json::Value> {
@@ -247,5 +225,49 @@ async fn shutdown_signal() {
     tokio::select! {
         () = ctrl_c => { info!("Received SIGINT, shutting down"); }
         () = terminate => { info!("Received SIGTERM, shutting down"); }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tower::ServiceExt;
+
+    #[tokio::test]
+    async fn auth_no_store_wraps_inner_middleware_errors_and_fallbacks() {
+        for status in [StatusCode::INTERNAL_SERVER_ERROR, StatusCode::NOT_FOUND] {
+            let app = Router::new()
+                .fallback(|| async { StatusCode::OK })
+                .layer(middleware::from_fn(
+                    move |_: Request<Body>, _: Next| async move {
+                        (
+                            status,
+                            [(header::CACHE_CONTROL, "public, max-age=60")],
+                            "inner error",
+                        )
+                    },
+                ))
+                .layer(middleware::from_fn(auth_no_store));
+            for path in ["/auth", "/auth/config", "/auth/unknown", "/authentic"] {
+                let response = app
+                    .clone()
+                    .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
+                    .await
+                    .unwrap();
+                assert_eq!(response.status(), status);
+                assert_eq!(
+                    response.headers()[header::CACHE_CONTROL],
+                    if path == "/authentic" {
+                        "public, max-age=60"
+                    } else {
+                        "no-store"
+                    }
+                );
+                let bytes = axum::body::to_bytes(response.into_body(), usize::MAX)
+                    .await
+                    .unwrap();
+                assert_eq!(bytes, "inner error");
+            }
+        }
     }
 }

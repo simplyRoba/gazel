@@ -68,30 +68,25 @@ docker compose up -d
 | `GAZEL_PORT`               | `4110`           | HTTP server listen port.                                             |
 | `GAZEL_DB_PATH`            | `/data/gazel.db` | Filesystem path to the SQLite database.                              |
 | `GAZEL_LOG_LEVEL`          | `info`           | `tracing` level filter for logs.                                     |
-| `GAZEL_AUTH_ENABLED`       | `false`          | Enable built-in OIDC authentication; accepts only `true` or `false`. |
-| `GAZEL_EXTERNAL_URL`       | —                | Required public root origin when auth is enabled.                    |
-| `GAZEL_OIDC_ISSUER`        | —                | Required OIDC issuer/discovery URL.                                  |
+| `GAZEL_AUTH_ENABLED`       | `false`          | Enable OIDC login.                                                   |
+| `GAZEL_EXTERNAL_URL`       | —                | Required public URL of Gazel, without a subpath.                      |
+| `GAZEL_OIDC_ISSUER`        | —                | Required OIDC issuer URL.                                            |
 | `GAZEL_OIDC_CLIENT_ID`     | —                | Required confidential-client ID.                                     |
 | `GAZEL_OIDC_CLIENT_SECRET` | —                | Required confidential-client secret.                                 |
-| `GAZEL_OIDC_PROVIDER_NAME` | `OpenID Connect` | Optional display name used by the login button.                      |
+| `GAZEL_OIDC_PROVIDER_NAME` | `OpenID Connect` | Name shown on the login button. |
 
 ## Security
 
-Built-in authentication is disabled by default. Keep Gazel on a trusted network, place it behind an authenticating proxy, or enable OIDC.
+Authentication is disabled by default. Enable OIDC or use an authenticating reverse proxy before exposing Gazel outside a trusted network.
 
-To enable OIDC:
+Register `<GAZEL_EXTERNAL_URL>/auth/callback` with a confidential Authorization Code client supporting `client_secret_basic` or `client_secret_post`.
 
-1. Create a confidential Authorization Code client with your provider.
-2. Register `<GAZEL_EXTERNAL_URL>/auth/callback`.
-3. Set `GAZEL_AUTH_ENABLED=true` and the required OIDC variables above.
-4. Restart Gazel.
+Use the issuer URL exactly as advertised, including any trailing slash. The provider must be reachable at startup.
 
-Gazel supports `client_secret_basic` and `client_secret_post`. Use HTTPS outside local loopback development. Invalid provider configuration prevents startup.
+Gazel serves HTTP behind a TLS-terminating reverse proxy. Public and provider URLs require HTTPS; the provider needs a publicly trusted certificate. HTTP URLs are accepted on `localhost`, `127.0.0.1`, and `::1` for local development.
 
-Important limitations:
-
-- Every authenticated identity accesses the same shared Gazel data.
-- Sessions expire after 12 hours and are lost when Gazel restarts.
+- All signed-in users share the same data. Restrict access to the OIDC client at your provider.
+- Sessions end 12 hours after login or on restart. Use one instance or sticky routing; instances do not share sessions.
 - Signing out ends only the Gazel session, not the provider session.
 
 ## Development

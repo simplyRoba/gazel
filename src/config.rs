@@ -1,8 +1,7 @@
-use std::fmt;
-use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 
-use url::{Host, Url};
+use crate::auth::{app::AuthSource, config as auth_config};
+pub use auth_config::{AuthConfigError as ConfigError, OidcConfig};
 
 /// Abstraction over configuration sources, enabling testable config loading
 /// without touching real environment variables.
@@ -28,44 +27,6 @@ impl ConfigSource for EnvConfigSource {
     }
 }
 
-/// Validated configuration for optional built-in OIDC authentication.
-#[derive(Clone)]
-pub struct OidcConfig {
-    /// Normalized public origin used for browser redirects.
-    pub external_url: Url,
-    /// Callback URL registered with the OIDC provider.
-    pub callback_url: Url,
-    /// Exact validated OIDC issuer identifier used for discovery.
-    pub issuer: String,
-    /// Confidential-client identifier.
-    pub client_id: String,
-    /// Confidential-client secret.
-    pub client_secret: String,
-    /// Human-readable provider label shown on the login page.
-    pub provider_name: String,
-}
-
-impl fmt::Debug for OidcConfig {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("OidcConfig")
-            .field("external_url", &self.external_url)
-            .field("callback_url", &self.callback_url)
-            .field("issuer", &self.issuer)
-            .field("client_id", &self.client_id)
-            .field("client_secret", &"[REDACTED]")
-            .field("provider_name", &self.provider_name)
-            .finish()
-    }
-}
-
-impl OidcConfig {
-    /// Whether the session cookie must carry the `Secure` attribute.
-    pub fn secure_cookie(&self) -> bool {
-        self.external_url.scheme() == "https"
-    }
-}
-
 /// Application configuration read from environment variables.
 #[derive(Debug)]
 pub struct Config {
@@ -78,24 +39,6 @@ pub struct Config {
     /// Validated OIDC settings, or `None` when authentication is disabled.
     pub auth: Option<OidcConfig>,
 }
-
-/// Error returned when an authentication setting is unsafe or incomplete.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct ConfigError(String);
-
-impl ConfigError {
-    fn invalid(key: &str, reason: &str) -> Self {
-        Self(format!("invalid {key}: {reason}"))
-    }
-}
-
-impl fmt::Display for ConfigError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter.write_str(&self.0)
-    }
-}
-
-impl std::error::Error for ConfigError {}
 
 impl Config {
     /// Load configuration from real environment variables.
@@ -119,19 +62,7 @@ impl Config {
     /// Returns an error when authentication configuration is malformed,
     /// incomplete, or unsafe.
     pub fn load_from(source: &impl ConfigSource) -> Result<Self, ConfigError> {
-        let auth_enabled_value = auth_value(source, "GAZEL_AUTH_ENABLED")?;
-        let auth_enabled = match auth_enabled_value.as_deref() {
-            None | Some("false") => false,
-            Some("true") => true,
-            Some(_) => {
-                return Err(ConfigError::invalid(
-                    "GAZEL_AUTH_ENABLED",
-                    "expected exactly `true` or `false`",
-                ));
-            }
-        };
-
-        let auth = auth_enabled.then(|| load_oidc_config(source)).transpose()?;
+        let auth = auth_config::load_from(&AuthSource(source))?;
 
         Ok(Self {
             port: parse_or(source, "GAZEL_PORT", 4110),
@@ -139,123 +70,6 @@ impl Config {
             log_level: parse_or(source, "GAZEL_LOG_LEVEL", String::from("info")),
             auth,
         })
-    }
-}
-
-fn load_oidc_config(source: &impl ConfigSource) -> Result<OidcConfig, ConfigError> {
-    let external_value = required(source, "GAZEL_EXTERNAL_URL")?;
-    let issuer_value = required(source, "GAZEL_OIDC_ISSUER")?;
-    let client_id = required(source, "GAZEL_OIDC_CLIENT_ID")?;
-    let client_secret = required(source, "GAZEL_OIDC_CLIENT_SECRET")?;
-
-    let mut external_url = validate_auth_url(&external_value, "GAZEL_EXTERNAL_URL")?;
-    if external_url.path() != "/" {
-        return Err(ConfigError::invalid(
-            "GAZEL_EXTERNAL_URL",
-            "must be a root-mounted origin without a path",
-        ));
-    }
-    external_url.set_path("/");
-
-    let callback_url = external_url
-        .join("auth/callback")
-        .map_err(|_| ConfigError::invalid("GAZEL_EXTERNAL_URL", "cannot construct callback"))?;
-    validate_auth_url(&issuer_value, "GAZEL_OIDC_ISSUER")?;
-    let provider_name = provider_name(source)?;
-
-    Ok(OidcConfig {
-        external_url,
-        callback_url,
-        issuer: issuer_value,
-        client_id,
-        client_secret,
-        provider_name,
-    })
-}
-
-fn auth_value(source: &impl ConfigSource, key: &str) -> Result<Option<String>, ConfigError> {
-    source
-        .get(key)
-        .map_err(|_| ConfigError::invalid(key, "must be valid UTF-8"))
-}
-
-fn required(source: &impl ConfigSource, key: &str) -> Result<String, ConfigError> {
-    auth_value(source, key)?
-        .filter(|value| !value.trim().is_empty())
-        .ok_or_else(|| ConfigError::invalid(key, "a non-empty value is required"))
-}
-
-fn provider_name(source: &impl ConfigSource) -> Result<String, ConfigError> {
-    let value = auth_value(source, "GAZEL_OIDC_PROVIDER_NAME")?
-        .unwrap_or_else(|| String::from("OpenID Connect"));
-    let trimmed = value.trim();
-
-    if trimmed.is_empty() {
-        return Err(ConfigError::invalid(
-            "GAZEL_OIDC_PROVIDER_NAME",
-            "must not be empty",
-        ));
-    }
-    if trimmed.chars().any(char::is_control) {
-        return Err(ConfigError::invalid(
-            "GAZEL_OIDC_PROVIDER_NAME",
-            "must not contain control characters",
-        ));
-    }
-    if trimmed.chars().count() > 80 {
-        return Err(ConfigError::invalid(
-            "GAZEL_OIDC_PROVIDER_NAME",
-            "must contain at most 80 characters",
-        ));
-    }
-
-    Ok(trimmed.to_string())
-}
-
-fn validate_auth_url(value: &str, key: &str) -> Result<Url, ConfigError> {
-    let url = Url::parse(value)
-        .map_err(|_| ConfigError::invalid(key, "must be an absolute HTTP(S) URL"))?;
-
-    if url.host().is_none() {
-        return Err(ConfigError::invalid(key, "must include a host"));
-    }
-    if has_userinfo(value) || !url.username().is_empty() || url.password().is_some() {
-        return Err(ConfigError::invalid(key, "must not include credentials"));
-    }
-    if url.query().is_some() || url.fragment().is_some() {
-        return Err(ConfigError::invalid(
-            key,
-            "must not include a query string or fragment",
-        ));
-    }
-
-    match url.scheme() {
-        "https" => {}
-        "http" if is_explicit_loopback(&url) => {}
-        _ => {
-            return Err(ConfigError::invalid(
-                key,
-                "must use HTTPS except on localhost, 127.0.0.1, or ::1",
-            ));
-        }
-    }
-
-    Ok(url)
-}
-
-fn has_userinfo(value: &str) -> bool {
-    value.split_once("://").is_some_and(|(_, remainder)| {
-        let authority_end = remainder.find(['/', '?', '#']).unwrap_or(remainder.len());
-        remainder[..authority_end].contains('@')
-    })
-}
-
-fn is_explicit_loopback(url: &Url) -> bool {
-    match url.host() {
-        Some(Host::Domain(host)) => host.eq_ignore_ascii_case("localhost"),
-        Some(Host::Ipv4(address)) => address == Ipv4Addr::LOCALHOST,
-        Some(Host::Ipv6(address)) => address == Ipv6Addr::LOCALHOST,
-        None => false,
     }
 }
 
@@ -293,7 +107,7 @@ mod tests {
         fn get(&self, key: &str) -> Result<Option<String>, std::env::VarError> {
             if key == self.invalid_key {
                 Err(std::env::VarError::NotUnicode(std::ffi::OsString::from(
-                    "invalid",
+                    "private-value-sentinel",
                 )))
             } else {
                 self.inner.get(key)
@@ -362,6 +176,7 @@ mod tests {
         };
         let error = Config::load_from(&invalid_flag).expect_err("invalid flag should fail");
         assert!(error.to_string().contains("GAZEL_AUTH_ENABLED"));
+        assert!(!error.to_string().contains("private-value-sentinel"));
 
         for key in [
             "GAZEL_EXTERNAL_URL",
@@ -376,17 +191,44 @@ mod tests {
             };
             let error = Config::load_from(&source).expect_err("invalid auth value should fail");
             assert!(error.to_string().contains(key));
+            assert!(!error.to_string().contains("private-value-sentinel"));
         }
     }
 
     #[test]
-    fn explicit_false_ignores_non_unicode_auth_only_values() {
-        let source = NonUnicodeConfigSource {
-            inner: mock(&[("GAZEL_AUTH_ENABLED", "false")]),
-            invalid_key: "GAZEL_OIDC_PROVIDER_NAME",
-        };
-        let config = Config::load_from(&source).expect("disabled auth value should be ignored");
-        assert!(config.auth.is_none());
+    fn disabled_auth_ignores_non_unicode_oidc_values() {
+        for flag in [None, Some("false")] {
+            for key in [
+                "GAZEL_EXTERNAL_URL",
+                "GAZEL_OIDC_ISSUER",
+                "GAZEL_OIDC_CLIENT_ID",
+                "GAZEL_OIDC_CLIENT_SECRET",
+                "GAZEL_OIDC_PROVIDER_NAME",
+            ] {
+                let source = NonUnicodeConfigSource {
+                    inner: flag
+                        .map_or_else(|| mock(&[]), |flag| mock(&[("GAZEL_AUTH_ENABLED", flag)])),
+                    invalid_key: key,
+                };
+                let config = Config::load_from(&source).expect("disabled OIDC value is ignored");
+                assert!(config.auth.is_none(), "{key}");
+            }
+        }
+    }
+
+    #[test]
+    fn enabled_auth_preserves_unrelated_configuration_fallbacks() {
+        for key in ["GAZEL_PORT", "GAZEL_DB_PATH", "GAZEL_LOG_LEVEL"] {
+            let source = NonUnicodeConfigSource {
+                inner: enabled_source(),
+                invalid_key: key,
+            };
+            let config = Config::load_from(&source).expect("ordinary settings stay lenient");
+            assert!(config.auth.is_some());
+            assert_eq!(config.port, 4110);
+            assert_eq!(config.db_path, "/data/gazel.db");
+            assert_eq!(config.log_level, "info");
+        }
     }
 
     #[test]
@@ -423,7 +265,13 @@ mod tests {
         ] {
             let mut entries = enabled_entries();
             entries.insert("GAZEL_EXTERNAL_URL".to_string(), external_url.to_string());
-            Config::load_from(&MockConfigSource(entries)).expect("external URL should be valid");
+            let config = Config::load_from(&MockConfigSource(entries))
+                .expect("external URL should be valid");
+            assert_eq!(
+                config.auth.unwrap().secure_cookie(),
+                external_url.starts_with("https:"),
+                "{external_url}"
+            );
         }
 
         for issuer in [
@@ -457,6 +305,9 @@ mod tests {
                 "relative/path",
                 "ftp://example.com",
                 "http://example.com",
+                "http://localhost.example",
+                "http://127.0.0.2",
+                "http://[::2]",
                 "https://user@example.com",
                 "https://example.com?query=value",
                 "https://example.com#fragment",
@@ -535,6 +386,27 @@ mod tests {
         let error = Config::load_from(&MockConfigSource(entries))
             .expect_err("overlength provider name should fail");
         assert!(error.to_string().contains("GAZEL_OIDC_PROVIDER_NAME"));
+    }
+
+    #[test]
+    fn provider_name_uses_unicode_scalars_and_rejects_controls() {
+        for (name, valid) in [
+            ("é".repeat(80), true),
+            ("é".repeat(81), false),
+            ("🌱".repeat(80), true),
+            ("🌱".repeat(81), false),
+            (String::from("before\u{0085}after"), false),
+            (String::from("before\u{009f}after"), false),
+            (String::from("before\0after"), false),
+        ] {
+            let mut entries = enabled_entries();
+            entries.insert("GAZEL_OIDC_PROVIDER_NAME".to_string(), name.clone());
+            assert_eq!(
+                Config::load_from(&MockConfigSource(entries)).is_ok(),
+                valid,
+                "{name:?}"
+            );
+        }
     }
 
     #[test]

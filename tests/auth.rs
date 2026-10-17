@@ -9,6 +9,7 @@ use axum::http::{HeaderMap, Request, StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use http_body_util::BodyExt;
 use openidconnect::core::{
     CoreIdToken, CoreIdTokenClaims, CoreJwsSigningAlgorithm, CoreRsaPrivateSigningKey,
@@ -22,6 +23,7 @@ use time::{Duration, OffsetDateTime};
 use tokio::net::TcpListener;
 use tokio::sync::{Barrier, Mutex};
 use tower::ServiceExt;
+use tracing::instrument::WithSubscriber;
 
 use gazel::auth::{Authentication, Clock};
 use gazel::config::OidcConfig;
@@ -69,6 +71,9 @@ enum JwksMode {
     Key(String),
     Empty,
     Unusable,
+    EncryptionOnly,
+    WrongAlgorithm,
+    Malformed,
     ServerUnavailable,
     Redirect,
 }
@@ -80,6 +85,20 @@ enum TokenMode {
     MalformedIdToken,
     ProviderError,
     ServerUnavailable,
+    OAuthServerError,
+    UnexpectedStatus,
+    MalformedEnvelope,
+    Unsigned,
+    MissingIat,
+    ZeroIat,
+    NegativeIat,
+    MalformedIat,
+    WrongAzp,
+    MatchingAzp,
+    OldIat,
+    FutureIat,
+    AdditionalAudienceMatchingAzp,
+    IssuerSpelling,
     MissingNonce,
     WrongNonce,
     WrongIssuer,
@@ -90,6 +109,12 @@ enum TokenMode {
     MissingIdToken,
     CorruptSignature,
     Redirect,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum SigningKeyVersion {
+    Initial,
+    Rotated,
 }
 
 #[derive(Clone, Debug)]
@@ -109,6 +134,7 @@ struct ProviderOptions {
     jwks_mode: JwksMode,
     token_mode: TokenMode,
     signing_key_id: String,
+    signing_key_version: SigningKeyVersion,
     expected_nonce: Option<String>,
     expected_challenge: Option<String>,
 }
@@ -131,6 +157,7 @@ impl Default for ProviderOptions {
             jwks_mode: JwksMode::Key(String::from("key-1")),
             token_mode: TokenMode::Valid,
             signing_key_id: String::from("key-1"),
+            signing_key_version: SigningKeyVersion::Initial,
             expected_nonce: None,
             expected_challenge: None,
         }
@@ -151,6 +178,9 @@ struct TokenRequest {
     form: HashMap<String, String>,
 }
 
+#[path = "auth/lifecycle.rs"]
+mod lifecycle;
+
 #[derive(Debug)]
 struct ProviderState {
     issuer: String,
@@ -159,6 +189,7 @@ struct ProviderState {
     token_requests: Mutex<Vec<TokenRequest>>,
     expected_logins: Mutex<HashMap<String, (String, String)>>,
     token_barrier: Mutex<Option<Arc<Barrier>>>,
+    token_gate: Mutex<Option<Arc<lifecycle::TokenGate>>>,
 }
 
 struct MockProvider {
@@ -182,6 +213,7 @@ impl MockProvider {
             token_requests: Mutex::new(Vec::new()),
             expected_logins: Mutex::new(HashMap::new()),
             token_barrier: Mutex::new(None),
+            token_gate: Mutex::new(None),
         });
         let router = Router::new()
             .route("/.well-known/openid-configuration", get(discovery))
@@ -200,6 +232,17 @@ impl MockProvider {
 
     fn issuer(&self) -> &str {
         &self.state.issuer
+    }
+
+    fn callback_vector_query(&self, query: &str, attempt: &LoginAttempt) -> String {
+        let error_uri = url::form_urlencoded::byte_serialize(
+            format!("{}redirect-target", self.issuer()).as_bytes(),
+        )
+        .collect::<String>();
+        query
+            .replace("{code}", &attempt.state)
+            .replace("{state}", &attempt.state)
+            .replace("{error_uri}", &error_uri)
     }
 
     fn config(&self) -> OidcConfig {
@@ -310,9 +353,11 @@ async fn discovery(State(state): State<Arc<ProviderState>>) -> Response {
     state.counters.discovery.fetch_add(1, Ordering::SeqCst);
     let options = state.options.lock().await.clone();
     match options.metadata_mode {
-        MetadataMode::Malformed => {
-            ([(header::CONTENT_TYPE, "application/json")], "{not-json").into_response()
-        }
+        MetadataMode::Malformed => (
+            [(header::CONTENT_TYPE, "application/json")],
+            "{private-sentinel",
+        )
+            .into_response(),
         MetadataMode::Redirect => (
             StatusCode::FOUND,
             [(header::LOCATION, format!("{}redirect-target", state.issuer))],
@@ -391,21 +436,41 @@ async fn authorize(Query(query): Query<HashMap<String, String>>) -> Response {
 
 async fn jwks(State(state): State<Arc<ProviderState>>) -> Response {
     state.counters.jwks.fetch_add(1, Ordering::SeqCst);
-    match state.options.lock().await.jwks_mode.clone() {
-        JwksMode::Key(key_id) => Json(jwks_value(&key_id)).into_response(),
+    let options = state.options.lock().await.clone();
+    match options.jwks_mode {
+        JwksMode::Key(key_id) => Json(jwks_value(
+            &key_id,
+            matches!(options.signing_key_version, SigningKeyVersion::Rotated),
+        ))
+        .into_response(),
         JwksMode::Empty => Json(json!({ "keys": [] })).into_response(),
+        JwksMode::EncryptionOnly | JwksMode::WrongAlgorithm => {
+            let mut value = jwks_value("key-1", false);
+            if matches!(options.jwks_mode, JwksMode::EncryptionOnly) {
+                value["keys"][0]["use"] = json!("enc");
+            } else {
+                value["keys"][0]["alg"] = json!("RS512");
+            }
+            Json(value).into_response()
+        }
         JwksMode::Unusable => Json(json!({
-            "keys": [{ "kty": "unsupported", "kid": "bad", "use": "enc" }]
+            "keys": [{ "kty": "unsupported", "kid": "private-sentinel", "use": "enc" }]
         }))
         .into_response(),
+        JwksMode::Malformed => (
+            [(header::CONTENT_TYPE, "application/json")],
+            "{private-sentinel",
+        )
+            .into_response(),
         JwksMode::ServerUnavailable => (
             StatusCode::SERVICE_UNAVAILABLE,
-            "provider temporarily unavailable",
+            "private-sentinel provider temporarily unavailable",
         )
             .into_response(),
         JwksMode::Redirect => (
             StatusCode::FOUND,
             [(header::LOCATION, format!("{}redirect-target", state.issuer))],
+            "private-sentinel",
         )
             .into_response(),
     }
@@ -432,6 +497,7 @@ async fn token(
             .map(ToOwned::to_owned),
         form: form.clone(),
     });
+    lifecycle::wait_token_gate(&state).await;
     let barrier = state.token_barrier.lock().await.clone();
     if let Some(barrier) = barrier {
         barrier.wait().await;
@@ -453,12 +519,21 @@ async fn token(
             .into_response();
     }
     match options.token_mode {
-        TokenMode::Malformed => {
-            ([(header::CONTENT_TYPE, "application/json")], "{not-json").into_response()
-        }
+        TokenMode::Malformed => (
+            [(header::CONTENT_TYPE, "application/json")],
+            "{private-sentinel",
+        )
+            .into_response(),
+        TokenMode::MalformedEnvelope => Json(json!({"id_token": "not-a-token"})).into_response(),
+        TokenMode::UnexpectedStatus => (StatusCode::CREATED, "private-sentinel").into_response(),
+        TokenMode::OAuthServerError => (
+            StatusCode::SERVICE_UNAVAILABLE,
+            Json(json!({"error": "invalid_grant", "error_description": "private-sentinel"})),
+        )
+            .into_response(),
         TokenMode::ProviderError => (
             StatusCode::BAD_REQUEST,
-            Json(json!({ "error": "invalid_grant", "error_description": "do not expose" })),
+            Json(json!({ "error": "invalid_grant", "error_description": "private-sentinel" })),
         )
             .into_response(),
         TokenMode::ServerUnavailable => (
@@ -484,7 +559,13 @@ async fn token(
             let token = if matches!(mode, TokenMode::MalformedIdToken) {
                 String::from("not-a-compact-id-token")
             } else {
-                signed_token(&state.issuer, &options.signing_key_id, nonce, &mode)
+                signed_token(
+                    &state.issuer,
+                    &options.signing_key_id,
+                    nonce,
+                    &mode,
+                    matches!(options.signing_key_version, SigningKeyVersion::Rotated),
+                )
             };
             let serialized = if matches!(mode, TokenMode::CorruptSignature) {
                 corrupt_signature(&token)
@@ -536,7 +617,13 @@ fn valid_token_request(
             == Some("https://gazel.example/auth/callback")
 }
 
-fn signed_token(issuer: &str, key_id: &str, nonce: &str, mode: &TokenMode) -> String {
+fn signed_token(
+    issuer: &str,
+    key_id: &str,
+    nonce: &str,
+    mode: &TokenMode,
+    rollover: bool,
+) -> String {
     let issuer = if matches!(mode, TokenMode::WrongIssuer) {
         "https://wrong-issuer.example"
     } else {
@@ -557,7 +644,10 @@ fn signed_token(issuer: &str, key_id: &str, nonce: &str, mode: &TokenMode) -> St
     } else {
         nonce
     };
-    let audiences = if matches!(mode, TokenMode::AdditionalAudience) {
+    let audiences = if matches!(
+        mode,
+        TokenMode::AdditionalAudience | TokenMode::AdditionalAudienceMatchingAzp
+    ) {
         vec![
             Audience::new(audience.to_string()),
             Audience::new(String::from("untrusted-client")),
@@ -578,13 +668,13 @@ fn signed_token(issuer: &str, key_id: &str, nonce: &str, mode: &TokenMode) -> St
     } else {
         claims.set_nonce(Some(Nonce::new(nonce.to_string())))
     };
-    let key = signing_key(key_id);
+    let key = signing_key(key_id, rollover);
     let hash_token = if matches!(mode, TokenMode::InvalidAccessTokenHash) {
         AccessToken::new(String::from("different-access-token"))
     } else {
         AccessToken::new(String::from("access-token"))
     };
-    CoreIdToken::new(
+    let token = CoreIdToken::new(
         claims,
         &key,
         CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256,
@@ -592,7 +682,47 @@ fn signed_token(issuer: &str, key_id: &str, nonce: &str, mode: &TokenMode) -> St
         None,
     )
     .expect("test ID token should sign")
-    .to_string()
+    .to_string();
+    let parts: Vec<_> = token.split('.').collect();
+    let mut payload: Value =
+        serde_json::from_slice(&URL_SAFE_NO_PAD.decode(parts[1]).unwrap()).unwrap();
+    match mode {
+        TokenMode::MissingIat => {
+            payload.as_object_mut().unwrap().remove("iat");
+        }
+        TokenMode::ZeroIat => payload["iat"] = json!(0),
+        TokenMode::NegativeIat => payload["iat"] = json!(-1),
+        TokenMode::MalformedIat => payload["iat"] = json!("private-sentinel"),
+        TokenMode::WrongAzp => payload["azp"] = json!("other-client"),
+        TokenMode::MatchingAzp | TokenMode::AdditionalAudienceMatchingAzp => {
+            payload["azp"] = json!(CLIENT_ID);
+        }
+        TokenMode::OldIat => payload["iat"] = json!(1),
+        TokenMode::FutureIat => payload["iat"] = json!(chrono::Utc::now().timestamp() + 86_400),
+        TokenMode::IssuerSpelling => payload["iss"] = json!(issuer.trim_end_matches('/')),
+        _ => {}
+    }
+    let header = if matches!(mode, TokenMode::Unsigned) {
+        URL_SAFE_NO_PAD.encode(br#"{"alg":"none"}"#)
+    } else {
+        parts[0].to_owned()
+    };
+    let input = format!(
+        "{header}.{}",
+        URL_SAFE_NO_PAD.encode(serde_json::to_vec(&payload).unwrap())
+    );
+    let signature = if matches!(mode, TokenMode::Unsigned) {
+        String::new()
+    } else {
+        URL_SAFE_NO_PAD.encode(
+            key.sign(
+                &CoreJwsSigningAlgorithm::RsaSsaPkcs1V15Sha256,
+                input.as_bytes(),
+            )
+            .unwrap(),
+        )
+    };
+    format!("{input}.{signature}")
 }
 
 fn corrupt_signature(token: &str) -> String {
@@ -608,19 +738,24 @@ fn corrupt_signature(token: &str) -> String {
     String::from_utf8(corrupted).expect("token should remain ASCII")
 }
 
-fn signing_key(key_id: &str) -> CoreRsaPrivateSigningKey {
-    CoreRsaPrivateSigningKey::from_pem(RSA_PRIVATE_KEY, Some(JsonWebKeyId::new(key_id.to_string())))
+fn signing_key(key_id: &str, rollover: bool) -> CoreRsaPrivateSigningKey {
+    let pem = if rollover {
+        include_str!("fixtures/auth/rollover-key.pem")
+    } else {
+        RSA_PRIVATE_KEY
+    };
+    CoreRsaPrivateSigningKey::from_pem(pem, Some(JsonWebKeyId::new(key_id.to_string())))
         .expect("test RSA key should parse")
 }
 
-fn jwks_value(key_id: &str) -> Value {
+fn jwks_value(key_id: &str, rollover: bool) -> Value {
     serde_json::to_value(openidconnect::core::CoreJsonWebKeySet::new(vec![
-        signing_key(key_id).as_verification_key(),
+        signing_key(key_id, rollover).as_verification_key(),
     ]))
     .expect("JWKS should serialize")
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct LoginAttempt {
     cookie: String,
     state: String,
@@ -789,6 +924,83 @@ async fn response_json(response: Response) -> Value {
     serde_json::from_slice(&bytes).expect("response should contain JSON")
 }
 
+// Only complete success/provider-error shapes consume a browser-bound attempt.
+// Retry the original binding to distinguish malformed rejection from consumption.
+#[tokio::test]
+async fn shared_callback_vectors_validate_bound_attempts() {
+    let fixture: Value = serde_json::from_str(include_str!("fixtures/auth/callbacks.json"))
+        .expect("callback fixture should parse");
+    let (provider, _, app) = initialized(ProviderOptions::default()).await;
+    for vector in fixture["vectors"].as_array().unwrap() {
+        let attempt = login_attempt(&app, &provider, "%2Fsettings%3Ftab%3Ddata%23export").await;
+        let before = provider.state.counters.token.load(Ordering::SeqCst);
+        let query = vector["query"]
+            .as_str()
+            .map(|query| provider.callback_vector_query(query, &attempt));
+        let uri = query.map_or_else(
+            || String::from("/auth/callback"),
+            |query| format!("/auth/callback?{query}"),
+        );
+        let response = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(uri)
+                    .header(header::COOKIE, &attempt.cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::SEE_OTHER, "{}", vector["id"]);
+        let target = vector["target"]["gazel"].as_str().unwrap();
+        let expected = match target {
+            "success" => "/settings?tab=data#export",
+            "error" => {
+                "/login?error=authentication_failed&return_to=%2Fsettings%3Ftab%3Ddata%23export"
+            }
+            "invalid" => "/login?error=authentication_failed&return_to=%2F",
+            other => panic!("unknown target shape {other}"),
+        };
+        assert_eq!(response_location(&response), expected, "{}", vector["id"]);
+        assert!(!response_location(&response).contains("private-sentinel"));
+        assert!(!response_location(&response).contains(provider.issuer()));
+        let after = provider.state.counters.token.load(Ordering::SeqCst);
+        assert_eq!(
+            after - before,
+            usize::from(target == "success"),
+            "{}",
+            vector["id"]
+        );
+        let retry = callback_request(&app, &attempt, "").await;
+        let consumed = target != "invalid";
+        assert_eq!(
+            response_location(&retry),
+            if consumed {
+                "/login?error=authentication_failed&return_to=%2F"
+            } else {
+                "/settings?tab=data#export"
+            },
+            "{} (retry original binding)",
+            vector["id"]
+        );
+        assert_eq!(
+            provider.state.counters.token.load(Ordering::SeqCst) - after,
+            usize::from(!consumed),
+            "{}",
+            vector["id"]
+        );
+        assert_eq!(
+            provider
+                .state
+                .counters
+                .redirect_target
+                .load(Ordering::SeqCst),
+            0
+        );
+    }
+}
+
 #[tokio::test]
 async fn mock_provider_runs_entirely_on_loopback() {
     let provider = MockProvider::start(ProviderOptions::default()).await;
@@ -875,6 +1087,22 @@ async fn discovery_accepts_basic_post_omitted_and_combined_methods() {
 }
 
 #[tokio::test]
+async fn discovery_accepts_omitted_grants_but_requires_code_when_advertised() {
+    let provider = MockProvider::start(ProviderOptions {
+        grant_types: None,
+        ..ProviderOptions::default()
+    })
+    .await;
+    Authentication::bootstrap(provider.config())
+        .await
+        .expect("omitted grants permit Authorization Code");
+    provider
+        .set_options(|options| options.grant_types = Some(Vec::new()))
+        .await;
+    assert!(Authentication::bootstrap(provider.config()).await.is_err());
+}
+
+#[tokio::test]
 async fn discovery_rejects_unsupported_client_authentication() {
     let options = ProviderOptions {
         auth_methods: Some(vec![String::from("private_key_jwt")]),
@@ -949,6 +1177,10 @@ async fn discovery_rejects_insecure_or_missing_endpoints_and_code_flow() {
             ..ProviderOptions::default()
         },
         ProviderOptions {
+            response_types: vec![String::from("code id_token")],
+            ..ProviderOptions::default()
+        },
+        ProviderOptions {
             response_types: vec![String::from("id_token")],
             ..ProviderOptions::default()
         },
@@ -975,6 +1207,22 @@ async fn discovery_rejects_empty_unusable_or_unadvertised_signing_keys() {
             ..ProviderOptions::default()
         },
         ProviderOptions {
+            jwks_mode: JwksMode::EncryptionOnly,
+            ..ProviderOptions::default()
+        },
+        ProviderOptions {
+            jwks_mode: JwksMode::WrongAlgorithm,
+            ..ProviderOptions::default()
+        },
+        ProviderOptions {
+            signing_algorithms: vec![String::from("none"), String::from("RS256")],
+            ..ProviderOptions::default()
+        },
+        ProviderOptions {
+            signing_algorithms: vec![String::from("none")],
+            ..ProviderOptions::default()
+        },
+        ProviderOptions {
             signing_algorithms: vec![String::from("ES256")],
             ..ProviderOptions::default()
         },
@@ -988,6 +1236,41 @@ async fn discovery_rejects_empty_unusable_or_unadvertised_signing_keys() {
             .await
             .expect_err("unusable signing keys should fail");
         assert!(error.to_string().contains("signing key"));
+    }
+}
+
+#[tokio::test]
+async fn unsafe_initial_jwks_and_browser_endpoints_never_contact_the_destination() {
+    for endpoint in ["jwks", "token", "authorization"] {
+        for variant in ["credentials", "fragment", "non-loopback"] {
+            let provider = MockProvider::start(ProviderOptions::default()).await;
+            let destination = match variant {
+                "credentials" => {
+                    provider
+                        .issuer()
+                        .replace("http://", "http://user:private-sentinel@")
+                        + "redirect-target"
+                }
+                "fragment" => format!("{}redirect-target#private-sentinel", provider.issuer()),
+                _ => String::from("http://example.invalid/redirect-target"),
+            };
+            provider
+                .set_options(|options| match endpoint {
+                    "jwks" => options.jwks_endpoint = Some(destination),
+                    "token" => options.token_endpoint = Some(destination),
+                    _ => options.authorization_endpoint = Some(destination),
+                })
+                .await;
+            assert!(
+                Authentication::bootstrap(provider.config()).await.is_err(),
+                "{endpoint}/{variant}"
+            );
+            assert_eq!(provider.redirect_count(), 0, "{endpoint}/{variant}");
+            assert_eq!(provider.token_count(), 0);
+            if endpoint == "jwks" {
+                assert_eq!(provider.jwks_count(), 0);
+            }
+        }
     }
 }
 
@@ -1085,6 +1368,23 @@ async fn login_defaults_invalid_percent_decoded_reserved_and_oversized_targets()
     let attempt = login_attempt(&app, &provider, &oversized).await;
     let response = callback_request(&app, &attempt, "").await;
     assert_eq!(response_location(&response), "/");
+
+    let encoded_boundary = format!("/{}a", "%61".repeat(682));
+    let encoded_oversized = format!("{encoded_boundary}a");
+    for (target, expected) in [
+        ("/cars%2Fnew", "/"),
+        ("/cars%252Fnew", "/"),
+        ("/apiary", "/apiary"),
+        ("/uploads", "/uploads"),
+        ("/settings?label=100%25", "/settings?label=100%25"),
+        (encoded_boundary.as_str(), encoded_boundary.as_str()),
+        (encoded_oversized.as_str(), "/"),
+    ] {
+        let encoded = url::form_urlencoded::byte_serialize(target.as_bytes()).collect::<String>();
+        let attempt = login_attempt(&app, &provider, &encoded).await;
+        let response = callback_request(&app, &attempt, "").await;
+        assert_eq!(response_location(&response), expected, "{target}");
+    }
 }
 
 #[tokio::test]
@@ -1203,6 +1503,215 @@ async fn disabled_router_preserves_existing_routes_and_exposes_only_inert_auth_c
             "license": env!("CARGO_PKG_LICENSE"),
         })
     );
+}
+
+#[tokio::test]
+async fn auth_namespace_no_store_preserves_both_modes_and_framework_method_errors() {
+    let (_provider, enabled) = initialized_server(ProviderOptions::default()).await;
+    let disabled = server_app(None).await;
+
+    for (app, enabled_mode) in [(&disabled, false), (&enabled, true)] {
+        for (method, path, enabled_status, disabled_status) in [
+            ("GET", "/auth/config", StatusCode::OK, StatusCode::OK),
+            (
+                "POST",
+                "/auth/config",
+                StatusCode::METHOD_NOT_ALLOWED,
+                StatusCode::METHOD_NOT_ALLOWED,
+            ),
+            ("GET", "/auth/login", StatusCode::SEE_OTHER, StatusCode::OK),
+            (
+                "POST",
+                "/auth/login",
+                StatusCode::METHOD_NOT_ALLOWED,
+                StatusCode::OK,
+            ),
+            (
+                "GET",
+                "/auth/callback",
+                StatusCode::SEE_OTHER,
+                StatusCode::OK,
+            ),
+            (
+                "POST",
+                "/auth/callback",
+                StatusCode::METHOD_NOT_ALLOWED,
+                StatusCode::OK,
+            ),
+            (
+                "POST",
+                "/auth/logout",
+                StatusCode::SEE_OTHER,
+                StatusCode::OK,
+            ),
+            (
+                "GET",
+                "/auth/logout",
+                StatusCode::METHOD_NOT_ALLOWED,
+                StatusCode::OK,
+            ),
+            ("GET", "/auth", StatusCode::SEE_OTHER, StatusCode::OK),
+            ("GET", "/auth/", StatusCode::SEE_OTHER, StatusCode::OK),
+            (
+                "GET",
+                "/auth/unknown/nested",
+                StatusCode::SEE_OTHER,
+                StatusCode::OK,
+            ),
+            (
+                "DELETE",
+                "/auth/unknown",
+                StatusCode::SEE_OTHER,
+                StatusCode::OK,
+            ),
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .method(method)
+                        .uri(path)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                if enabled_mode {
+                    enabled_status
+                } else {
+                    disabled_status
+                },
+                "{method} {path} enabled={enabled_mode}"
+            );
+            assert_eq!(
+                response.headers()[header::CACHE_CONTROL],
+                "no-store",
+                "{method} {path}"
+            );
+            if enabled_mode
+                && (path.starts_with("/auth/unknown") || ["/auth", "/auth/"].contains(&path))
+            {
+                // Header hygiene must not turn Gazel's protected fallback public.
+                assert_eq!(response_location(&response), "/login?return_to=%2F");
+            }
+        }
+    }
+}
+
+#[tokio::test]
+async fn auth_no_store_preserves_other_routes_cache_policies() {
+    let (provider, enabled) = initialized_server(ProviderOptions::default()).await;
+    let disabled = server_app(None).await;
+    let attempt = login_attempt(&enabled, &provider, "%2Fsettings").await;
+    let callback = callback_request(&enabled, &attempt, "").await;
+    assert_eq!(callback.headers()[header::CACHE_CONTROL], "no-store");
+    let cookie = response_cookie(&callback);
+    for (app, enabled_mode) in [(&disabled, false), (&enabled, true)] {
+        for path in [
+            "/",
+            "/login",
+            "/authentic",
+            "/health",
+            "/api/info",
+            "/favicon.svg",
+        ] {
+            let response = app
+                .clone()
+                .oneshot(
+                    Request::builder()
+                        .uri(path)
+                        .header(header::COOKIE, &cookie)
+                        .body(Body::empty())
+                        .unwrap(),
+                )
+                .await
+                .unwrap();
+            assert_eq!(
+                response.status(),
+                if enabled_mode && path == "/login" {
+                    StatusCode::SEE_OTHER
+                } else {
+                    StatusCode::OK
+                },
+                "{path}"
+            );
+            assert!(
+                response.headers().get(header::CACHE_CONTROL).is_none(),
+                "{path}"
+            );
+        }
+    }
+    for path in ["/auth", "/auth/unknown"] {
+        let response = enabled
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri(path)
+                    .header(header::COOKIE, &cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+    }
+}
+
+#[tokio::test]
+async fn authentication_gate_no_store_covers_invalid_and_expired_cookies() {
+    let clock = Arc::new(TestClock::new(OffsetDateTime::now_utc()));
+    let provider = MockProvider::start(ProviderOptions::default()).await;
+    let authentication = Authentication::bootstrap_with_clock(provider.config(), clock.clone())
+        .await
+        .unwrap();
+    let app = server_app(Some(authentication)).await;
+    let attempt = login_attempt(&app, &provider, "%2Fsettings").await;
+    let callback = callback_request(&app, &attempt, "").await;
+    let cookie = response_cookie(&callback);
+    clock.advance(Duration::hours(12));
+    for cookie in [
+        cookie.clone(),
+        tamper_cookie(&cookie),
+        String::from("gazel_session=unknown"),
+    ] {
+        let document = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/settings?tab=data")
+                    .header(header::COOKIE, &cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(document.status(), StatusCode::SEE_OTHER);
+        assert_eq!(
+            response_location(&document),
+            "/login?return_to=%2Fsettings%3Ftab%3Ddata"
+        );
+        assert_eq!(document.headers()[header::CACHE_CONTROL], "no-store");
+        let api = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/api/info")
+                    .header(header::COOKIE, &cookie)
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(api.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(api.headers()[header::CACHE_CONTROL], "no-store");
+        assert_eq!(
+            response_json(api).await,
+            json!({"code": "AUTHENTICATION_REQUIRED", "message": "Authentication is required."})
+        );
+    }
 }
 
 #[tokio::test]
@@ -1326,6 +1835,7 @@ async fn enabled_router_protects_application_and_api_routes() {
             .expect("protected request should succeed");
         assert_eq!(response.status(), StatusCode::SEE_OTHER);
         assert_eq!(response_location(&response), expected);
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
     }
 
     let oversized_target = format!("/{}", "a".repeat(RETURN_TO_MAX_BYTES));
@@ -1358,6 +1868,7 @@ async fn enabled_router_protects_application_and_api_routes() {
             .await
             .expect("API request should succeed");
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
         assert!(response.headers().get(header::LOCATION).is_none());
         assert_eq!(
             response_json(response).await,
@@ -1677,6 +2188,111 @@ async fn reconstructed_authentication_rejects_a_pre_restart_session_cookie() {
 }
 
 #[tokio::test]
+async fn pending_capacity_preserves_bindings_expiry_and_authenticated_short_circuit() {
+    let start = OffsetDateTime::now_utc();
+    let clock = Arc::new(TestClock::new(start));
+    let provider = MockProvider::start(ProviderOptions::default()).await;
+    let authentication = Authentication::bootstrap_with_clock(provider.config(), clock.clone())
+        .await
+        .unwrap();
+    let app = server_app(Some(authentication)).await;
+    let authenticated_attempt = login_attempt(&app, &provider, "%2Fsettings").await;
+    let authenticated = callback_request(&app, &authenticated_attempt, "").await;
+    let authenticated_cookie = response_cookie(&authenticated);
+
+    let mut pending = Vec::new();
+    for _ in 0..1_024 {
+        pending.push(login_attempt(&app, &provider, "%2Foriginal").await);
+    }
+    assert_eq!(provider.token_count(), 1);
+    clock.advance(Duration::minutes(1));
+    for cookie in [None, Some(pending[0].cookie.as_str())] {
+        for (target, expected) in [
+            ("%2Frequested%3Ftab%3Ddata", "%2Frequested%3Ftab%3Ddata"),
+            ("https%3A%2F%2Fattacker.example", "%2F"),
+        ] {
+            let mut request = Request::builder().uri(format!("/auth/login?return_to={target}"));
+            if let Some(cookie) = cookie {
+                request = request.header(header::COOKIE, cookie);
+            }
+            let response = app
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::SEE_OTHER);
+            assert_eq!(
+                response_location(&response),
+                format!("/login?error=provider_unavailable&return_to={expected}")
+            );
+            assert_eq!(response.headers()[header::CACHE_CONTROL], "no-store");
+            assert!(response.headers().get(header::SET_COOKIE).is_none());
+        }
+    }
+    let short_circuit = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/auth/login?return_to=%2Fstill-authenticated")
+                .header(header::COOKIE, &authenticated_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response_location(&short_circuit), "/still-authenticated");
+    assert!(short_circuit.headers().get(header::SET_COOKIE).is_none());
+    assert_eq!(provider.token_count(), 1);
+
+    let old_callback = callback_request(&app, &pending[0], "").await;
+    assert_eq!(response_location(&old_callback), "/original");
+    assert_eq!(provider.token_count(), 2);
+    let _recovered = login_attempt(&app, &provider, "%2Frecovered").await;
+    let rejected = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/auth/login")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response_location(&rejected),
+        "/login?error=provider_unavailable&return_to=%2F"
+    );
+
+    clock.advance(Duration::minutes(4));
+    // At exactly the original five-minute deadline, pruning frees old slots.
+    let _after_expiry = login_attempt(&app, &provider, "%2Fafter-expiry").await;
+    let expired = callback_request(&app, &pending[1], "").await;
+    assert_eq!(
+        response_location(&expired),
+        "/login?error=authentication_failed&return_to=%2F"
+    );
+    assert_eq!(provider.token_count(), 2);
+
+    // The authenticated shortcut did not extend its original twelve-hour expiry.
+    clock.advance(Duration::hours(12) - Duration::minutes(5));
+    let expired_session = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/settings")
+                .header(header::COOKIE, &authenticated_cookie)
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(
+        response_location(&expired_session),
+        "/login?return_to=%2Fsettings"
+    );
+}
+
+#[tokio::test]
 async fn session_cookie_expiry_is_five_minutes_then_twelve_non_sliding_hours() {
     let (provider, _, app) = initialized(ProviderOptions::default()).await;
     let login = app
@@ -1812,6 +2428,30 @@ async fn callbacks_reject_missing_mismatched_and_replayed_state_before_exchange(
     );
     assert_eq!(provider.token_count(), 0);
 
+    let other_browser = login_attempt(&app, &provider, "%2Fsettings").await;
+    for query in [
+        format!("code={}&state={}", attempt.state, attempt.state),
+        format!("error=denied&state={}", attempt.state),
+    ] {
+        for cookie in [None, Some(&other_browser.cookie)] {
+            let mut request = Request::builder().uri(format!("/auth/callback?{query}"));
+            if let Some(cookie) = cookie {
+                request = request.header(header::COOKIE, cookie);
+            }
+            let response = app
+                .clone()
+                .oneshot(request.body(Body::empty()).unwrap())
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::SEE_OTHER);
+            assert_eq!(
+                response_location(&response),
+                "/login?error=authentication_failed&return_to=%2F"
+            );
+            assert_eq!(provider.token_count(), 0);
+        }
+    }
+
     let success = callback_request(&app, &attempt, "").await;
     assert_eq!(response_location(&success), "/settings");
     let replay = callback_request(&app, &attempt, "").await;
@@ -1838,11 +2478,269 @@ async fn concurrent_callback_consumption_allows_one_token_exchange() {
     assert_eq!(provider.token_count(), 1);
 }
 
+#[derive(Clone, Default)]
+struct CapturedDiagnostics(Arc<StdMutex<Vec<u8>>>);
+
+impl std::io::Write for CapturedDiagnostics {
+    fn write(&mut self, bytes: &[u8]) -> std::io::Result<usize> {
+        self.0.lock().unwrap().extend_from_slice(bytes);
+        Ok(bytes.len())
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        Ok(())
+    }
+}
+
+fn diagnostic_subscriber(captured: &CapturedDiagnostics) -> impl tracing::Subscriber + Send + Sync {
+    let writer = captured.clone();
+    tracing_subscriber::fmt()
+        .with_env_filter("gazel=trace")
+        .without_time()
+        .with_ansi(false)
+        .with_writer(move || writer.clone())
+        .finish()
+}
+
+fn assert_safe_diagnostics(captured: &CapturedDiagnostics, expected: &str) -> String {
+    let diagnostics = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
+    assert!(diagnostics.contains(expected), "{diagnostics}");
+    for sensitive in ["private-sentinel", CLIENT_SECRET, "http://", "https://"] {
+        assert!(!diagnostics.contains(sensitive), "{diagnostics}");
+    }
+    diagnostics
+}
+
+#[tokio::test]
+async fn bootstrap_fails_closed_for_unreachable_discovery_with_safe_diagnostics() {
+    let provider = MockProvider::start(ProviderOptions::default()).await;
+    let mut config = provider.config();
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    config.issuer = format!("http://{}/", listener.local_addr().unwrap());
+    drop(listener);
+    let captured = CapturedDiagnostics::default();
+    let error = Authentication::bootstrap(config)
+        .with_subscriber(diagnostic_subscriber(&captured))
+        .await
+        .unwrap_err();
+    assert!(error.to_string().contains("discovery"));
+    assert_safe_diagnostics(&captured, "transport failure");
+    assert_eq!(provider.discovery_count(), 0);
+    assert_eq!(provider.jwks_count(), 0);
+}
+
+#[tokio::test]
+async fn bootstrap_initial_jwks_failures_emit_safe_transport_status_and_parsing_diagnostics() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let unreachable = format!(
+        "http://{}/jwks?private-sentinel",
+        listener.local_addr().unwrap()
+    );
+    drop(listener);
+    for (options, expected, jwks_count) in [
+        (
+            ProviderOptions {
+                jwks_endpoint: Some(unreachable),
+                ..ProviderOptions::default()
+            },
+            "transport failure",
+            0,
+        ),
+        (
+            ProviderOptions {
+                jwks_mode: JwksMode::ServerUnavailable,
+                ..ProviderOptions::default()
+            },
+            "HTTP 503",
+            1,
+        ),
+        (
+            ProviderOptions {
+                jwks_mode: JwksMode::Malformed,
+                ..ProviderOptions::default()
+            },
+            "parsing failure",
+            1,
+        ),
+        (
+            ProviderOptions {
+                issuer_override: Some(String::from("https://private-sentinel.example/")),
+                ..ProviderOptions::default()
+            },
+            "validation failure",
+            0,
+        ),
+    ] {
+        let provider = MockProvider::start(options).await;
+        let captured = CapturedDiagnostics::default();
+        let error = Authentication::bootstrap(provider.config())
+            .with_subscriber(diagnostic_subscriber(&captured))
+            .await
+            .unwrap_err();
+        assert!(error.to_string().contains("discovery"));
+        assert_safe_diagnostics(&captured, expected);
+        assert_eq!(provider.discovery_count(), 1);
+        assert_eq!(provider.jwks_count(), jwks_count);
+        assert_eq!(provider.token_count(), 0);
+        assert_eq!(provider.redirect_count(), 0);
+    }
+}
+
+#[tokio::test]
+async fn actual_refresh_failures_emit_safe_categories_and_only_retained_status() {
+    for (mode, category, status) in [
+        (JwksMode::Redirect, "http_status", Some(302)),
+        (JwksMode::ServerUnavailable, "http_status", Some(503)),
+        (JwksMode::Malformed, "parsing", None),
+        (JwksMode::Empty, "validation", None),
+        (JwksMode::Unusable, "validation", None),
+    ] {
+        let (provider, _, app) = initialized(ProviderOptions::default()).await;
+        provider
+            .set_options(|options| {
+                options.jwks_mode = mode;
+                options.signing_key_version = SigningKeyVersion::Rotated;
+            })
+            .await;
+        let captured = CapturedDiagnostics::default();
+        async {
+            for _ in 0..2 {
+                let attempt = login_attempt(&app, &provider, "%2Ffailed").await;
+                assert_eq!(
+                    response_location(&callback_request(&app, &attempt, "").await),
+                    "/login?error=provider_unavailable&return_to=%2Ffailed"
+                );
+            }
+        }
+        .with_subscriber(diagnostic_subscriber(&captured))
+        .await;
+        let diagnostics = assert_safe_diagnostics(&captured, "operation=\"jwks_refresh\"");
+        assert_eq!(diagnostics.matches("jwks_refresh").count(), 1);
+        assert!(diagnostics.contains(&format!("category=\"{category}\"")));
+        if let Some(status) = status {
+            assert!(diagnostics.contains(&format!("status={status}")));
+        } else {
+            assert!(!diagnostics.contains("status="));
+        }
+        assert_eq!(provider.discovery_count(), 1);
+        assert_eq!(provider.jwks_count(), 2);
+        assert_eq!(provider.redirect_count(), 0);
+    }
+}
+
+#[tokio::test]
+async fn provider_diagnostics_never_include_sensitive_bodies_queries_or_validation() {
+    let captured = CapturedDiagnostics::default();
+    let writer = captured.clone();
+    let subscriber = tracing_subscriber::fmt()
+        .with_env_filter("gazel=trace")
+        .without_time()
+        .with_ansi(false)
+        .with_writer(move || writer.clone())
+        .finish();
+    async {
+        for options in [
+            ProviderOptions {
+                metadata_mode: MetadataMode::Malformed,
+                ..ProviderOptions::default()
+            },
+            ProviderOptions {
+                issuer_override: Some(String::from(
+                    "https://private-sentinel.example/?private-sentinel",
+                )),
+                ..ProviderOptions::default()
+            },
+        ] {
+            let provider = MockProvider::start(options).await;
+            let error = Authentication::bootstrap(provider.config())
+                .await
+                .unwrap_err();
+            assert!(!format!("{error:?} {error}").contains("private-sentinel"));
+        }
+        let provider = MockProvider::start(ProviderOptions::default()).await;
+        provider
+            .set_options(|options| {
+                options.jwks_endpoint = Some(
+                    provider
+                        .issuer()
+                        .replace("http://", "http://user:private-sentinel@")
+                        + "jwks?private-sentinel",
+                );
+            })
+            .await;
+        let error = Authentication::bootstrap(provider.config())
+            .await
+            .unwrap_err();
+        assert!(!format!("{error:?} {error}").contains("private-sentinel"));
+        assert_eq!(provider.jwks_count(), 0);
+        for mode in [
+            TokenMode::Malformed,
+            TokenMode::MalformedIdToken,
+            TokenMode::MalformedIat,
+            TokenMode::ProviderError,
+            TokenMode::OAuthServerError,
+            TokenMode::Redirect,
+        ] {
+            let provider = MockProvider::start(ProviderOptions {
+                token_mode: mode,
+                ..ProviderOptions::default()
+            })
+            .await;
+            provider
+                .set_options(|options| {
+                    options.token_endpoint =
+                        Some(format!("{}token?private-sentinel", provider.issuer()));
+                    options.jwks_endpoint =
+                        Some(format!("{}jwks?private-sentinel", provider.issuer()));
+                })
+                .await;
+            let authentication =
+                Arc::new(Authentication::bootstrap(provider.config()).await.unwrap());
+            assert!(!format!("{authentication:?}").contains("private-sentinel"));
+            let app = authentication.protocol_router();
+            let attempt = login_attempt(&app, &provider, "%2Fsettings").await;
+            let response = callback_request(&app, &attempt, "").await;
+            assert!(!response_location(&response).contains("private-sentinel"));
+            assert_eq!(provider.redirect_count(), 0);
+        }
+    }
+    .with_subscriber(subscriber)
+    .await;
+    let diagnostics = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
+    assert!(diagnostics.contains("OIDC discovery failed"));
+    for sensitive in [
+        "private-sentinel",
+        CLIENT_SECRET,
+        "access-token",
+        "id_token",
+        "code=",
+        "state=",
+        "nonce=",
+        "http://",
+        "https://",
+    ] {
+        assert!(
+            !diagnostics.contains(sensitive),
+            "diagnostics exposed {sensitive}"
+        );
+    }
+}
+
 #[tokio::test]
 async fn provider_callback_and_token_failures_use_stable_safe_redirects() {
     let modes = [
         TokenMode::Malformed,
+        TokenMode::OAuthServerError,
+        TokenMode::UnexpectedStatus,
+        TokenMode::MalformedEnvelope,
         TokenMode::MalformedIdToken,
+        TokenMode::Unsigned,
+        TokenMode::MissingIat,
+        TokenMode::ZeroIat,
+        TokenMode::NegativeIat,
+        TokenMode::MalformedIat,
+        TokenMode::WrongAzp,
+        TokenMode::IssuerSpelling,
         TokenMode::ProviderError,
         TokenMode::MissingNonce,
         TokenMode::WrongNonce,
@@ -1851,6 +2749,7 @@ async fn provider_callback_and_token_failures_use_stable_safe_redirects() {
         TokenMode::Expired,
         TokenMode::InvalidAccessTokenHash,
         TokenMode::AdditionalAudience,
+        TokenMode::AdditionalAudienceMatchingAzp,
         TokenMode::MissingIdToken,
         TokenMode::CorruptSignature,
         TokenMode::Redirect,
@@ -1863,11 +2762,30 @@ async fn provider_callback_and_token_failures_use_stable_safe_redirects() {
         let (provider, _, app) = initialized(options).await;
         let attempt = login_attempt(&app, &provider, "%2Fsettings%3Ftab%3Ddata").await;
         let response = callback_request(&app, &attempt, "").await;
+        let category = if matches!(
+            mode,
+            TokenMode::Malformed
+                | TokenMode::Redirect
+                | TokenMode::OAuthServerError
+                | TokenMode::UnexpectedStatus
+                | TokenMode::MalformedEnvelope
+        ) {
+            "provider_unavailable"
+        } else {
+            "authentication_failed"
+        };
         assert_eq!(
             response_location(&response),
-            "/login?error=authentication_failed&return_to=%2Fsettings%3Ftab%3Ddata",
+            format!("/login?error={category}&return_to=%2Fsettings%3Ftab%3Ddata"),
             "unexpected callback outcome for {mode:?}"
         );
+        if !matches!(mode, TokenMode::CorruptSignature) {
+            assert_eq!(
+                provider.jwks_count(),
+                1,
+                "claim failures must not refresh: {mode:?}"
+            );
+        }
         assert_eq!(provider.redirect_count(), 0);
         let retry = app
             .clone()
@@ -1939,17 +2857,26 @@ async fn token_endpoint_server_error_uses_provider_unavailable_redirect() {
 async fn normal_and_non_signature_failures_use_startup_cache_without_refetch() {
     for mode in [
         TokenMode::Valid,
+        TokenMode::MatchingAzp,
+        TokenMode::OldIat,
+        TokenMode::FutureIat,
         TokenMode::MissingNonce,
         TokenMode::WrongNonce,
         TokenMode::InvalidAccessTokenHash,
     ] {
         let options = ProviderOptions {
-            token_mode: mode,
+            token_mode: mode.clone(),
             ..ProviderOptions::default()
         };
         let (provider, _, app) = initialized(options).await;
         let attempt = login_attempt(&app, &provider, "%2F").await;
-        let _response = callback_request(&app, &attempt, "").await;
+        let response = callback_request(&app, &attempt, "").await;
+        if matches!(
+            mode,
+            TokenMode::Valid | TokenMode::MatchingAzp | TokenMode::OldIat | TokenMode::FutureIat
+        ) {
+            assert_eq!(response_location(&response), "/");
+        }
         assert_eq!(provider.discovery_count(), 1);
         assert_eq!(provider.jwks_count(), 1);
     }
@@ -2064,6 +2991,83 @@ async fn failed_jwks_refresh_retries_after_cooldown_and_recovers() {
         3,
         "concurrent later logins should share one JWKS retry"
     );
+}
+
+#[tokio::test]
+async fn same_kid_key_rollover_refreshes_once_and_preserves_basic_and_post() {
+    for method in ["client_secret_basic", "client_secret_post"] {
+        let (provider, _, app) = initialized(ProviderOptions {
+            auth_methods: Some(vec![method.to_owned()]),
+            ..ProviderOptions::default()
+        })
+        .await;
+        provider
+            .set_options(|options| options.signing_key_version = SigningKeyVersion::Rotated)
+            .await;
+        let first = login_attempt(&app, &provider, "%2Ffirst").await;
+        let second = login_attempt(&app, &provider, "%2Fsecond").await;
+        provider.set_barrier(2).await;
+        let (first, second) = tokio::join!(
+            callback_request(&app, &first, ""),
+            callback_request(&app, &second, "")
+        );
+        assert_eq!(response_location(&first), "/first", "{method}");
+        assert_eq!(response_location(&second), "/second", "{method}");
+        *provider.state.token_barrier.lock().await = None;
+        let cached = login_attempt(&app, &provider, "%2Fcached").await;
+        assert_eq!(
+            response_location(&callback_request(&app, &cached, "").await),
+            "/cached"
+        );
+        assert_eq!(provider.discovery_count(), 1);
+        assert_eq!(provider.jwks_count(), 2);
+        assert_eq!(provider.token_count(), 3);
+        for request in provider.token_requests().await {
+            assert_eq!(
+                request.authorization.is_some(),
+                method == "client_secret_basic"
+            );
+            assert_eq!(
+                request.form.contains_key("client_secret"),
+                method == "client_secret_post"
+            );
+        }
+    }
+}
+
+#[tokio::test]
+async fn failed_refresh_keeps_usable_keys_and_never_follows_redirects() {
+    for mode in [
+        JwksMode::Redirect,
+        JwksMode::Empty,
+        JwksMode::Unusable,
+        JwksMode::Malformed,
+        JwksMode::ServerUnavailable,
+    ] {
+        let (provider, _, app) = initialized(ProviderOptions::default()).await;
+        provider
+            .set_options(|options| {
+                options.jwks_mode = mode;
+                options.signing_key_version = SigningKeyVersion::Rotated;
+            })
+            .await;
+        let failed = login_attempt(&app, &provider, "%2Ffailed").await;
+        assert_eq!(
+            response_location(&callback_request(&app, &failed, "").await),
+            "/login?error=provider_unavailable&return_to=%2Ffailed"
+        );
+        provider
+            .set_options(|options| options.signing_key_version = SigningKeyVersion::Initial)
+            .await;
+        let retained = login_attempt(&app, &provider, "%2Fretained").await;
+        assert_eq!(
+            response_location(&callback_request(&app, &retained, "").await),
+            "/retained"
+        );
+        assert_eq!(provider.jwks_count(), 2);
+        assert_eq!(provider.discovery_count(), 1);
+        assert_eq!(provider.redirect_count(), 0);
+    }
 }
 
 #[tokio::test]
