@@ -74,6 +74,7 @@ docker compose up -d
 | `GAZEL_OIDC_CLIENT_ID`     | —                | Required confidential-client ID.                                     |
 | `GAZEL_OIDC_CLIENT_SECRET` | —                | Required confidential-client secret.                                 |
 | `GAZEL_OIDC_PROVIDER_NAME` | `OpenID Connect` | Name shown on the login button. |
+| `GAZEL_OIDC_AUTO_REDIRECT` | `false`          | Skip the login-button click. |
 
 ## Security
 

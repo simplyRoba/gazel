@@ -23,6 +23,7 @@ pub struct OidcConfig {
     pub client_id: String,
     pub client_secret: String,
     pub provider_name: String,
+    pub auto_redirect: bool,
 }
 
 impl fmt::Debug for OidcConfig {
@@ -35,6 +36,7 @@ impl fmt::Debug for OidcConfig {
             .field("client_id", &self.client_id)
             .field("client_secret", &"[REDACTED]")
             .field("provider_name", &self.provider_name)
+            .field("auto_redirect", &self.auto_redirect)
             .finish()
     }
 }
@@ -50,6 +52,7 @@ impl OidcConfig {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AuthConfigError {
     InvalidEnabledFlag,
+    InvalidAutoRedirectFlag,
     NonUnicodeValue(String),
     MissingRequiredValue(String),
     InvalidExternalUrl,
@@ -61,6 +64,9 @@ impl fmt::Display for AuthConfigError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (key, reason) = match self {
             Self::InvalidEnabledFlag => ("AUTH_ENABLED", "expected exactly `true` or `false`"),
+            Self::InvalidAutoRedirectFlag => {
+                ("OIDC_AUTO_REDIRECT", "expected exactly `true` or `false`")
+            }
             Self::NonUnicodeValue(key) => (key.as_str(), "must be valid UTF-8"),
             Self::MissingRequiredValue(key) => (key.as_str(), "a non-empty value is required"),
             Self::InvalidExternalUrl => ("EXTERNAL_URL", "must be a safe root-mounted origin"),
@@ -87,6 +93,12 @@ pub fn load_from(source: &impl AuthConfigSource) -> Result<Option<OidcConfig>, A
         Some("true") => {}
         Some(_) => return Err(AuthConfigError::InvalidEnabledFlag),
     }
+
+    let auto_redirect = match value(source, "OIDC_AUTO_REDIRECT")?.as_deref() {
+        None | Some("false") => false,
+        Some("true") => true,
+        Some(_) => return Err(AuthConfigError::InvalidAutoRedirectFlag),
+    };
 
     let external_value = required(source, "EXTERNAL_URL")?;
     let issuer = required(source, "OIDC_ISSUER")?;
@@ -120,6 +132,7 @@ pub fn load_from(source: &impl AuthConfigSource) -> Result<Option<OidcConfig>, A
         client_id,
         client_secret,
         provider_name: provider_name.to_owned(),
+        auto_redirect,
     }))
 }
 
@@ -156,6 +169,107 @@ mod tests {
                 "OIDC_PROVIDER_NAME" => self.0.clone(),
                 _ => None,
             })
+        }
+    }
+
+    struct AutoRedirectSource {
+        enabled: Option<&'static str>,
+        flag: Result<Option<String>, VarError>,
+    }
+
+    impl AuthConfigSource for AutoRedirectSource {
+        fn get(&self, key: &str) -> Result<Option<String>, VarError> {
+            match key {
+                "AUTH_ENABLED" => Ok(self.enabled.map(str::to_owned)),
+                "OIDC_AUTO_REDIRECT" => {
+                    assert_eq!(
+                        self.enabled,
+                        Some("true"),
+                        "disabled auth must not read flag"
+                    );
+                    self.flag.clone()
+                }
+                _ => LabelSource(None).get(key),
+            }
+        }
+    }
+
+    #[test]
+    fn auto_redirect_defaults_to_false_and_accepts_only_exact_booleans() {
+        for (flag, expected) in [(None, false), (Some("false"), false), (Some("true"), true)] {
+            let config = load_from(&AutoRedirectSource {
+                enabled: Some("true"),
+                flag: Ok(flag.map(str::to_owned)),
+            })
+            .unwrap()
+            .unwrap();
+            assert_eq!(config.auto_redirect, expected);
+            assert!(format!("{config:?}").contains(&format!("auto_redirect: {expected}")));
+        }
+    }
+
+    #[test]
+    fn auto_redirect_rejects_invalid_values_without_disclosing_them() {
+        for flag in [
+            "",
+            "TRUE",
+            "False",
+            "1",
+            "0",
+            " true",
+            "false ",
+            "secret-marker",
+        ] {
+            let error = load_from(&AutoRedirectSource {
+                enabled: Some("true"),
+                flag: Ok(Some(flag.to_owned())),
+            })
+            .unwrap_err();
+            assert_eq!(error, AuthConfigError::InvalidAutoRedirectFlag);
+            assert_eq!(
+                error.to_string(),
+                format!(
+                    "invalid {}OIDC_AUTO_REDIRECT: expected exactly `true` or `false`",
+                    app::ENV_PREFIX
+                )
+            );
+        }
+    }
+
+    #[test]
+    fn auto_redirect_rejects_non_unicode_without_disclosing_it() {
+        let error = load_from(&AutoRedirectSource {
+            enabled: Some("true"),
+            flag: Err(VarError::NotUnicode("secret-marker".into())),
+        })
+        .unwrap_err();
+        assert_eq!(
+            error,
+            AuthConfigError::NonUnicodeValue("OIDC_AUTO_REDIRECT".to_owned())
+        );
+        assert_eq!(
+            error.to_string(),
+            format!(
+                "invalid {}OIDC_AUTO_REDIRECT: must be valid UTF-8",
+                app::ENV_PREFIX
+            )
+        );
+    }
+
+    #[test]
+    fn disabled_auth_does_not_read_auto_redirect() {
+        for enabled in [None, Some("false")] {
+            for flag in [
+                Ok(Some(String::new())),
+                Ok(Some("invalid".to_owned())),
+                Err(VarError::NotUnicode("secret-marker".into())),
+            ] {
+                assert!(
+                    load_from(&AutoRedirectSource { enabled, flag })
+                        .unwrap()
+                        .is_none()
+                );
+            }
         }
     }
 

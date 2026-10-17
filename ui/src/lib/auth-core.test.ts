@@ -8,6 +8,7 @@ import {
   parseAuthConfig,
   returnToFromQuery,
   safeLocalTarget,
+  shouldAutoRedirect,
 } from "./auth-core.js";
 
 type Label =
@@ -81,12 +82,20 @@ describe("pure public authentication config decoding", () => {
     (vector) => {
       const normalized = expandLabel(vector.normalized);
       if (normalized !== null) {
-        const config = { enabled: true, provider_name: normalized };
+        const config = {
+          enabled: true,
+          provider_name: normalized,
+          auto_redirect: false,
+        };
         expect(parseAuthConfig(config)).toEqual(config);
       }
       const raw = expandLabel(vector.input);
       if (raw !== null) {
-        const config = { enabled: true, provider_name: raw };
+        const config = {
+          enabled: true,
+          provider_name: raw,
+          auto_redirect: false,
+        };
         expect(parseAuthConfig(config)).toEqual(
           raw === normalized ? config : null,
         );
@@ -96,9 +105,10 @@ describe("pure public authentication config decoding", () => {
 
   it.each([
     { enabled: false },
-    { enabled: true, provider_name: "OpenID Connect" },
-    { enabled: true, provider_name: "é".repeat(80) },
-    { enabled: true, provider_name: "🌱".repeat(80) },
+    { enabled: true, provider_name: "OpenID Connect", auto_redirect: false },
+    { enabled: true, provider_name: "OpenID Connect", auto_redirect: true },
+    { enabled: true, provider_name: "é".repeat(80), auto_redirect: false },
+    { enabled: true, provider_name: "🌱".repeat(80), auto_redirect: false },
   ])("accepts the normalized contract %j", (value) => {
     expect(parseAuthConfig(value)).toEqual(value);
   });
@@ -115,18 +125,29 @@ describe("pure public authentication config decoding", () => {
     { enabled: false, extra: true },
     { enabled: true },
     { provider_name: "Provider" },
-    { enabled: true, provider_name: "Provider", extra: true },
-    { enabled: true, provider_name: null },
-    { enabled: true, provider_name: 1 },
-    { enabled: true, provider_name: "" },
-    { enabled: true, provider_name: " " },
-    { enabled: true, provider_name: " Provider" },
-    { enabled: true, provider_name: "Provider " },
-    { enabled: true, provider_name: "bad\nname" },
-    { enabled: true, provider_name: "before\u0085after" },
-    { enabled: true, provider_name: "before\u009fafter" },
-    { enabled: true, provider_name: "é".repeat(81) },
-    { enabled: true, provider_name: "🌱".repeat(81) },
+    {
+      enabled: true,
+      provider_name: "Provider",
+      auto_redirect: false,
+      extra: true,
+    },
+    { enabled: true, provider_name: "Provider" },
+    { enabled: true, provider_name: "Provider", auto_redirect: null },
+    { enabled: true, provider_name: "Provider", auto_redirect: "true" },
+    { enabled: true, provider_name: "Provider", auto_redirect: 1 },
+    { enabled: false, auto_redirect: false },
+    { enabled: false, auto_redirect: true },
+    { enabled: true, provider_name: null, auto_redirect: false },
+    { enabled: true, provider_name: 1, auto_redirect: false },
+    { enabled: true, provider_name: "", auto_redirect: false },
+    { enabled: true, provider_name: " ", auto_redirect: false },
+    { enabled: true, provider_name: " Provider", auto_redirect: false },
+    { enabled: true, provider_name: "Provider ", auto_redirect: false },
+    { enabled: true, provider_name: "bad\nname", auto_redirect: false },
+    { enabled: true, provider_name: "before\u0085after", auto_redirect: false },
+    { enabled: true, provider_name: "before\u009fafter", auto_redirect: false },
+    { enabled: true, provider_name: "é".repeat(81), auto_redirect: false },
+    { enabled: true, provider_name: "🌱".repeat(81), auto_redirect: false },
   ])("rejects an invalid contract %j", (value) => {
     expect(parseAuthConfig(value)).toBeNull();
   });
@@ -137,8 +158,52 @@ describe("pure public authentication config decoding", () => {
       parseAuthConfig(
         Object.assign(Object.create({ provider_name: "Provider" }), {
           enabled: true,
+          auto_redirect: false,
         }),
       ),
     ).toBeNull();
+    expect(
+      parseAuthConfig(
+        Object.assign(Object.create({ auto_redirect: true }), {
+          enabled: true,
+          provider_name: "Provider",
+        }),
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("automatic provider navigation", () => {
+  const automatic = {
+    enabled: true,
+    provider_name: "Provider",
+    auto_redirect: true,
+  } as const;
+
+  it.each(["", "?return_to=%2Fsettings%3Ftab%3Ddata%23export"])(
+    "starts on an ordinary login query %j",
+    (query) => {
+      expect(shouldAutoRedirect(automatic, query)).toBe(true);
+      expect(
+        shouldAutoRedirect({ ...automatic, auto_redirect: false }, query),
+      ).toBe(false);
+      expect(shouldAutoRedirect({ enabled: false }, query)).toBe(false);
+    },
+  );
+
+  it.each([
+    "?error=authentication_failed",
+    "?error=provider_unavailable",
+    "?error=unknown",
+    "?error=",
+    "?error",
+    "?%65rror=unknown",
+    "?logged_out=1",
+    "?logged_out=0",
+    "?logged_out=",
+    "?logged_out",
+    "?error=&logged_out=1&return_to=%2Fsettings",
+  ])("does not restart login from a result query %j", (query) => {
+    expect(shouldAutoRedirect(automatic, query)).toBe(false);
   });
 });

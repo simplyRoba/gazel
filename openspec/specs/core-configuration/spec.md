@@ -59,8 +59,8 @@ Built-in authentication SHALL be controlled by `GAZEL_AUTH_ENABLED`, which SHALL
 - **THEN** authentication SHALL remain disabled without validating those other settings
 - **AND** existing application behavior and the inert public auth-config response SHALL remain unchanged
 
-### Requirement: Enabled authentication uses five functional settings
-The enabled authentication boundary SHALL consist of five functional settings: `GAZEL_AUTH_ENABLED=true` plus non-empty `GAZEL_EXTERNAL_URL`, `GAZEL_OIDC_ISSUER`, `GAZEL_OIDC_CLIENT_ID`, and `GAZEL_OIDC_CLIENT_SECRET`. The separately defined `GAZEL_OIDC_PROVIDER_NAME` SHALL remain optional display-only metadata. Every authentication value read while parsing enabled authentication SHALL be valid Unicode; present non-Unicode values SHALL fail configuration loading rather than use a default or behave as absent.
+### Requirement: Enabled authentication requires five settings
+The enabled authentication boundary SHALL require five settings: `GAZEL_AUTH_ENABLED=true` plus non-empty `GAZEL_EXTERNAL_URL`, `GAZEL_OIDC_ISSUER`, `GAZEL_OIDC_CLIENT_ID`, and `GAZEL_OIDC_CLIENT_SECRET`. The separately defined `GAZEL_OIDC_PROVIDER_NAME` SHALL remain optional display-only metadata, and `GAZEL_OIDC_AUTO_REDIRECT` SHALL be an optional login behavior flag. Every authentication value read while parsing enabled authentication SHALL be valid Unicode; present non-Unicode values SHALL fail configuration loading rather than use a default or behave as absent.
 
 #### Scenario: Complete five-setting configuration
 - **WHEN** the enable flag and every required OIDC value are valid and non-empty
@@ -79,6 +79,26 @@ The enabled authentication boundary SHALL consist of five functional settings: `
 #### Scenario: Unrelated lenient configuration remains unchanged
 - **WHEN** enabled authentication is valid but an unrelated setting has an invalid value for which existing configuration defines a fallback
 - **THEN** authentication Unicode validation SHALL NOT change that setting’s existing fallback behavior
+
+### Requirement: Automatic OIDC login is optional
+When authentication is enabled, `GAZEL_OIDC_AUTO_REDIRECT` SHALL default to `false` when absent and SHALL accept only the exact strings `true` and `false`. Invalid or non-Unicode values SHALL fail startup with a safe error identifying the variable without exposing its value. When authentication is disabled, the flag SHALL NOT be read or validated.
+
+#### Scenario: Manual login by default
+- **WHEN** authentication is enabled and `GAZEL_OIDC_AUTO_REDIRECT` is absent or `false`
+- **THEN** public auth config SHALL report `auto_redirect: false`
+
+#### Scenario: Automatic login enabled
+- **WHEN** authentication is enabled and `GAZEL_OIDC_AUTO_REDIRECT=true`
+- **THEN** public auth config SHALL report `auto_redirect: true`
+
+#### Scenario: Invalid automatic-login flag
+- **WHEN** authentication is enabled and `GAZEL_OIDC_AUTO_REDIRECT` is non-Unicode or not exactly `true` or `false`, including an empty value
+- **THEN** startup SHALL fail safely without exposing the value or disabling authentication
+
+#### Scenario: Disabled authentication ignores automatic-login flag
+- **WHEN** authentication is disabled and `GAZEL_OIDC_AUTO_REDIRECT` is invalid or non-Unicode
+- **THEN** startup SHALL proceed without reading or validating the flag
+- **AND** public auth config SHALL remain exactly `{ "enabled": false }`
 
 ### Requirement: OIDC provider display name is configurable
 `GAZEL_OIDC_PROVIDER_NAME` SHALL optionally configure the human-readable provider name shown by the public login page and SHALL default to `OpenID Connect`.

@@ -3,6 +3,7 @@
   import { page } from "$app/state";
   import { fetchAuthConfig, type AuthConfig } from "#lib/api.js";
   import { returnToFromQuery } from "#lib/auth-return.js";
+  import { shouldAutoRedirect } from "#lib/auth-core.js";
   import Logo from "#lib/components/Logo.svelte";
   import { t } from "#lib/i18n/index.js";
 
@@ -34,6 +35,11 @@
           return;
         }
         config = value;
+        if (shouldAutoRedirect(value, page.url.search)) {
+          window.location.replace(
+            `/auth/login?${new URLSearchParams({ return_to: returnTo })}`,
+          );
+        }
       })
       .catch(() => {
         if (!controller.signal.aborted) configFailed = true;

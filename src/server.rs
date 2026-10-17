@@ -67,6 +67,7 @@ fn enabled_router(state: &AppState, authentication: &Arc<Authentication>) -> Rou
 
     let pool = state.pool.clone();
     let provider_name = authentication.config().provider_name.clone();
+    let auto_redirect = authentication.config().auto_redirect;
     let login_authentication = Arc::clone(authentication);
     let mut public = Router::new()
         .route("/health", get(move || health(pool)))
@@ -74,7 +75,7 @@ fn enabled_router(state: &AppState, authentication: &Arc<Authentication>) -> Rou
             "/auth/config",
             get(move || {
                 let provider_name = provider_name.clone();
-                async move { enabled_auth_config(&provider_name) }
+                async move { enabled_auth_config(&provider_name, auto_redirect) }
             }),
         )
         .route(
@@ -127,10 +128,11 @@ fn disabled_auth_config() -> Json<serde_json::Value> {
     Json(json!({ "enabled": false }))
 }
 
-fn enabled_auth_config(provider_name: &str) -> Json<serde_json::Value> {
+fn enabled_auth_config(provider_name: &str, auto_redirect: bool) -> Json<serde_json::Value> {
     Json(json!({
         "enabled": true,
         "provider_name": provider_name,
+        "auto_redirect": auto_redirect,
     }))
 }
 
