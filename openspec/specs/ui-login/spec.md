@@ -67,9 +67,26 @@ The login button SHALL navigate to `/auth/login` with a validated serialized loc
 - **THEN** the login button SHALL carry that exact serialized target encoded as one `return_to` value
 - **AND** SHALL NOT reject a valid query escape because validation decoding produces a literal percent
 
-#### Scenario: Login remains an explicit user action
-- **WHEN** the public login page finishes loading, including a failure or retry state
+#### Scenario: Login remains an explicit user action by default
+- **WHEN** the public login page finishes loading with valid enabled configuration and `auto_redirect: false`, including a failure or retry state
 - **THEN** it SHALL wait for the user to activate the provider button rather than automatically navigate to provider authorization
+
+### Requirement: Optional automatic login uses the validated provider action
+On ordinary `/login` entry with valid enabled public configuration and `auto_redirect: true`, the mounted page SHALL perform exactly one top-level navigation to `/auth/login`, replacing the login history entry and using the same validated, serialized `return_to` as the manual button. This SHALL apply to direct browser entry and SPA/API-expiry entry. The page SHALL NOT navigate automatically when the query contains `error` or `logged_out`, regardless of value, while configuration is loading, failed, or malformed, or after unmount.
+
+#### Scenario: Ordinary automatic-login entry
+- **WHEN** a direct browser entry or SPA/API-expiry navigation reaches `/login` without `error` or `logged_out` and valid enabled config reports `auto_redirect: true`
+- **THEN** the page SHALL replace the login history entry with exactly one top-level navigation to the manual button's `/auth/login` target
+- **AND** SHALL preserve the same validated `return_to`, including `/` for absent or unsafe targets
+
+#### Scenario: Result query suppresses automatic login
+- **WHEN** `/login` contains `error` or `logged_out`, including an empty or unknown value, even with `auto_redirect: true`
+- **THEN** the page SHALL NOT automatically start OIDC
+- **AND** existing generic result messages and the manual retry action SHALL remain unchanged
+
+#### Scenario: Configuration cannot trigger navigation after unmount
+- **WHEN** config is pending, fails, is malformed, or completes after the login page unmounts
+- **THEN** the page SHALL NOT automatically navigate to `/auth/login`
 
 ### Requirement: Login page exposes safe failure and signed-out states
 The page SHALL render stable local status codes without displaying provider descriptions, callback parameters, or secrets.
@@ -97,11 +114,11 @@ The page SHALL render stable local status codes without displaying provider desc
 - **AND** SHALL NOT reflect the unknown value as HTML
 
 ### Requirement: Login page depends only on public resources
-The public login page SHALL load only the shared static assets and public auth-config endpoint needed to render and start OIDC.
+The public login page SHALL load only the shared static assets and public auth-config endpoint needed to render and start OIDC. Its strict parser SHALL accept only exactly `{ "enabled": true, "provider_name": <string>, "auto_redirect": <boolean> }` or exactly `{ "enabled": false }`.
 
 #### Scenario: Login page initialization
 - **WHEN** `/login` mounts without a Gazel session
-- **THEN** it SHALL request `GET /auth/config` for the provider display name
+- **THEN** it SHALL request `GET /auth/config` for the provider display name and automatic-login flag
 - **AND** SHALL NOT call `/api/settings`, `/api/vehicles`, or any other protected application API
 
 #### Scenario: Auth config is loading
@@ -113,6 +130,11 @@ The public login page SHALL load only the shared static assets and public auth-c
 - **WHEN** public auth config reports `enabled: false`
 - **THEN** the login route SHALL replace browser navigation with `/`
 - **AND** SHALL NOT display the authentication-required text or OIDC button
+
+#### Scenario: Invalid auth config shape
+- **WHEN** public auth config has missing or non-boolean `enabled`, missing or non-string enabled `provider_name`, missing or non-boolean enabled `auto_redirect`, unexpected fields, or any disabled-mode field other than `enabled`
+- **THEN** the page SHALL reject it as malformed, including the old enabled shape without `auto_redirect`
+- **AND** SHALL NOT render or enable an OIDC provider action
 
 #### Scenario: Auth config unavailable
 - **WHEN** the public auth-config request fails or returns malformed data

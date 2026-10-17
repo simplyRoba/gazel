@@ -365,17 +365,17 @@ Gazel MUST store login-transaction and authenticated-session data only on the ba
 - **THEN** logout SHALL return HTTP `500` and expire the browser cookie
 - **AND** SHALL NOT return the successful signed-out redirect or claim successful invalidation
 
-### Requirement: Public auth config exposes only login display metadata
-`GET /auth/config` SHALL be public in both modes and return only the enabled state plus the display metadata needed by the login route.
+### Requirement: Public auth config exposes only safe login metadata
+`GET /auth/config` SHALL be public in both modes and return only the enabled state plus the provider display name and automatic-login boolean needed by the login route.
 
 #### Scenario: Public provider display name
 - **WHEN** authentication is enabled and an unauthenticated client requests `GET /auth/config`
-- **THEN** Gazel SHALL return `200 OK` JSON containing `{ "enabled": true, "provider_name": "<configured-or-default-name>" }`
+- **THEN** Gazel SHALL return `200 OK` JSON exactly `{ "enabled": true, "provider_name": <string>, "auto_redirect": <boolean> }` using the configured-or-default provider name and automatic-login flag
 - **AND** SHALL NOT expose issuer internals, client ID, client secret, endpoints, cookie state, or tokens
 
 #### Scenario: Disabled public auth config
 - **WHEN** authentication is disabled and a client requests `GET /auth/config`
-- **THEN** Gazel SHALL return `200 OK` JSON containing `{ "enabled": false }`
+- **THEN** Gazel SHALL return `200 OK` JSON exactly `{ "enabled": false }`
 - **AND** SHALL omit provider and OIDC configuration details
 
 ### Requirement: Enabled authentication is signaled without changing disabled app info

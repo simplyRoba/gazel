@@ -254,6 +254,7 @@ impl MockProvider {
             client_id: String::from(CLIENT_ID),
             client_secret: String::from(CLIENT_SECRET),
             provider_name: String::from("Test Provider"),
+            auto_redirect: false,
         }
     }
 
@@ -1742,7 +1743,7 @@ async fn enabled_router_exposes_only_required_public_resources() {
         .expect("auth config request should succeed");
     assert_eq!(
         response_json(auth_config).await,
-        json!({ "enabled": true, "provider_name": "Test Provider" })
+        json!({ "enabled": true, "provider_name": "Test Provider", "auto_redirect": false })
     );
 
     let login_page = app
@@ -1992,8 +1993,46 @@ async fn enabled_public_auth_config_uses_the_default_provider_label_only() {
         json!({
             "enabled": true,
             "provider_name": "OpenID Connect",
+            "auto_redirect": false,
         })
     );
+}
+
+#[tokio::test]
+async fn enabled_public_auth_config_exposes_auto_redirect_without_redirecting() {
+    let provider = MockProvider::start(ProviderOptions::default()).await;
+    let mut config = provider.config();
+    config.auto_redirect = true;
+    let authentication = Authentication::bootstrap(config).await.unwrap();
+    let app = server_app(Some(authentication)).await;
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/auth/config")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response_json(response).await,
+        json!({ "enabled": true, "provider_name": "Test Provider", "auto_redirect": true })
+    );
+
+    let login = app
+        .oneshot(
+            Request::builder()
+                .uri("/login")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(login.status(), StatusCode::OK);
+    assert!(!login.headers().contains_key(header::LOCATION));
 }
 
 #[tokio::test]

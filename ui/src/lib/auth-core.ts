@@ -1,6 +1,7 @@
 export interface EnabledAuthConfig {
   enabled: true;
   provider_name: string;
+  auto_redirect: boolean;
 }
 
 export interface DisabledAuthConfig {
@@ -20,10 +21,13 @@ export function parseAuthConfig(value: unknown): AuthConfig | null {
   }
   if (
     value.enabled !== true ||
-    keys.length !== 2 ||
+    keys.length !== 3 ||
     !keys.includes("provider_name") ||
     !("provider_name" in value) ||
-    typeof value.provider_name !== "string"
+    typeof value.provider_name !== "string" ||
+    !keys.includes("auto_redirect") ||
+    !("auto_redirect" in value) ||
+    typeof value.auto_redirect !== "boolean"
   ) {
     return null;
   }
@@ -40,7 +44,20 @@ export function parseAuthConfig(value: unknown): AuthConfig | null {
   ) {
     return null;
   }
-  return { enabled: true, provider_name: name };
+  return {
+    enabled: true,
+    provider_name: name,
+    auto_redirect: value.auto_redirect,
+  };
+}
+
+export function shouldAutoRedirect(
+  config: AuthConfig,
+  rawQuery: string,
+): boolean {
+  if (!config.enabled || !config.auto_redirect) return false;
+  const query = new URLSearchParams(rawQuery);
+  return !query.has("error") && !query.has("logged_out");
 }
 
 export const MAX_RETURN_TO_BYTES = 2048;

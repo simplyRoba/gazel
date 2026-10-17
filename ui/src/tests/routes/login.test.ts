@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/svelte";
+import { cleanup, render, screen, waitFor } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "../../routes/login/+page.svelte";
 import returnVectors from "../../../../tests/fixtures/auth/return-targets.json";
@@ -46,7 +46,11 @@ describe("login page", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ enabled: true, provider_name: "Authentik" }),
+        Promise.resolve({
+          enabled: true,
+          provider_name: "Authentik",
+          auto_redirect: false,
+        }),
     });
 
     render(LoginPage);
@@ -84,7 +88,11 @@ describe("login page", () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () =>
-          Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+          Promise.resolve({
+            enabled: true,
+            provider_name: "OpenID Connect",
+            auto_redirect: false,
+          }),
       });
       render(LoginPage);
       await screen.findByRole("button", {
@@ -106,7 +114,11 @@ describe("login page", () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () =>
-          Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+          Promise.resolve({
+            enabled: true,
+            provider_name: "OpenID Connect",
+            auto_redirect: false,
+          }),
       });
 
       render(LoginPage);
@@ -133,7 +145,11 @@ describe("login page", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ enabled: true, provider_name: providerName }),
+        Promise.resolve({
+          enabled: true,
+          provider_name: providerName,
+          auto_redirect: false,
+        }),
     });
 
     render(LoginPage);
@@ -148,7 +164,11 @@ describe("login page", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+        Promise.resolve({
+          enabled: true,
+          provider_name: "OpenID Connect",
+          auto_redirect: false,
+        }),
     });
 
     render(LoginPage);
@@ -177,7 +197,11 @@ describe("login page", () => {
       mockFetch.mockResolvedValue({
         ok: true,
         json: () =>
-          Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+          Promise.resolve({
+            enabled: true,
+            provider_name: "OpenID Connect",
+            auto_redirect: false,
+          }),
       });
 
       render(LoginPage);
@@ -198,7 +222,11 @@ describe("login page", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+        Promise.resolve({
+          enabled: true,
+          provider_name: "OpenID Connect",
+          auto_redirect: false,
+        }),
     });
 
     render(LoginPage);
@@ -215,7 +243,11 @@ describe("login page", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+        Promise.resolve({
+          enabled: true,
+          provider_name: "OpenID Connect",
+          auto_redirect: false,
+        }),
     });
 
     render(LoginPage);
@@ -233,7 +265,11 @@ describe("login page", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+        Promise.resolve({
+          enabled: true,
+          provider_name: "OpenID Connect",
+          auto_redirect: false,
+        }),
     });
 
     render(LoginPage);
@@ -249,7 +285,11 @@ describe("login page", () => {
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
-        Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+        Promise.resolve({
+          enabled: true,
+          provider_name: "OpenID Connect",
+          auto_redirect: false,
+        }),
     });
 
     render(LoginPage);
@@ -270,6 +310,91 @@ describe("login page", () => {
     ).toBeTruthy();
     expect(screen.getByRole("button")).toBeTruthy();
     expect(mockFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(queryVectors.vectors)(
+    "automatically starts OIDC with the validated query: $id",
+    async (vector) => {
+      setUrl(`/login?${vector.query}`);
+      const replace = vi.fn();
+      vi.stubGlobal("window", {
+        location: { href: window.location.href, replace },
+      });
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            enabled: true,
+            provider_name: "OpenID Connect",
+            auto_redirect: true,
+          }),
+      });
+
+      const view = render(LoginPage);
+      await waitFor(() => expect(replace).toHaveBeenCalledTimes(1), {
+        container: document.body,
+      });
+      const target = new URL(replace.mock.calls[0][0], "http://localhost");
+      expect(target.pathname).toBe("/auth/login");
+      expect([...target.searchParams.keys()]).toEqual(["return_to"]);
+      expect(target.searchParams.get("return_to")).toBe(vector.target.gazel);
+      expect(target.hash).toBe("");
+      await view.rerender({});
+      expect(replace).toHaveBeenCalledTimes(1);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it.each([
+    "error=authentication_failed",
+    "error=provider_unavailable",
+    "error=unknown",
+    "error=",
+    "error",
+    "logged_out=1",
+    "logged_out=0",
+    "logged_out=",
+    "logged_out",
+  ])("keeps automatic mode manual for result query %j", async (query) => {
+    setUrl(`/login?return_to=%2Fsettings&${query}`);
+    const replace = vi.fn();
+    vi.stubGlobal("window", {
+      location: { href: window.location.href, replace },
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          enabled: true,
+          provider_name: "OpenID Connect",
+          auto_redirect: true,
+        }),
+    });
+
+    render(LoginPage);
+    await screen.findByRole("button");
+    expect(document.querySelector("input")?.value).toBe("/settings");
+    expect(replace).not.toHaveBeenCalled();
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not automatically navigate with manual mode enabled", async () => {
+    const replace = vi.fn();
+    vi.stubGlobal("window", {
+      location: { href: window.location.href, replace },
+    });
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          enabled: true,
+          provider_name: "OpenID Connect",
+          auto_redirect: false,
+        }),
+    });
+    render(LoginPage);
+    await screen.findByRole("button");
+    expect(replace).not.toHaveBeenCalled();
   });
 
   it("replace-navigates without authentication controls when auth config is disabled", async () => {
@@ -298,7 +423,11 @@ describe("login page", () => {
 
   it.each([
     { enabled: true },
-    { enabled: true, provider_name: "" },
+    { enabled: true, provider_name: "", auto_redirect: false },
+    { enabled: true, provider_name: "Provider" },
+    { enabled: true, provider_name: "Provider", auto_redirect: "true" },
+    { enabled: true, provider_name: "Provider", auto_redirect: null },
+    { enabled: false, auto_redirect: true },
     { enabled: false, provider_name: "unexpected" },
   ])(
     "shows a generic usable message for malformed public config %#",
@@ -332,26 +461,38 @@ describe("login page", () => {
     expect(screen.queryByRole("button")).toBeNull();
   });
 
-  it("ignores a late auth-config response after the page is unmounted", async () => {
-    const replace = vi.fn();
-    vi.stubGlobal("window", {
-      location: { href: "http://localhost:3000/login", replace },
-    });
-    let resolveConfig: ((response: unknown) => void) | undefined;
-    mockFetch.mockReturnValue(
-      new Promise((resolve) => {
-        resolveConfig = resolve;
-      }),
-    );
+  it.each([false, true])(
+    "ignores a late auth-config response after unmount with auto mode %j",
+    async (automatic) => {
+      const replace = vi.fn();
+      vi.stubGlobal("window", {
+        location: { href: "http://localhost:3000/login", replace },
+      });
+      let resolveConfig: ((response: unknown) => void) | undefined;
+      mockFetch.mockReturnValue(
+        new Promise((resolve) => {
+          resolveConfig = resolve;
+        }),
+      );
 
-    render(LoginPage);
-    cleanup();
-    resolveConfig?.({
-      ok: true,
-      json: () => Promise.resolve({ enabled: false }),
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
+      render(LoginPage);
+      cleanup();
+      resolveConfig?.({
+        ok: true,
+        json: () =>
+          Promise.resolve(
+            automatic
+              ? {
+                  enabled: true,
+                  provider_name: "Provider",
+                  auto_redirect: true,
+                }
+              : { enabled: false },
+          ),
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(replace).not.toHaveBeenCalled();
-  });
+      expect(replace).not.toHaveBeenCalled();
+    },
+  );
 });
