@@ -31,7 +31,8 @@ export function parseAuthConfig(value: unknown): AuthConfig | null {
   const name = value.provider_name;
   if (
     name.length === 0 ||
-    name.trim() !== name ||
+    // Rust str::trim() uses Unicode White_Space, not JS trim's U+FEFF.
+    /^\p{White_Space}|\p{White_Space}$/u.test(name) ||
     [...name].length > 80 ||
     [...name].some((character) => {
       const code = character.codePointAt(0) ?? 0;
@@ -96,6 +97,35 @@ export function safeLocalTarget(
     return "/";
   }
   return target;
+}
+
+/** Strictly form-decodes the first recognized return_to, preserving its serialization. */
+export function returnToFromQuery(
+  rawQuery: string,
+  extraReservedPaths: readonly string[] = [],
+): string {
+  const query = rawQuery.startsWith("?") ? rawQuery.slice(1) : rawQuery;
+  for (const pair of query.split("&")) {
+    const separator = pair.indexOf("=");
+    const key = separator === -1 ? pair : pair.slice(0, separator);
+    const value = separator === -1 ? "" : pair.slice(separator + 1);
+    let name: string;
+    try {
+      name = decodeURIComponent(key.replace(/\+/g, " "));
+    } catch {
+      continue;
+    }
+    if (name !== "return_to") continue;
+    try {
+      return safeLocalTarget(
+        decodeURIComponent(value.replace(/\+/g, " ")),
+        extraReservedPaths,
+      );
+    } catch {
+      return "/";
+    }
+  }
+  return "/";
 }
 
 /** Constructs a login-page URL without normalizing the accepted target. */

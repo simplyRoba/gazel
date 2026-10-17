@@ -169,6 +169,25 @@ mod tests {
     }
 
     #[test]
+    fn shared_raw_return_queries_follow_the_common_contract() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/auth/return-queries.json"
+        ))
+        .expect("return query fixture should parse");
+        assert_eq!(return_to_from_query(None), "/");
+        for vector in fixture["vectors"].as_array().unwrap() {
+            assert_eq!(
+                return_to_from_query(Some(vector["query"].as_str().unwrap())),
+                vector["target"][super::super::app::FIXTURE_APP]
+                    .as_str()
+                    .unwrap(),
+                "{}",
+                vector["id"]
+            );
+        }
+    }
+
+    #[test]
     fn return_target_validation_rejects_ambiguous_or_reserved_locations() {
         assert_eq!(
             validate_return_to(Some("/settings?tab=data#export")),

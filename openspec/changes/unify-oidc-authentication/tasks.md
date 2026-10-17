@@ -57,6 +57,13 @@ Commit the planning artifacts separately before implementation. For each coheren
 - [x] 7.2 Validate the complete change with `npx -y @fission-ai/openspec validate unify-oidc-authentication --strict`, rerun explicit peer parity in both coordinated checkouts, and review `git diff --check`, `git diff`, and `git status --short --branch`. Verify recorded peer revisions and a human-review handoff show no architectural drift, sibling runtime dependency, migration, merge, or push.
 - [x] 7.3 Run the final repository gate in this exact order before review/archive: `cargo fmt -- --check`, `cargo clippy -- -D warnings`, `npm run format:check --prefix ui`, `npm run lint --prefix ui`, `npm run check --prefix ui`, `cargo test`. Verify every command exits successfully and record results with the reviewed revisions; changes remain pending human review with no merge or push.
 
+## 8. Resolve verification findings
+
+- [x] 8.1 Match frontend label validation to the backend's Unicode whitespace rules without rejecting backend-valid U+FEFF labels. Add shared backend-output/frontend-decoder fixtures covering normalization, controls, scalar limits, and leading/trailing U+FEFF; verify both applications consume the same cases.
+- [x] 8.2 Strictly form-decode raw login queries once before frontend target validation. Add shared wire-level fixtures for malformed UTF-8, malformed escapes, encoded parameter names, duplicates, valid replacement characters, and preserved serialization; verify Rust, pure frontend helpers, and both login pages agree.
+- [ ] 8.3 Retain fixed safe operation/category/status context for failed JWKS refreshes and test its omission of sensitive text. Add Gazel-local bootstrap tests for unreachable discovery/initial JWKS, initial JWKS service failure, and malformed initial JWKS JSON; mirror shared runtime changes into Flowl.
+- [ ] 8.4 Rerun the ordered full gates, strict OpenSpec validation, bidirectional parity and regression probes in both repositories; review updated verification evidence and confirm all findings are resolved without changing application policies or archiving.
+
 ## Workflow follow-up
 
 - Request human review of both paired changes and their parity/build evidence; do not merge or push without explicit approval.

@@ -1,0 +1,106 @@
+{
+  "vectors": [
+    { "id": "absent-default", "input": null, "normalized": "OpenID Connect" },
+    { "id": "plain", "input": "Provider", "normalized": "Provider" },
+    { "id": "empty", "input": "", "normalized": null },
+    {
+      "id": "only-whitespace",
+      "input": " \t\n\u0085\u00a0\u2003\u3000",
+      "normalized": null
+    },
+    {
+      "id": "ascii-trim",
+      "input": " \tProvider\r\n",
+      "normalized": "Provider"
+    },
+    {
+      "id": "unicode-trim",
+      "input": "\u0085\u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200aProvider\u2028\u2029\u202f\u205f\u3000",
+      "normalized": "Provider"
+    },
+    {
+      "id": "leading-feff",
+      "input": "\ufeffProvider",
+      "normalized": "\ufeffProvider"
+    },
+    {
+      "id": "trailing-feff",
+      "input": "Provider\ufeff",
+      "normalized": "Provider\ufeff"
+    },
+    {
+      "id": "interior-feff",
+      "input": "Pro\ufeffvider",
+      "normalized": "Pro\ufeffvider"
+    },
+    { "id": "only-feff", "input": "\ufeff", "normalized": "\ufeff" },
+    {
+      "id": "trim-around-feff",
+      "input": " \u0085\ufeff \u3000",
+      "normalized": "\ufeff"
+    },
+    {
+      "id": "whitespace-inside-feff",
+      "input": "\ufeffProvider \ufeff",
+      "normalized": "\ufeffProvider \ufeff"
+    },
+    {
+      "id": "interior-space",
+      "input": "Pro\u2003vider",
+      "normalized": "Pro\u2003vider"
+    },
+    { "id": "interior-newline", "input": "Pro\nvider", "normalized": null },
+    { "id": "nul", "input": "Pro\u0000vider", "normalized": null },
+    { "id": "del", "input": "Pro\u007fvider", "normalized": null },
+    {
+      "id": "c1-whitespace-interior",
+      "input": "Pro\u0085vider",
+      "normalized": null
+    },
+    {
+      "id": "c1-non-whitespace",
+      "input": "\u009fProvider",
+      "normalized": null
+    },
+    {
+      "id": "feff-with-trimmable-control",
+      "input": "\ufeff\n",
+      "normalized": "\ufeff"
+    },
+    {
+      "id": "bmp-scalar-limit",
+      "input": { "repeat": "é", "count": 80 },
+      "normalized": { "repeat": "é", "count": 80 }
+    },
+    {
+      "id": "bmp-over-limit",
+      "input": { "repeat": "é", "count": 81 },
+      "normalized": null
+    },
+    {
+      "id": "astral-scalar-limit",
+      "input": { "repeat": "🌱", "count": 80 },
+      "normalized": { "repeat": "🌱", "count": 80 }
+    },
+    {
+      "id": "astral-over-limit",
+      "input": { "repeat": "🌱", "count": 81 },
+      "normalized": null
+    },
+    {
+      "id": "trim-before-scalar-limit",
+      "input": {
+        "prefix": "\u3000",
+        "repeat": "🌱",
+        "count": 80,
+        "suffix": " "
+      },
+      "normalized": { "repeat": "🌱", "count": 80 }
+    },
+    {
+      "id": "feff-counts-toward-limit",
+      "input": { "prefix": "\ufeff", "repeat": "🌱", "count": 80 },
+      "normalized": null
+    }
+  ]
+}

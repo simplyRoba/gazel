@@ -144,3 +144,66 @@ fn validate_config_url(value: &str) -> Option<Url> {
     let url = app::config_policy().validate(value).ok()?;
     (url.query().is_none()).then_some(url)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct LabelSource(Option<String>);
+
+    impl AuthConfigSource for LabelSource {
+        fn get(&self, key: &str) -> Result<Option<String>, VarError> {
+            Ok(match key {
+                "AUTH_ENABLED" => Some(String::from("true")),
+                "EXTERNAL_URL" | "OIDC_ISSUER" => Some(String::from("https://auth.example")),
+                "OIDC_CLIENT_ID" | "OIDC_CLIENT_SECRET" => Some(String::from("fixture")),
+                "OIDC_PROVIDER_NAME" => self.0.clone(),
+                _ => None,
+            })
+        }
+    }
+
+    fn label(value: &serde_json::Value) -> Option<String> {
+        if value.is_null() {
+            None
+        } else if let Some(value) = value.as_str() {
+            Some(value.to_owned())
+        } else {
+            Some(format!(
+                "{}{}{}",
+                value["prefix"].as_str().unwrap_or(""),
+                value["repeat"]
+                    .as_str()
+                    .unwrap()
+                    .repeat(value["count"].as_u64().unwrap().try_into().unwrap()),
+                value["suffix"].as_str().unwrap_or("")
+            ))
+        }
+    }
+
+    #[test]
+    fn shared_provider_labels_use_the_actual_config_loader() {
+        let fixture: serde_json::Value = serde_json::from_str(include_str!(
+            "../../tests/fixtures/auth/provider-labels.json"
+        ))
+        .expect("provider label fixture should parse");
+        for vector in fixture["vectors"].as_array().unwrap() {
+            let result = load_from(&LabelSource(label(&vector["input"])));
+            if let Some(expected) = label(&vector["normalized"]) {
+                assert_eq!(
+                    result.unwrap().unwrap().provider_name,
+                    expected,
+                    "{}",
+                    vector["id"]
+                );
+            } else {
+                assert_eq!(
+                    result.unwrap_err(),
+                    AuthConfigError::InvalidProviderName,
+                    "{}",
+                    vector["id"]
+                );
+            }
+        }
+    }
+}

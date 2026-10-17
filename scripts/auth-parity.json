@@ -11,6 +11,8 @@
     "ui/src/lib/auth-core.ts",
     "ui/src/lib/auth-core.test.ts",
     "tests/fixtures/auth/return-targets.json",
+    "tests/fixtures/auth/return-queries.json",
+    "tests/fixtures/auth/provider-labels.json",
     "tests/fixtures/auth/callbacks.json",
     "scripts/check-auth-parity.mjs",
     "scripts/check-auth-parity.test.mjs",

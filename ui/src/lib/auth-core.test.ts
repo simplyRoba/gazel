@@ -1,7 +1,27 @@
 import { describe, expect, it } from "vitest";
 
 import vectors from "../../../tests/fixtures/auth/return-targets.json";
-import { loginUrl, parseAuthConfig, safeLocalTarget } from "./auth-core.js";
+import queryVectors from "../../../tests/fixtures/auth/return-queries.json";
+import labelVectors from "../../../tests/fixtures/auth/provider-labels.json";
+import {
+  loginUrl,
+  parseAuthConfig,
+  returnToFromQuery,
+  safeLocalTarget,
+} from "./auth-core.js";
+
+type Label =
+  | string
+  | null
+  | { repeat: string; count: number; prefix?: string; suffix?: string };
+
+function expandLabel(value: Label): string | null {
+  return value === null || typeof value === "string"
+    ? value
+    : (value.prefix ?? "") +
+        value.repeat.repeat(value.count) +
+        (value.suffix ?? "");
+}
 
 describe.each([
   { app: "gazel" as const, additionalRoots: [] },
@@ -33,6 +53,18 @@ describe.each([
     expect(login.hash).toBe("");
   });
 
+  it.each(queryVectors.vectors)(
+    "strictly decodes raw return query: $id",
+    (vector) => {
+      expect(returnToFromQuery(vector.query, additionalRoots)).toBe(
+        vector.target[app],
+      );
+      expect(returnToFromQuery(`?${vector.query}`, additionalRoots)).toBe(
+        vector.target[app],
+      );
+    },
+  );
+
   it("retains accepted query and fragment serialization through standard form encoding", () => {
     const target = "/settings?label=a b&ratio=100%25&next=a%2Fb#part%20one";
     const login = loginUrl(target, additionalRoots);
@@ -44,6 +76,24 @@ describe.each([
 });
 
 describe("pure public authentication config decoding", () => {
+  it.each(labelVectors.vectors)(
+    "accepts backend-normalized labels unchanged: $id",
+    (vector) => {
+      const normalized = expandLabel(vector.normalized);
+      if (normalized !== null) {
+        const config = { enabled: true, provider_name: normalized };
+        expect(parseAuthConfig(config)).toEqual(config);
+      }
+      const raw = expandLabel(vector.input);
+      if (raw !== null) {
+        const config = { enabled: true, provider_name: raw };
+        expect(parseAuthConfig(config)).toEqual(
+          raw === normalized ? config : null,
+        );
+      }
+    },
+  );
+
   it.each([
     { enabled: false },
     { enabled: true, provider_name: "OpenID Connect" },

@@ -2,6 +2,7 @@ import { cleanup, render, screen } from "@testing-library/svelte";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import LoginPage from "../../routes/login/+page.svelte";
 import returnVectors from "../../../../tests/fixtures/auth/return-targets.json";
+import queryVectors from "../../../../tests/fixtures/auth/return-queries.json";
 
 const mockFetch = vi.fn();
 vi.stubGlobal("fetch", mockFetch);
@@ -95,6 +96,44 @@ describe("login page", () => {
       expect(document.querySelector("input")?.value).toBe(
         vector.target.gazel ? (value ?? "/") : "/",
       );
+    },
+  );
+
+  it.each(queryVectors.vectors)(
+    "uses strict raw query decoding in the provider form: $id",
+    async (vector) => {
+      setUrl(`/login?${vector.query}`);
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ enabled: true, provider_name: "OpenID Connect" }),
+      });
+
+      render(LoginPage);
+      await screen.findByRole("button", {
+        name: "Continue with OpenID Connect",
+      });
+      expect(document.querySelector("form")?.getAttribute("action")).toBe(
+        "/auth/login",
+      );
+      expect(document.querySelector("input")?.value).toBe(vector.target.gazel);
+    },
+  );
+
+  it.each(["\ufeffProvider", "Provider\ufeff", "Pro\ufeffvider", "\ufeff"])(
+    "renders a backend-valid U+FEFF provider label %j",
+    async (providerName) => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({ enabled: true, provider_name: providerName }),
+      });
+
+      render(LoginPage);
+      const button = await screen.findByRole("button");
+      // Accessibility-name matching normalizes whitespace, so assert the raw text.
+      expect(button.textContent).toContain(`Continue with ${providerName}`);
+      expect(screen.queryByRole("alert")).toBeNull();
     },
   );
 
