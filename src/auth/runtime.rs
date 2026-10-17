@@ -1087,6 +1087,19 @@ mod tests {
                 .with_ansi(false)
                 .with_writer(move || writer.clone())
                 .finish();
+            // Keep two registrations alive so tracing consults the registered
+            // subscribers instead of its single-dispatch, thread-local fast path.
+            // A sibling test can first register the shared callsite without a
+            // thread-local subscriber; that fast path would cache Interest::never.
+            let subscriber = Arc::new(subscriber);
+            let _registration = tracing::Dispatch::new(subscriber.clone());
+            let dispatch = tracing::Dispatch::new(subscriber);
+            if category == "url_policy" {
+                // Exercise first-call registration on an uncaptured sibling.
+                std::thread::spawn(|| log_refresh_failure("url_policy", None))
+                    .join()
+                    .unwrap();
+            }
             async {
                 for _ in 0..2 {
                     assert!(matches!(
@@ -1095,10 +1108,14 @@ mod tests {
                     ));
                 }
             }
-            .with_subscriber(subscriber)
+            .with_subscriber(dispatch)
             .await;
             let diagnostics = String::from_utf8(captured.0.lock().unwrap().clone()).unwrap();
-            assert_eq!(diagnostics.matches("jwks_refresh").count(), 1);
+            assert_eq!(
+                diagnostics.matches("jwks_refresh").count(),
+                1,
+                "category={category}, diagnostics={diagnostics:?}"
+            );
             assert!(diagnostics.contains(&format!("category=\"{category}\"")));
             if let Some(status) = status {
                 assert!(diagnostics.contains(&format!("status={status}")));

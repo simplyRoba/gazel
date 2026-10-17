@@ -64,6 +64,8 @@ Commit the planning artifacts separately before implementation. For each coheren
 - [x] 8.3 Retain fixed safe operation/category/status context for failed JWKS refreshes and test its omission of sensitive text. Add Gazel-local bootstrap tests for unreachable discovery/initial JWKS, initial JWKS service failure, and malformed initial JWKS JSON; mirror shared runtime changes into Flowl.
 - [x] 8.4 Rerun the ordered full gates, strict OpenSpec validation, bidirectional parity and regression probes in both repositories; review updated verification evidence and confirm all findings are resolved without changing application policies or archiving.
 
+- [x] 8.5 Preserve configured provider names literally during translated interpolation, including all JavaScript replacement metacharacters. Add shared valid-label fixtures, both translation-helper regressions, and actual login-component coverage; verify the reviewed Gazel fix and corresponding Flowl fix with full gates and parity before archiving.
+
 ## Workflow follow-up
 
 - Request human review of both paired changes and their parity/build evidence; do not merge or push without explicit approval.

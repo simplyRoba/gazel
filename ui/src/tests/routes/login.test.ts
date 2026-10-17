@@ -120,22 +120,28 @@ describe("login page", () => {
     },
   );
 
-  it.each(["\ufeffProvider", "Provider\ufeff", "Pro\ufeffvider", "\ufeff"])(
-    "renders a backend-valid U+FEFF provider label %j",
-    async (providerName) => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        json: () =>
-          Promise.resolve({ enabled: true, provider_name: providerName }),
-      });
+  it.each([
+    "\ufeffProvider",
+    "Provider\ufeff",
+    "Pro\ufeffvider",
+    "\ufeff",
+    "$$",
+    "$&",
+    "$`",
+    "$'",
+  ])("renders a backend-valid provider label %j", async (providerName) => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ enabled: true, provider_name: providerName }),
+    });
 
-      render(LoginPage);
-      const button = await screen.findByRole("button");
-      // Accessibility-name matching normalizes whitespace, so assert the raw text.
-      expect(button.textContent).toContain(`Continue with ${providerName}`);
-      expect(screen.queryByRole("alert")).toBeNull();
-    },
-  );
+    render(LoginPage);
+    const button = await screen.findByRole("button");
+    // Accessibility-name matching normalizes whitespace, so assert the raw text.
+    expect(button.textContent).toContain(`Continue with ${providerName}`);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
 
   it("propagates decoded return_to as encoded auth-login query data", async () => {
     setUrl("/login?return_to=%2Fsettings%3Ftab%3Ddata%23export");

@@ -2,6 +2,10 @@
   "vectors": [
     { "id": "absent-default", "input": null, "normalized": "OpenID Connect" },
     { "id": "plain", "input": "Provider", "normalized": "Provider" },
+    { "id": "literal-dollar-token", "input": "$$", "normalized": "$$" },
+    { "id": "literal-match-token", "input": "$&", "normalized": "$&" },
+    { "id": "literal-prefix-token", "input": "$`", "normalized": "$`" },
+    { "id": "literal-suffix-token", "input": "$'", "normalized": "$'" },
     { "id": "empty", "input": "", "normalized": null },
     {
       "id": "only-whitespace",

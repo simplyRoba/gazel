@@ -2,6 +2,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import en from "./en.json";
 import de from "./de.json";
 
+const literalLabelCases = ["en", "de"].flatMap((locale) =>
+  ["$$", "$&", "$`", "$'"].map((provider) => ({ locale, provider })),
+);
+
 // ── Translation completeness ─────────────────────────────
 
 describe("translation completeness", () => {
@@ -125,6 +129,16 @@ describe("t()", () => {
     );
   });
 
+  it.each(literalLabelCases)(
+    "preserves literal provider name $provider in $locale",
+    ({ locale, provider }) => {
+      __setLocale(locale);
+      expect(t("login.continueWith", { provider })).toBe(
+        `${locale === "en" ? "Continue with" : "Weiter mit"} ${provider}`,
+      );
+    },
+  );
+
   it("falls back to English for missing key in non-English locale", async () => {
     // All keys exist in de, but test the fallback mechanism
     // by using tWithLocale with a hypothetical locale
@@ -148,6 +162,15 @@ describe("tWithLocale()", () => {
     await mod.loadLocale("de");
     tWithLocale = mod.tWithLocale;
   });
+
+  it.each(literalLabelCases)(
+    "preserves literal provider name $provider in $locale",
+    ({ locale, provider }) => {
+      expect(tWithLocale(locale, "login.continueWith", { provider })).toBe(
+        `${locale === "en" ? "Continue with" : "Weiter mit"} ${provider}`,
+      );
+    },
+  );
 
   it("uses specified locale regardless of settings", () => {
     expect(tWithLocale("de", "nav.settings")).toBe("Einstellungen");
