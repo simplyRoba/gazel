@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.5.1](https://github.com/simplyRoba/gazel/compare/v1.5.0...v1.5.1) (2026-11-16)
+
+
+### Bug Fixes
+
+* restore complete dashboard chart history ([35315a8](https://github.com/simplyRoba/gazel/commit/35315a81dfc7c2a1f2a5faaab36d3fe500585d22))
+
+
+### Dependencies
+
+* bump @testing-library/user-event from 14.6.8 to 14.6.10 in /ui ([#232](https://github.com/simplyRoba/gazel/issues/232)) ([342a129](https://github.com/simplyRoba/gazel/commit/342a12986c4760d89a5c53769150a5ecd7f18ee5))
+* bump globals from 17.13.0 to 17.14.0 in /ui ([#233](https://github.com/simplyRoba/gazel/issues/233)) ([80a9c0a](https://github.com/simplyRoba/gazel/commit/80a9c0ab5afde6bdd7b799e0b7700efcacbec222))
+* bump jsdom from 30.1.2 to 30.1.3 in /ui ([#216](https://github.com/simplyRoba/gazel/issues/216)) ([ead69f5](https://github.com/simplyRoba/gazel/commit/ead69f5f820f3eea2e9de8fcd0c4c75b79ea7887))
+* bump prettier from 3.9.10 to 3.10.1 in /ui in the prettier group ([#231](https://github.com/simplyRoba/gazel/issues/231)) ([d6e9c91](https://github.com/simplyRoba/gazel/commit/d6e9c910054a91376207c2377074d0b62d7f5fe5))
+* bump rust-embed from 8.13.0 to 8.14.0 ([#230](https://github.com/simplyRoba/gazel/issues/230)) ([64db8f5](https://github.com/simplyRoba/gazel/commit/64db8f5a03eda1e96c7b09ceb73c377a8ac960e2))
+* bump rustls from 0.23.45 to 0.23.46 ([#222](https://github.com/simplyRoba/gazel/issues/222)) ([51798ad](https://github.com/simplyRoba/gazel/commit/51798ad6fa292f645a8a87d9342c6e3ec7ab21c4))
+* bump the eslint group across 1 directory with 3 updates ([#225](https://github.com/simplyRoba/gazel/issues/225)) ([bb9e139](https://github.com/simplyRoba/gazel/commit/bb9e13944e439d6c8d0e578102f22ed32af515fc))
+* bump the svelte group across 1 directory with 5 updates ([#229](https://github.com/simplyRoba/gazel/issues/229)) ([290e231](https://github.com/simplyRoba/gazel/commit/290e231b7c31c309e4723c207bd0daff668daf3b))
+* bump tokio from 1.53.3 to 1.54.1 in the tokio group ([#218](https://github.com/simplyRoba/gazel/issues/218)) ([2ed1dbf](https://github.com/simplyRoba/gazel/commit/2ed1dbff916908d0102166af04d0ced5d8c03cd8))
+* bump uuid from 1.28.0 to 1.29.2 ([#224](https://github.com/simplyRoba/gazel/issues/224)) ([3e8694a](https://github.com/simplyRoba/gazel/commit/3e8694a2edb1c08e0bb8eec212f5d607a725b336))
+* bump vitest from 5.0.4 to 5.0.5 in /ui ([#217](https://github.com/simplyRoba/gazel/issues/217)) ([8f88bd9](https://github.com/simplyRoba/gazel/commit/8f88bd90075838a77391898895317a38ca2091e0))
+* bump vitest from 5.0.5 to 5.1.0 in /ui ([#234](https://github.com/simplyRoba/gazel/issues/234)) ([c9eb923](https://github.com/simplyRoba/gazel/commit/c9eb92321f825dba8cc83fa3f759d6ab2258a90d))
+
 ## [1.5.0](https://github.com/simplyRoba/gazel/compare/v1.4.7...v1.5.0) (2026-10-17)
 
 
