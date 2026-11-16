@@ -151,7 +151,10 @@ async fn empty_fleet_and_empty_selected_vehicle_have_explicit_nulls_and_units() 
     }
     assert!(s["average_efficiency"].is_null());
     assert!(s["average_cost_per_distance"].is_null());
-    assert_eq!(empty["selected"]["charts"]["fuel_price"]["source_count"], 0);
+    assert_eq!(
+        empty["selected"]["charts"]["fuel_price"]["points"],
+        json!([])
+    );
     assert_eq!(
         empty["selected"]["charts"]["cost"]["monthly"]["points"],
         json!([])
@@ -262,12 +265,18 @@ async fn displayed_efficiency_means_rounded_samples_without_rounding_the_mean() 
     near(&points[1]["value"], 100.0 / 10.01);
     // Same-date history still creates both ID-ordered intervals; regression
     // has no time domain, even though all three real price dots remain.
-    assert_eq!(data["selected"]["charts"]["fuel_price"]["source_count"], 3);
+    assert_eq!(
+        data["selected"]["charts"]["fuel_price"]["points"]
+            .as_array()
+            .unwrap()
+            .len(),
+        3
+    );
     assert!(data["selected"]["charts"]["fuel_price"]["trend"].is_null());
 }
 
 #[tokio::test]
-async fn reduced_price_trend_uses_the_full_population_not_retained_extrema() {
+async fn price_trend_uses_the_full_population() {
     let (app, pool) = setup().await;
     let id = vehicle(&app).await;
     let start = NaiveDate::from_ymd_opt(2020, 1, 1).unwrap();
@@ -282,8 +291,8 @@ async fn reduced_price_trend_uses_the_full_population_not_retained_extrema() {
     }
     let data = stats(&app, &format!("?vehicle_id={id}")).await;
     let prices = &data["selected"]["charts"]["fuel_price"];
-    assert_eq!(prices["source_count"], 260);
-    assert_eq!(prices["reduced"], true);
+    assert_eq!(prices["points"].as_array().unwrap().len(), 260);
+    assert_eq!(prices.as_object().unwrap().len(), 2);
     let n = 260.0;
     let mean_x = 129.5;
     let sum_squared_x = n * (n * n - 1.0) / 12.0;
@@ -332,7 +341,7 @@ async fn partial_missed_null_zero_odometer_and_free_prices_use_separate_populati
         0.2,
     );
     let prices = &data["selected"]["charts"]["fuel_price"];
-    assert_eq!(prices["source_count"], 5);
+    assert_eq!(prices["points"].as_array().unwrap().len(), 5);
     assert_eq!(
         prices["points"][0],
         json!({"date":"2025-01-01","value":0.0})
@@ -368,13 +377,13 @@ async fn first_partial_price_and_mixed_units_preserve_unrounded_prices_and_round
     near(&data["selected"]["summary"]["total_distance"], 310.69);
     near(
         &data["selected"]["summary"]["total_fuel"],
-        gazel::stats::round2(43.0 / 3.785411784 + 10.0),
+        gazel::stats::round2(43.0 / 3.785_411_784 + 10.0),
     );
     near(&data["selected"]["summary"]["average_efficiency"], 31.07);
     near(&data["fleet_efficiency"]["points"][0]["value"], 31.07);
     near(
         &data["selected"]["charts"]["fuel_price"]["points"][0]["value"],
-        10.0 * 3.785411784 / 3.0,
+        10.0 * 3.785_411_784 / 3.0,
     );
     near(
         &data["selected"]["charts"]["fuel_price"]["points"][2]["value"],
@@ -387,12 +396,12 @@ async fn first_partial_price_and_mixed_units_preserve_unrounded_prices_and_round
 }
 
 #[tokio::test]
-async fn large_history_is_bounded_without_reducing_all_time_summaries_or_trend() {
+async fn large_history_preserves_chart_data_and_exact_summaries() {
     let (app, pool) = setup().await;
     let id = vehicle(&app).await;
     let start = NaiveDate::from_ymd_opt(2000, 1, 1).unwrap();
     let mut tx = pool.begin().await.unwrap();
-    for i in 0..300_u32 {
+    for i in 0..500_u32 {
         let date = start
             .checked_add_days(Days::new(u64::from(i) * 31))
             .unwrap()
@@ -403,11 +412,11 @@ async fn large_history_is_bounded_without_reducing_all_time_summaries_or_trend()
     tx.commit().await.unwrap();
     let data = stats(&app, &format!("?vehicle_id={id}")).await;
     let selected = &data["selected"];
-    assert_eq!(selected["summary"]["fill_up_count"], 300);
-    near(&selected["summary"]["total_distance"], 29900.0);
-    near(&selected["summary"]["total_cost"], 47850.0);
+    assert_eq!(selected["summary"]["fill_up_count"], 500);
+    near(&selected["summary"]["total_distance"], 49900.0);
+    near(&selected["summary"]["total_cost"], 129_750.0);
     for series in [&data["fleet_efficiency"], &selected["cost_per_distance"]] {
-        assert_eq!(series["source_count"], 299);
+        assert_eq!(series["source_count"], 499);
         assert_eq!(series["reduced"], true);
         assert!(series["points"].as_array().unwrap().len() <= 60);
         assert_eq!(series["points"][0]["position"], 0.0);
@@ -419,30 +428,23 @@ async fn large_history_is_bounded_without_reducing_all_time_summaries_or_trend()
     for chart in ["cost", "distance"] {
         for mode in ["monthly", "yearly"] {
             let series = &selected["charts"][chart][mode];
-            assert_eq!(series["points"].as_array().unwrap().len(), 12);
-            assert_eq!(series["omitted_older_periods"], true);
-            assert!(series["source_count"].as_u64().unwrap() > 12);
-            assert_ne!(
-                series["source_range"]["start"],
-                series["displayed_range"]["start"]
-            );
+            assert!(series["points"].as_array().unwrap().len() > 12);
+            assert_eq!(series.as_object().unwrap().len(), 1);
         }
     }
     let prices = &selected["charts"]["fuel_price"];
-    assert_eq!(prices["source_count"], 300);
-    assert_eq!(prices["reduced"], true);
-    assert!(prices["points"].as_array().unwrap().len() <= 240);
+    assert_eq!(prices["points"].as_array().unwrap().len(), 500);
+    assert_eq!(prices.as_object().unwrap().len(), 2);
     assert_eq!(
         prices["points"][0],
         json!({"date":"2000-01-01","value":1.0})
     );
     near(
         &prices["points"].as_array().unwrap().last().unwrap()["value"],
-        30.9,
+        50.9,
     );
     near(&prices["trend"][0]["value"], 1.0);
-    near(&prices["trend"][1]["value"], 30.9);
-    assert_eq!(prices["source_range"], prices["displayed_range"]);
+    near(&prices["trend"][1]["value"], 50.9);
     let text = data.to_string();
     for forbidden in [
         "fillup_id",
@@ -504,12 +506,11 @@ fn assert_performance_history_envelope(data: &Value) -> usize {
             "raw field {forbidden}"
         );
     }
-    assert!(text.len() < 64 * 1024, "response has {} bytes", text.len());
     text.len()
 }
 
 #[tokio::test]
-async fn hundred_thousand_fillups_keep_selected_and_fleet_responses_bounded_and_exact() {
+async fn hundred_thousand_fillups_keep_complete_charts_and_exact_summaries() {
     let (app, pool) = setup().await;
     let id = vehicle(&app).await;
     // One batch, including same-day identities, spanning more than 27 years.
@@ -537,26 +538,19 @@ async fn hundred_thousand_fillups_keep_selected_and_fleet_responses_bounded_and_
     for chart in ["cost", "distance"] {
         for mode in ["monthly", "yearly"] {
             let series = &selected["charts"][chart][mode];
-            assert_eq!(series["points"].as_array().unwrap().len(), 12);
-            assert_eq!(series["omitted_older_periods"], true);
-            assert!(series["source_count"].as_u64().unwrap() > 12);
-            assert_ne!(
-                series["source_range"]["start"],
-                series["displayed_range"]["start"]
-            );
+            assert!(series["points"].as_array().unwrap().len() > 12);
+            assert_eq!(series.as_object().unwrap().len(), 1);
         }
     }
     let prices = &selected["charts"]["fuel_price"];
-    assert_eq!(prices["source_count"], 100_000);
-    assert_eq!(prices["reduced"], true);
+    assert_eq!(prices.as_object().unwrap().len(), 2);
     let points = prices["points"].as_array().unwrap();
-    assert!(!points.is_empty() && points.len() <= 240);
+    assert_eq!(points.len(), 100_000);
     assert_eq!(points[0], json!({"date":"2000-01-01","value":1.0}));
     assert_eq!(
         points.last().unwrap(),
         &json!({"date":"2027-05-18","value":1.4})
     );
-    assert_eq!(prices["source_range"], prices["displayed_range"]);
     for point in points {
         assert!(
             (10..=16).any(
@@ -582,7 +576,7 @@ async fn hundred_thousand_fillups_keep_selected_and_fleet_responses_bounded_and_
     }
     println!(
         "100000 fillups: selected={selected_bytes} bytes, fleet={fleet_bytes} bytes; \
-         prices={}, fleet sparkline={}, cost sparkline={}, period series=12 each",
+         prices={}, fleet sparkline={}, cost sparkline={}",
         points.len(),
         data["fleet_efficiency"]["points"].as_array().unwrap().len(),
         cost_points.len()
@@ -602,13 +596,12 @@ async fn short_period_history_zero_fills_gaps_without_extending_to_today() {
         cost["yearly"]["points"],
         json!([{"period":"2020","value":80.0},{"period":"2021","value":0.0},{"period":"2022","value":80.0}])
     );
-    assert_eq!(cost["yearly"]["omitted_older_periods"], false);
     assert_eq!(
-        cost["monthly"]["displayed_range"],
-        json!({"start":"2021-05","end":"2022-04"})
+        cost["monthly"]["points"][0],
+        json!({"period":"2020-02","value":80.0})
     );
-    assert_eq!(cost["monthly"]["points"][0]["value"], 0.0);
-    assert_eq!(cost["monthly"]["points"].as_array().unwrap().len(), 12);
+    assert_eq!(cost["monthly"]["points"].as_array().unwrap().len(), 27);
+    assert_eq!(cost["monthly"].as_object().unwrap().len(), 1);
 }
 
 #[tokio::test]

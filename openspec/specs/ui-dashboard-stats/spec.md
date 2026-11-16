@@ -6,13 +6,14 @@ Dashboard statistics behavior, including data loading and refresh, fleet summary
 
 ### Requirement: Dashboard statistics lifecycle
 
-The dashboard SHALL load fleet summaries, vehicle summaries, bounded charts, and bounded sparklines through one coordinated `/api/stats` request replacing the old per-vehicle summary/history requests. Fill-up listing SHALL remain independently paginated. Refreshes SHALL retain appropriate currently displayed values and expose loading and failure states without deriving summaries from sampled points.
+The dashboard SHALL load fleet summaries, vehicle summaries, complete chart history, and bounded sparklines through one coordinated `/api/stats` request. Fill-up listing SHALL remain independently paginated. Refreshes SHALL retain appropriate currently displayed values and expose loading and failure states without deriving summaries from sampled points.
 
 #### Scenario: Statistics load succeeds
 - **WHEN** dashboard data loads successfully
-- **THEN** dashboard metrics, charts, and sparklines SHALL update together from that response
+- **THEN** dashboard metrics, complete chart history, and sparklines SHALL update together from that response
 - **AND** any previous loading error SHALL be cleared
-- **AND** the dashboard SHALL NOT use the removed per-vehicle summary/history endpoints or download complete segment or individual-price history
+- **AND** the dashboard SHALL NOT use the removed per-vehicle summary/history endpoints or download complete segment arrays
+- **AND** no separate individual-price-history request SHALL be needed
 
 #### Scenario: Statistics load fails
 - **WHEN** loading or refreshing dashboard data fails
@@ -41,9 +42,9 @@ The dashboard SHALL load fleet summaries, vehicle summaries, bounded charts, and
 - **AND** an outstanding request SHALL NOT repopulate reset statistics state
 
 #### Scenario: Exact summaries with sampled trends
-- **WHEN** history exceeds chart or sparkline limits
+- **WHEN** history exceeds sparkline limits or the visible monthly chart window
 - **THEN** summary values SHALL still match the full eligible history
-- **AND** the client SHALL NOT calculate those values by averaging the sampled trend points
+- **AND** the client SHALL NOT calculate those values by averaging the sampled trend points or the visible window
 
 ### Requirement: Fleet summary cards
 
@@ -176,15 +177,15 @@ On viewports below 960px, charts SHALL render as a horizontal carousel above the
 
 ### Requirement: Charts panel content
 
-The charts panel SHALL display three charts for the selected vehicle from the bounded dashboard response. Chart cards SHALL remain visible when data is insufficient. Chart data and summary sparklines SHALL remain independent of the loaded fill-up list pages.
+The charts panel SHALL display three charts for the selected vehicle from the combined statistics response. Cost and distance SHALL offer navigable monthly views and complete yearly views; fuel price SHALL show all eligible recorded prices on one timeline. Chart cards SHALL remain visible when data is insufficient. Chart data and summary sparklines SHALL remain independent of the loaded fill-up list pages.
 
 #### Scenario: Charts displayed
 - **WHEN** a vehicle is selected via a chip or single-vehicle mode
-- **THEN** the panel SHALL display monthly cost, monthly/yearly distance, and fuel price charts stacked vertically
+- **THEN** the panel SHALL display monthly/yearly cost, monthly/yearly distance, and fuel price charts stacked vertically
 
 #### Scenario: Vehicle selection changes chart data
 - **WHEN** a different vehicle is selected
-- **THEN** charts SHALL show that vehicle's bounded dashboard data
+- **THEN** charts SHALL show that vehicle's statistics data and initial latest monthly windows
 - **AND** data belonging to the previous vehicle SHALL NOT be displayed as the new vehicle's data
 
 #### Scenario: Insufficient chart data
@@ -194,14 +195,14 @@ The charts panel SHALL display three charts for the selected vehicle from the bo
 - **AND** distance SHALL require two period points, cost SHALL accept one period, and fuel price SHALL accept the first eligible recorded fill as a visible dot
 
 #### Scenario: Loaded fuel-price history
-- **WHEN** bounded dashboard data for the selected vehicle loads or changes
-- **THEN** both chart layouts SHALL render its supplied fuel-price series using the response units
-- **AND** no complete price-history response or traversal of fill-up pages SHALL be needed
+- **WHEN** dashboard data for the selected vehicle loads or changes
+- **THEN** both chart layouts SHALL render every supplied eligible fuel-price observation using the response units
+- **AND** no separate price-history response or traversal of fill-up pages SHALL be needed
 - **AND** cost, distance, and summary trends SHALL retain their existing calculation populations and thresholds
 
 #### Scenario: Fill-up list continuation
 - **WHEN** older list pages load on scroll
-- **THEN** all chart points, values, axes, summary values, and sparkline paths SHALL remain unchanged
+- **THEN** all chart points, values, axes, selected monthly windows, summary values, and sparkline paths SHALL remain unchanged
 - **AND** no dashboard-data refresh or extra history request SHALL be triggered solely by pagination
 
 #### Scenario: Chart history loading
@@ -210,4 +211,4 @@ The charts panel SHALL display three charts for the selected vehicle from the bo
 
 #### Scenario: No vehicles
 - **WHEN** no vehicles exist
-- **THEN** the dashboard SHALL show the existing vehicle empty state without chart cards
+- **THEN** the dashboard SHALL show the existing vehicle empty state

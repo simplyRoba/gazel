@@ -187,8 +187,8 @@
   "charts.monthlyDistance": "Monthly distance ({unit})",
   "charts.yearlyDistance": "Yearly distance ({unit})",
   "charts.fuelPrice": "Fuel price ({currency}/{unit})",
-  "charts.limitedRange": "Showing {start}–{end}; older periods omitted",
-  "charts.reducedHistory": "Showing {shown} of {total} recorded prices ({start}–{end})",
+  "charts.previousPeriod": "Previous 12 months",
+  "charts.nextPeriod": "Next 12 months",
 
   "toast.dismiss": "Dismiss",
 

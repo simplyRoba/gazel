@@ -1,6 +1,5 @@
 use super::CalculationError;
 
-pub const PRICE_LIMIT: usize = 240;
 pub const SPARKLINE_LIMIT: usize = 60;
 
 /// A retained value at its original normalized population index (0 through 1).

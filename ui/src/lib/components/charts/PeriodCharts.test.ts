@@ -27,24 +27,140 @@ afterEach(() => {
 });
 
 const series = {
-  monthly: periodSeries(
-    [
-      { period: "2026-01", value: 123.45 },
-      { period: "2026-03", value: 987.65 },
-    ],
-    true,
-  ),
-  yearly: periodSeries(
-    [
-      { period: "2020", value: 234.56 },
-      { period: "2026", value: 876.54 },
-    ],
-    true,
-  ),
+  monthly: periodSeries([
+    { period: "2026-01", value: 123.45 },
+    { period: "2026-03", value: 987.65 },
+  ]),
+  yearly: periodSeries([
+    { period: "2020", value: 234.56 },
+    { period: "2026", value: 876.54 },
+  ]),
 };
 
 describe("server period charts", () => {
-  it("plots exact supplied cost values in both modes, without filling gaps or slicing, and labels omitted history", async () => {
+  it.each(["cost", "distance"] as const)(
+    "persists clamped calendar selections across later refreshes",
+    async (component) => {
+      const points = Array.from({ length: 156 }, (_, i) => ({
+        period: `${2010 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`,
+        value: i + 1,
+      }));
+      const modes = (monthly: typeof points) => ({
+        monthly: periodSeries(monthly),
+        yearly: periodSeries([{ period: "2022", value: 100 }]),
+      });
+      const props = {
+        series: modes(points),
+        currency: "USD",
+        distanceUnit: "km",
+        vehicleId: 1,
+      };
+      const { container, getByRole, rerender } =
+        component === "cost"
+          ? render(CostChart, props)
+          : render(DistanceChart, props);
+      await fireEvent.click(
+        getByRole("button", { name: "Previous 12 months" }),
+      );
+      expect(container.textContent).toContain("Jan 2021");
+      await rerender({ ...props, series: modes(points.slice(0, 144)) });
+      expect(container.textContent).toContain("Jan 2021");
+      await rerender(props);
+      expect(container.textContent).toContain("Jan 2022");
+      await fireEvent.click(
+        getByRole("button", { name: "Previous 12 months" }),
+      );
+      await fireEvent.click(
+        getByRole("button", { name: "Previous 12 months" }),
+      );
+      expect(container.textContent).toContain("Jan 2020");
+      await rerender({ ...props, series: modes(points.slice(132)) });
+      expect(container.textContent).toContain("Jan 2021");
+      await rerender(props);
+      expect(container.textContent).toContain("Jan 2021");
+    },
+  );
+  it("navigates twelve-month windows, preserves them across modes, and shows all years", async () => {
+    const monthly = Array.from({ length: 156 }, (_, i) => ({
+      period: `${2010 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`,
+      value: i + 1,
+    }));
+    const yearly = Array.from({ length: 13 }, (_, i) => ({
+      period: String(2010 + i),
+      value: i + 1,
+    }));
+    const { container, getByRole, queryByRole } = render(CostChart, {
+      series: { monthly: periodSeries(monthly), yearly: periodSeries(yearly) },
+      currency: "USD",
+      vehicleId: 1,
+    });
+    const previous = getByRole("button", { name: "Previous 12 months" });
+    expect(
+      (getByRole("button", { name: "Next 12 months" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    expect(container.textContent).toContain("Jan 2022");
+    await fireEvent.click(previous);
+    expect(container.textContent).toContain("Jan 2021");
+    await fireEvent.click(getByRole("button", { name: "Yearly" }));
+    expect(queryByRole("button", { name: "Previous 12 months" })).toBeNull();
+    await waitFor(() =>
+      expect(container.querySelectorAll(".bars rect")).toHaveLength(13),
+    );
+    await fireEvent.click(getByRole("button", { name: "Monthly" }));
+    expect(container.textContent).toContain("Jan 2021");
+    for (let i = 0; i < 20; i++) {
+      const button = getByRole("button", {
+        name: "Previous 12 months",
+      }) as HTMLButtonElement;
+      if (button.disabled) break;
+      await fireEvent.click(button);
+    }
+    expect(container.textContent).toContain("Jan 2010");
+    expect(container.querySelectorAll(".bars rect")).toHaveLength(12);
+    expect(
+      (getByRole("button", { name: "Previous 12 months" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    await fireEvent.click(getByRole("button", { name: "Next 12 months" }));
+    expect(container.textContent).toContain("Jan 2011");
+  });
+  it("renders every yearly distance point across more than twelve years", async () => {
+    const yearly = Array.from({ length: 13 }, (_, i) => ({
+      period: String(2010 + i),
+      value: (i + 1) * 10,
+    }));
+    const { container, getByRole, queryByRole } = render(DistanceChart, {
+      series: { monthly: series.monthly, yearly: periodSeries(yearly) },
+      distanceUnit: "km",
+      vehicleId: 1,
+    });
+    await fireEvent.click(getByRole("button", { name: "Yearly" }));
+    await waitFor(() =>
+      expect(container.querySelectorAll(".axis-x > g")).toHaveLength(13),
+    );
+    expect(queryByRole("button", { name: "Previous 12 months" })).toBeNull();
+    expect(queryByRole("button", { name: "Next 12 months" })).toBeNull();
+    const width = Number(
+      container
+        .querySelector('rect[role="presentation"]')!
+        .getAttribute("width"),
+    );
+    expect(width).toBeGreaterThan(0);
+    for (const [index, point] of yearly.entries()) {
+      await hoverChart(container, (index * width) / (yearly.length - 1));
+      expect(
+        container.querySelector('text[text-anchor="end"][font-size="10"]')!
+          .textContent,
+      ).toBe(point.period);
+      expect(
+        container.querySelector('text[text-anchor="end"][font-size="12"]')!
+          .textContent,
+      ).toBe(`${point.value}.0 km`);
+    }
+  });
+
+  it("plots exact supplied cost values in both modes without reconstructing data or omission captions", async () => {
     const { container, getByRole, rerender } = render(CostChart, {
       series,
       currency: "USD",
@@ -55,9 +171,7 @@ describe("server period charts", () => {
     expect(container.querySelector(".axis-x")!.textContent).not.toContain(
       "Feb",
     );
-    expect(container.querySelector(".chart-caption")!.textContent).toBe(
-      "Showing 2026-01–2026-03; older periods omitted",
-    );
+    expect(container.querySelector(".chart-caption")).toBeNull();
     await hoverChart(container, 0);
     expect(container.textContent).toContain("$123.45");
     await hoverChart(container, 600);
@@ -70,9 +184,7 @@ describe("server period charts", () => {
     expect(container.querySelector(".axis-x")!.textContent).not.toContain(
       "2021",
     );
-    expect(container.querySelector(".chart-caption")!.textContent).toBe(
-      "Showing 2020–2026; older periods omitted",
-    );
+    expect(container.querySelector(".chart-caption")).toBeNull();
     await hoverChart(container, 0);
     expect(container.textContent).toContain("$234.56");
     await hoverChart(container, 600);
@@ -105,9 +217,7 @@ describe("server period charts", () => {
     expect(container.querySelector(".chart-title")!.textContent).toBe(
       "Monthly distance (km)",
     );
-    expect(container.querySelector(".chart-caption")!.textContent).toBe(
-      "Showing 2026-01–2026-03; older periods omitted",
-    );
+    expect(container.querySelector(".chart-caption")).toBeNull();
     await hoverChart(container, 0);
     expect(container.textContent).toContain("123.5 km");
     await hoverChart(container, 600);
@@ -124,9 +234,7 @@ describe("server period charts", () => {
     expect(container.querySelector(".axis-x")!.textContent).not.toContain(
       "2021",
     );
-    expect(container.querySelector(".chart-caption")!.textContent).toBe(
-      "Showing 2020–2026; older periods omitted",
-    );
+    expect(container.querySelector(".chart-caption")).toBeNull();
     await hoverChart(container, 0);
     expect(container.textContent).toContain("234.6 km");
     await hoverChart(container, 600);

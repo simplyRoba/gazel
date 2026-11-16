@@ -45,6 +45,20 @@ export function toPriceData(
   });
 }
 
+/** Find price bounds without spreading arbitrarily large histories into arguments. */
+export function priceExtent(
+  points: readonly TimeSeriesPoint[],
+): [number, number] {
+  if (points.length === 0) return [0, 0];
+  let min = Infinity;
+  let max = -Infinity;
+  for (const point of points) {
+    min = Math.min(min, point.value);
+    max = Math.max(max, point.value);
+  }
+  return [min, max];
+}
+
 /** Preserve the server's original positions and display-convention values. */
 export function toSparklineData(series: SparklineSeries): SparklinePoint[] {
   return series.points.map(({ position, value }) => ({

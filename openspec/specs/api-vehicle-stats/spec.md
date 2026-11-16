@@ -55,11 +55,11 @@ When fill-up records were stored with a different `fuel_unit` than the user's cu
 
 ### Requirement: Combined statistics data
 
-The API SHALL expose `GET /api/stats` with an optional positive `vehicle_id`. It SHALL return all-time fleet and per-vehicle summary values, the fleet efficiency sparkline, and bounded chart and cost-per-distance sparkline data for the selected vehicle. It SHALL use the existing API authentication and JSON error contracts.
+The API SHALL expose `GET /api/stats` with an optional positive `vehicle_id`. It SHALL return all-time fleet and per-vehicle summary values, the fleet efficiency sparkline, complete cost/distance period aggregates and recorded fuel prices for the selected vehicle, and its bounded cost-per-distance sparkline. It SHALL use the existing API authentication and JSON error contracts.
 
 #### Scenario: Selected vehicle
 - **WHEN** an existing vehicle is requested
-- **THEN** one response SHALL contain the fleet summary, per-vehicle summaries, selected-vehicle summary, both cost/distance period modes, fuel-price series, and both dashboard sparklines
+- **THEN** one response SHALL contain the fleet summary, per-vehicle summaries, selected-vehicle summary, both complete cost/distance period modes, complete eligible fuel-price series, and both dashboard sparklines
 - **AND** chart data for other vehicles SHALL NOT be included
 
 #### Scenario: No selected vehicle
@@ -77,38 +77,14 @@ The API SHALL expose `GET /api/stats` with an optional positive `vehicle_id`. It
 - **WHEN** no vehicles exist and no vehicle is selected
 - **THEN** totals SHALL be zero, undefined efficiency and distance ratios SHALL be `null`, and summary lists and chart series SHALL be empty
 
-### Requirement: Bounded dashboard series
-
-Dashboard chart-series sizes SHALL remain bounded independently of fill-up count. Each cost/distance mode SHALL contain at most 12 periods, the fuel-price series at most 240 points, and each sparkline at most 60 points. Series SHALL identify their displayed range and whether source history was reduced. Dashboard responses SHALL NOT contain raw fill-up lists or complete segment arrays.
-
-#### Scenario: Growing history
-- **WHEN** a vehicle has 100,000 eligible fill-ups rather than 100
-- **THEN** its response SHALL obey the same series limits
-- **AND** additional history SHALL NOT add one response record per fill-up or segment
-
-#### Scenario: Period bounds
-- **WHEN** cost or distance history spans more than 12 months or years
-- **THEN** that mode SHALL contain only the latest 12 calendar periods ending at its latest data period
-- **AND** missing periods inside that window SHALL be zero-filled
-- **AND** the response SHALL indicate that earlier periods are not displayed
-
-#### Scenario: Fuel-price reduction
-- **WHEN** more than 240 eligible recorded prices exist
-- **THEN** the returned series SHALL preserve the first and last eligible prices and the history's minimum and maximum prices
-- **AND** retained points SHALL preserve chronological order and their actual recorded price values
-- **AND** all-time source count and reduction status SHALL be provided
-
-#### Scenario: Small series
-- **WHEN** an eligible series fits within its point limit
-- **THEN** all of its points SHALL be returned without reduction
-
 ### Requirement: Exact dashboard summaries
 
-All-time summary values SHALL use the complete eligible population rather than displayed windows or sampled chart points. Existing tank-to-tank validity, unit conversion, rounding, fleet aggregation, and displayed average-efficiency semantics SHALL be preserved. Fuel prices SHALL remain independent of full-tank and odometer requirements.
+All-time summary values SHALL use the complete eligible population rather than visible chart windows or sampled sparkline points. Existing tank-to-tank validity, unit conversion, rounding, fleet aggregation, and displayed average-efficiency semantics SHALL be preserved. Fuel prices SHALL remain independent of full-tank and odometer requirements.
 
 #### Scenario: History outside chart windows
-- **WHEN** older history is omitted from a displayed chart window
+- **WHEN** older history is outside the currently visible monthly chart window
 - **THEN** that history SHALL still contribute to applicable all-time totals and averages
+- **AND** navigating chart windows SHALL NOT change those totals or averages
 
 #### Scenario: Vehicles with different segment counts
 - **WHEN** vehicles have different numbers of valid efficiency segments
@@ -152,9 +128,49 @@ Each statistics request SHALL return results from a coherent current database vi
 
 ### Requirement: Single statistics API surface
 
-The combined `/api/stats` endpoint SHALL replace the old per-vehicle summary and segment-history routes. The API SHALL NOT retain compatibility aliases, introduce `/api/dashboard`, or expose another unbounded individual-price-history route for this data.
+The combined `/api/stats` endpoint SHALL provide summaries and complete chart history. The API SHALL NOT retain compatibility aliases for the old per-vehicle summary/history routes, introduce `/api/dashboard`, or require a separate individual-price-history route for dashboard charts.
 
 #### Scenario: Statistics consumer migrates
 - **WHEN** a consumer needs summaries or chart data
-- **THEN** it SHALL obtain the combined bounded response from `/api/stats`
+- **THEN** it SHALL obtain the combined response from `/api/stats`
 - **AND** the old `/api/vehicles/{vehicle_id}/stats` and `/api/vehicles/{vehicle_id}/stats/history` paths SHALL no longer supply statistics responses or redirect to a compatibility alias
+
+### Requirement: Complete dashboard chart history
+
+Selected-vehicle chart data SHALL contain all monthly and yearly cost/distance aggregates and every eligible recorded fuel price in chronological order, without fixed history or point-count cutoffs. Period series SHALL contain `points`; fuel-price series SHALL contain `points` and `trend`, without omission or reduction metadata. Chart data SHALL NOT include raw fill-up lists or complete segment arrays.
+
+#### Scenario: More than twelve periods
+- **WHEN** eligible history spans 13 years
+- **THEN** monthly and yearly cost/distance series SHALL include the earliest and latest applicable periods and every intervening calendar period
+- **AND** missing periods within each series' source span SHALL have zero values
+- **AND** no periods SHALL be added before that series' first applicable period or after its last applicable period
+
+#### Scenario: Full distance intervals
+- **WHEN** a segment crosses months or years
+- **THEN** all overlapping periods SHALL receive their applicable calendar-day share of distance
+- **AND** yearly values SHALL use direct yearly allocation and the existing integer-rounding rule, not sums of rounded monthly values
+
+#### Scenario: More than 240 recorded prices
+- **WHEN** a selected vehicle has 500 eligible recorded prices
+- **THEN** its fuel-price `points` SHALL contain all 500 observations with their actual dates and unrounded normalized price values
+- **AND** observations sharing dates or equal prices SHALL remain separate in date-then-ID order
+- **AND** its trend SHALL use the complete eligible population
+
+#### Scenario: Empty and short histories
+- **WHEN** no eligible period or price data exists
+- **THEN** the corresponding `points` SHALL be empty and the fuel-price `trend` SHALL be `null` when no fit exists
+- **WHEN** only one eligible period or recorded price exists
+- **THEN** that observation SHALL be returned without padding the history
+
+### Requirement: Bounded dashboard sparklines
+
+Each dashboard summary sparkline SHALL retain at most 60 representative eligible values and their original relative positions. Its reduction SHALL NOT affect exact summary values or remove points from full-size cost, distance, or fuel-price chart series.
+
+#### Scenario: Long sparkline history
+- **WHEN** more than 60 eligible values exist for a summary sparkline
+- **THEN** at most 60 representative values SHALL be returned with the existing source-count and reduction metadata
+- **AND** all eligible values SHALL still contribute to applicable exact summary calculations
+
+#### Scenario: Short sparkline history
+- **WHEN** at most 60 eligible values exist for a summary sparkline
+- **THEN** all eligible values SHALL be returned in their original relative positions

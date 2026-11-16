@@ -72,7 +72,7 @@ Interactive charts SHALL expose the nearest data point on hover or touch.
 
 ### Requirement: Compact efficiency trend
 
-The dashboard SHALL display the exact all-time average efficiency with a low-contrast background trend from the bounded dashboard response. The trend SHALL use at most 60 representative eligible values; the displayed average SHALL NOT be calculated from that reduced series.
+The dashboard SHALL display the exact all-time average efficiency with a low-contrast background trend from the statistics response. The trend SHALL use at most 60 representative eligible values; the displayed average SHALL NOT be calculated from that reduced series.
 
 #### Scenario: Efficiency summary data
 - **WHEN** the complete eligible history contains valid efficiency segments
@@ -91,22 +91,26 @@ The dashboard SHALL display the exact all-time average efficiency with a low-con
 
 ### Requirement: Distance trend chart
 
-The dashboard SHALL display the selected vehicle's server-prepared monthly/yearly distance trend as a line-and-area chart. Each mode SHALL show at most its latest 12 periods. Existing calendar allocation, distance formatting, and zero-based value-domain rules SHALL remain unchanged.
+The dashboard SHALL display the selected vehicle's server-prepared monthly/yearly distance trend as a line-and-area chart. Monthly mode SHALL show a navigable window of at most 12 calendar months; yearly mode SHALL show the complete yearly series. Existing calendar allocation, distance formatting, zero-based value domain, and eligible-point thresholds SHALL remain unchanged.
 
 #### Scenario: Monthly and yearly distance
-- **WHEN** at least two eligible period points exist in the selected mode
-- **THEN** the distance chart SHALL plot that bounded series and allow switching modes
-- **AND** monthly mode SHALL show at most the latest 12 months and yearly mode at most the latest 12 years
+- **WHEN** at least two eligible period points exist in the selected view
+- **THEN** the distance chart SHALL plot that view and allow switching modes
 - **AND** axes and point details SHALL use the response's distance unit
 - **AND** the value-axis domain SHALL start at zero
 
 #### Scenario: Older periods omitted
-- **WHEN** history contains periods outside the returned window
-- **THEN** the chart SHALL identify its limited displayed range rather than imply that it displays all-time distance
+- **WHEN** distance history contains periods outside the initially visible latest 12-month window
+- **THEN** previous/next controls SHALL make every older applicable month reachable without rendering all months at once
+- **AND** the chart SHALL show its visible date range without an older-period omission caption
+
+#### Scenario: Complete yearly distance
+- **WHEN** distance history exceeds 12 years
+- **THEN** yearly mode SHALL show the earliest year, latest year, and every intervening year without a 12-year cutoff
 
 ### Requirement: Monthly cost trend chart
 
-The dashboard SHALL display server-prepared calendar-period cost totals as bars for the selected vehicle. Monthly and yearly modes SHALL each show at most the latest 12 periods without changing existing segment-cost allocation or currency formatting.
+The dashboard SHALL display server-prepared calendar-period cost totals as bars for the selected vehicle. Monthly mode SHALL show a navigable window of at most 12 calendar months; yearly mode SHALL show the complete yearly series without changing existing segment-cost allocation or currency formatting.
 
 #### Scenario: Monthly cost data
 - **WHEN** eligible segment costs exist
@@ -115,13 +119,18 @@ The dashboard SHALL display server-prepared calendar-period cost totals as bars 
 - **AND** the value axis SHALL use the response's currency
 
 #### Scenario: Older periods omitted
-- **WHEN** history exceeds the period window
-- **THEN** the chart SHALL identify its limited displayed range
+- **WHEN** cost history contains periods outside the initially visible latest 12-month window
+- **THEN** previous/next controls SHALL make every older applicable month reachable without rendering all months at once
+- **AND** the chart SHALL show its visible date range without an older-period omission caption
 - **AND** all-time summary totals SHALL remain unaffected
+
+#### Scenario: Complete yearly cost
+- **WHEN** cost history exceeds 12 years
+- **THEN** yearly mode SHALL show the earliest year, latest year, and every intervening year without a 12-year cutoff
 
 ### Requirement: Fuel price trend chart
 
-The dashboard SHALL display the selected vehicle's bounded, server-prepared fuel-price history independently of paginated fill-up entries. It SHALL plot one eligible recorded price as a visible dot and two or more prices as the existing line/trend presentation, with at most 240 retained prices.
+The dashboard SHALL display the selected vehicle's complete server-prepared eligible fuel-price history on one continuous timeline, independently of paginated fill-up entries. It SHALL plot one eligible recorded price as a visible dot and two or more prices as the existing line/trend presentation. It SHALL NOT impose a point-count cap, sample observations, or apply cost/distance period windows to this chart.
 
 #### Scenario: Fuel price data
 - **WHEN** at least one eligible recorded price exists
@@ -135,16 +144,20 @@ The dashboard SHALL display the selected vehicle's bounded, server-prepared fuel
 - **WHEN** no eligible recorded prices exist
 - **THEN** the chart SHALL show the existing more-fill-ups-needed message
 
+#### Scenario: Different prices on the same date
+- **WHEN** multiple eligible recorded prices share a date but have different values
+- **THEN** hover or touch selection at that date SHALL allow each distinct recorded value to be inspected rather than always selecting the first observation
+
 #### Scenario: Reduced fuel-price history
-- **WHEN** more than 240 recorded prices exist
-- **THEN** the chart SHALL show the bounded chronological series supplied by the backend
-- **AND** retained details SHALL describe actual recorded prices, not fabricated averages
-- **AND** the chart SHALL indicate that the history has been reduced
-- **AND** the supplied trend SHALL represent the complete eligible price population, not a new regression calculated from retained points alone
+- **WHEN** more than 240 eligible recorded prices exist
+- **THEN** all recorded observations SHALL remain in the plotted series across the complete time domain
+- **AND** point details SHALL describe actual recorded prices, not fabricated averages
+- **AND** no reduced-history caption or monthly/yearly navigation SHALL appear
+- **AND** the supplied trend SHALL represent the complete eligible price population
 
 ### Requirement: Chart calculation rules
 
-Dashboard charts and sparklines SHALL use server-prepared bounded series. Efficiency, cost, and distance SHALL retain their existing segment-based calculations; fuel prices SHALL use individual eligible fills. The client SHALL format and render these values without reconstructing full histories or deriving chart data from list pages.
+Full-size charts SHALL use complete server-prepared period aggregates and recorded prices; summary sparklines SHALL remain bounded. Efficiency, cost, and distance SHALL retain their existing segment-based calculations; fuel prices SHALL use individual eligible fills. The client SHALL format, select visible monthly windows, and render these values without recalculating aggregates or deriving chart data from list pages.
 
 #### Scenario: Efficiency trend calculation
 - **WHEN** efficiency trend data is prepared
@@ -165,7 +178,7 @@ Dashboard charts and sparklines SHALL use server-prepared bounded series. Effici
 - **THEN** each eligible price SHALL equal cost divided by fuel volume normalized to the response's volume unit
 - **AND** nonpositive or nonfinite fuel and missing or nonfinite cost SHALL be excluded, while zero cost SHALL be included
 - **AND** partial and missed fills SHALL remain eligible regardless of odometer or segment availability
-- **AND** date-then-ID order SHALL be preserved before and after reduction
+- **AND** every eligible observation SHALL be preserved in date-then-ID order
 
 #### Scenario: Compact trend ordering
 - **WHEN** a background trend is prepared
@@ -175,3 +188,46 @@ Dashboard charts and sparklines SHALL use server-prepared bounded series. Effici
 #### Scenario: List pagination
 - **WHEN** older fill-up entries load on scroll
 - **THEN** rendered chart data, trend lines, axes, and sparklines SHALL remain unchanged
+
+### Requirement: Monthly chart window navigation
+
+Monthly cost and distance charts SHALL provide keyboard- and touch-operable previous/next navigation through their full calendar history, with a concise visible date range and localized accessible control names. Navigation SHALL change only the visible chart window, not full-history summaries or the fuel-price timeline. Omission-warning captions SHALL NOT be displayed.
+
+#### Scenario: Previous and next windows
+- **WHEN** a user navigates backward or forward in monthly cost or distance
+- **THEN** the chart SHALL display at most 12 consecutive calendar months from its complete history and update the visible date range
+- **AND** repeated navigation SHALL reach both the earliest and latest applicable months
+- **AND** no statistics or fill-up-list request SHALL be required solely for navigation
+
+#### Scenario: Navigation endpoints
+- **WHEN** the visible window includes the earliest applicable month
+- **THEN** backward navigation SHALL be disabled
+- **WHEN** the visible window includes the latest applicable month
+- **THEN** forward navigation SHALL be disabled
+- **AND** navigation SHALL NOT create empty windows outside the source span
+
+#### Scenario: Short and oldest windows
+- **WHEN** a complete monthly history has at most 12 months
+- **THEN** all of its months SHALL be visible and navigation controls SHALL be hidden
+- **WHEN** a longer history reaches its oldest window
+- **THEN** that window SHALL include up to 12 available months, overlapping the adjacent window if needed rather than isolating a single oldest month
+- **AND** existing cost and distance insufficient-data rules SHALL apply to genuinely short histories
+
+#### Scenario: Mode switching
+- **WHEN** a user switches to yearly mode
+- **THEN** monthly navigation SHALL be hidden and all yearly points SHALL be displayed
+- **WHEN** the user switches back to monthly mode for the same vehicle
+- **THEN** the previously selected monthly window SHALL be restored
+
+#### Scenario: Selection and refresh
+- **WHEN** the selected vehicle changes
+- **THEN** each monthly chart SHALL start at the new vehicle's latest applicable window
+- **WHEN** data refreshes for the same vehicle while the latest window is selected
+- **THEN** the chart SHALL continue to show the latest window
+- **WHEN** data refreshes while an older window is selected
+- **THEN** its visible calendar range SHALL be retained where it still exists, or clamped to the nearest available window without becoming empty
+
+#### Scenario: Responsive navigation
+- **WHEN** a monthly chart appears in the compact carousel or desktop panel
+- **THEN** its navigation and date range SHALL fit within the card without horizontal overflow
+- **AND** its controls SHALL remain operable without relying solely on chart-swipe gestures

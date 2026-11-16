@@ -100,10 +100,6 @@ describe("statistics API", () => {
       };
       const period = {
         points: [{ period: "2026-01", value: 20 }],
-        source_count: 1,
-        source_range: { start: "2026-01", end: "2026-01" },
-        displayed_range: { start: "2026-01", end: "2026-01" },
-        omitted_older_periods: false,
       };
       const sparkline = {
         points: [{ position: 0, value: 10 }],
@@ -140,10 +136,6 @@ describe("statistics API", () => {
                   distance: { monthly: period, yearly: period },
                   fuel_price: {
                     points: [{ date: "2026-01-01", value: 2 }],
-                    source_count: 1,
-                    reduced: false,
-                    source_range: { start: "2026-01-01", end: "2026-01-01" },
-                    displayed_range: { start: "2026-01-01", end: "2026-01-01" },
                     trend: null,
                   },
                 },

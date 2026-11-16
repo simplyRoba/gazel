@@ -103,14 +103,20 @@ function response(id: number | null): StatsResponse {
     average_efficiency: null,
     average_cost_per_distance: 0.04,
   };
-  const period = {
-    points: [],
-    source_count: 0,
-    source_range: null,
-    displayed_range: null,
-    omitted_older_periods: false,
+  const periods: PeriodModes = {
+    monthly: {
+      points: Array.from({ length: 156 }, (_, i) => ({
+        period: `${2010 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`,
+        value: i + 1,
+      })),
+    },
+    yearly: {
+      points: Array.from({ length: 13 }, (_, i) => ({
+        period: String(2010 + i),
+        value: i + 1,
+      })),
+    },
   };
-  const periods: PeriodModes = { monthly: period, yearly: period };
   return {
     units: { distance_unit: "km", volume_unit: "l", currency: "USD" },
     fleet: {
@@ -135,11 +141,12 @@ function response(id: number | null): StatsResponse {
               cost: periods,
               distance: periods,
               fuel_price: {
-                points: [{ date: "2026-03-01", value: 2 }],
-                source_count: 1,
-                reduced: false,
-                source_range: { start: "2026-03-01", end: "2026-03-01" },
-                displayed_range: { start: "2026-03-01", end: "2026-03-01" },
+                points: Array.from({ length: 300 }, (_, i) => ({
+                  date: new Date(Date.UTC(2020, 0, i + 1))
+                    .toISOString()
+                    .slice(0, 10),
+                  value: 2 + i / 1000,
+                })),
                 trend: null,
               },
             },
@@ -283,8 +290,21 @@ describe("pending writes completing after dashboard mount", () => {
           dashboard.container.querySelectorAll(".chart-card"),
         ).toHaveLength(6);
         expect(
-          dashboard.container.querySelectorAll(".line-point"),
-        ).toHaveLength(2);
+          stats.getSelectedStats(selected)?.charts.fuel_price.points,
+        ).toHaveLength(300);
+        const cards =
+          dashboard.container.querySelectorAll<HTMLElement>(".chart-card");
+        expect(cards[0].textContent).toContain("Jan 2022");
+        for (let i = 0; i < 12; i++) {
+          await fireEvent.click(
+            cards[0].querySelector<HTMLButtonElement>(
+              'button[aria-label="Previous 12 months"]',
+            )!,
+          );
+        }
+        expect(cards[0].textContent).toContain("Jan 2010");
+        expect(cards[3].textContent).toContain("Jan 2010");
+        expect(api.fetchFillups.mock.calls).toEqual([[1], [selected]]);
       } else {
         expect(fillups.getFillups()).toEqual([]);
         expect(

@@ -278,17 +278,8 @@ export interface StatsFleetSummary {
   cost_per_volume: number | null;
 }
 
-export interface StatsRange {
-  start: string;
-  end: string;
-}
-
 export interface PeriodSeries {
   points: Array<{ period: string; value: number }>;
-  source_count: number;
-  source_range: StatsRange | null;
-  displayed_range: StatsRange | null;
-  omitted_older_periods: boolean;
 }
 
 export interface PeriodModes {
@@ -303,10 +294,6 @@ export interface FuelPricePoint {
 
 export interface FuelPriceSeries {
   points: FuelPricePoint[];
-  source_count: number;
-  reduced: boolean;
-  source_range: StatsRange | null;
-  displayed_range: StatsRange | null;
   trend: [FuelPricePoint, FuelPricePoint] | null;
 }
 

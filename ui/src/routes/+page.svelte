@@ -51,6 +51,19 @@
   import { t } from "#lib/i18n/index.js";
   import type { Fillup, CreateFillup } from "#lib/api.js";
   import { toSparklineData } from "#lib/charts.js";
+  import type { MonthlySelection } from "#lib/monthly-window.js";
+
+  let costSelection = $state<MonthlySelection | null>(null);
+  let distanceSelection = $state<MonthlySelection | null>(null);
+  let windowVehicleId: number | null = null;
+  $effect(() => {
+    const vehicleId = getActiveVehicleId();
+    if (vehicleId !== windowVehicleId) {
+      windowVehicleId = vehicleId;
+      costSelection = null;
+      distanceSelection = null;
+    }
+  });
 
   // Modal state
   let showFillupModal = $state(false);
@@ -515,12 +528,16 @@
               <CostChart
                 series={selected?.charts.cost ?? null}
                 currency={units.currency}
+                vehicleId={getActiveVehicleId()}
+                bind:selection={costSelection}
               />
             </div>
             <div class="chart-carousel-item">
               <DistanceChart
                 series={selected?.charts.distance ?? null}
                 distanceUnit={units.distance_unit}
+                vehicleId={getActiveVehicleId()}
+                bind:selection={distanceSelection}
               />
             </div>
             <div class="chart-carousel-item">
@@ -561,6 +578,9 @@
           <div class="charts-column">
             <ChartsPanel
               charts={selected?.charts ?? null}
+              vehicleId={getActiveVehicleId()}
+              bind:costSelection
+              bind:distanceSelection
               distanceUnit={units.distance_unit}
               volumeUnit={units.volume_unit}
               currency={units.currency}

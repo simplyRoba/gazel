@@ -9,16 +9,12 @@ mod prices;
 mod sampling;
 
 pub use periods::{
-    CalculationError, PERIOD_LIMIT, Period, PeriodPoint, PeriodRange, PeriodSeries,
-    bounded_period_costs, bounded_period_distances, period_costs, period_distances,
+    CalculationError, Period, PeriodPoint, PeriodSeries, period_costs, period_distances,
 };
 pub use prices::{
-    DateRange, FuelPrice, FuelPriceSeries, PriceTrendPoint, SampledFuelPrices, fuel_price_series,
-    fuel_price_trend, fuel_prices, sample_fuel_prices,
+    FuelPrice, FuelPriceSeries, PriceTrendPoint, fuel_price_series, fuel_price_trend, fuel_prices,
 };
-pub use sampling::{
-    PRICE_LIMIT, SPARKLINE_LIMIT, SparklinePoint, SparklineSeries, sample_sparkline,
-};
+pub use sampling::{SPARKLINE_LIMIT, SparklinePoint, SparklineSeries, sample_sparkline};
 
 const KM_PER_MI: f64 = 1.609_344;
 const L_PER_GAL: f64 = 3.785_411_784;

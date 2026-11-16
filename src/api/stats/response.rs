@@ -1,8 +1,7 @@
 use serde::Serialize;
 
 use crate::stats::{
-    self, AggregatedStats, CalculationError, DateRange, Fillup, Period, PeriodSeries, Segment,
-    SparklineSeries,
+    self, AggregatedStats, CalculationError, Fillup, Period, PeriodSeries, Segment, SparklineSeries,
 };
 
 #[derive(Serialize, sqlx::FromRow)]
@@ -88,7 +87,6 @@ impl SelectedStats {
     ) -> Result<Self, CalculationError> {
         let prices = stats::fuel_prices(rows, &units.volume_unit);
         let prices = stats::fuel_price_series(&prices)?;
-        let samples = prices.samples;
         Ok(Self {
             vehicle_id: summary.vehicle_id,
             summary,
@@ -96,7 +94,7 @@ impl SelectedStats {
                 cost: PeriodModes::cost(segments)?,
                 distance: PeriodModes::distance(segments)?,
                 fuel_price: FuelPrices {
-                    points: samples
+                    points: prices
                         .points
                         .into_iter()
                         .map(|p| PricePoint {
@@ -104,10 +102,6 @@ impl SelectedStats {
                             value: p.value,
                         })
                         .collect(),
-                    source_count: samples.source_count,
-                    reduced: samples.reduced,
-                    source_range: samples.source_range.map(WireDateRange::from),
-                    displayed_range: samples.displayed_range.map(WireDateRange::from),
                     trend: prices.trend.map(|points| {
                         points.map(|p| PricePoint {
                             date: p.date.to_string(),
@@ -142,15 +136,23 @@ struct PeriodModes {
 impl PeriodModes {
     fn cost(segments: &[Segment]) -> Result<Self, CalculationError> {
         Ok(Self {
-            monthly: stats::bounded_period_costs(segments, Period::Month)?,
-            yearly: stats::bounded_period_costs(segments, Period::Year)?,
+            monthly: PeriodSeries {
+                points: stats::period_costs(segments, Period::Month)?,
+            },
+            yearly: PeriodSeries {
+                points: stats::period_costs(segments, Period::Year)?,
+            },
         })
     }
 
     fn distance(segments: &[Segment]) -> Result<Self, CalculationError> {
         Ok(Self {
-            monthly: stats::bounded_period_distances(segments, Period::Month)?,
-            yearly: stats::bounded_period_distances(segments, Period::Year)?,
+            monthly: PeriodSeries {
+                points: stats::period_distances(segments, Period::Month)?,
+            },
+            yearly: PeriodSeries {
+                points: stats::period_distances(segments, Period::Year)?,
+            },
         })
     }
 }
@@ -162,26 +164,7 @@ struct PricePoint {
 }
 
 #[derive(Serialize)]
-struct WireDateRange {
-    start: String,
-    end: String,
-}
-
-impl From<DateRange> for WireDateRange {
-    fn from(range: DateRange) -> Self {
-        Self {
-            start: range.start.to_string(),
-            end: range.end.to_string(),
-        }
-    }
-}
-
-#[derive(Serialize)]
 struct FuelPrices {
     points: Vec<PricePoint>,
-    source_count: usize,
-    reduced: bool,
-    source_range: Option<WireDateRange>,
-    displayed_range: Option<WireDateRange>,
     trend: Option<[PricePoint; 2]>,
 }

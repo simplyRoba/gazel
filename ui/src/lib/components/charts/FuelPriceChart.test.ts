@@ -7,6 +7,7 @@ import {
   mockChartDimensions,
   priceSeries,
 } from "./chart-test-helpers.js";
+import type { FuelPriceSeries } from "#lib/api.js";
 
 const globalSettings = vi.hoisted(() => ({
   locale: "en",
@@ -52,21 +53,17 @@ describe("FuelPriceChart", () => {
   });
 
   it("draws provided full-population endpoints rather than refitting a biased retained subset", async () => {
-    const series = {
-      ...priceSeries(
-        [
-          { date: "2026-03-01", value: 0 },
-          { date: "2026-03-15", value: 100 },
-          { date: "2026-04-01", value: 0 },
-        ],
-        [
-          { date: "2026-03-01", value: 25 },
-          { date: "2026-04-01", value: 25 },
-        ],
-      ),
-      source_count: 500,
-      reduced: true,
-    };
+    const series = priceSeries(
+      [
+        { date: "2026-03-01", value: 0 },
+        { date: "2026-03-15", value: 100 },
+        { date: "2026-04-01", value: 0 },
+      ],
+      [
+        { date: "2026-03-01", value: 25 },
+        { date: "2026-04-01", value: 25 },
+      ],
+    );
     const { container, rerender } = render(FuelPriceChart, {
       series,
       currency: "USD",
@@ -80,9 +77,7 @@ describe("FuelPriceChart", () => {
     expect(container.querySelector(trendSelector)!.getAttribute("d")).toBe(
       "M0,105 L578,105",
     );
-    expect(container.querySelector(".chart-caption")!.textContent).toBe(
-      "Showing 3 of 500 recorded prices (2026-03-01–2026-04-01)",
-    );
+    expect(container.querySelector(".chart-caption")).toBeNull();
     const paths = [...container.querySelectorAll("path")].map((p) =>
       p.getAttribute("d"),
     );
@@ -139,6 +134,79 @@ describe("FuelPriceChart", () => {
     ).not.toBe(previous);
     await hoverChart(container, 600);
     expect(container.textContent).toContain("$3.00/gal");
+  });
+
+  it("renders more than 240 actual prices over the entire domain without navigation", async () => {
+    const points = Array.from({ length: 300 }, (_, i) => {
+      const date = new Date(Date.UTC(2025, 0, 1 + i));
+      return {
+        date: date.toISOString().slice(0, 10),
+        value: i === 150 ? 42 : 1,
+      };
+    });
+    const trend: NonNullable<FuelPriceSeries["trend"]> = [
+      { ...points[0], value: 2 },
+      { ...points[299], value: 3 },
+    ];
+    const { container } = render(FuelPriceChart, {
+      series: priceSeries(points, trend),
+      currency: "USD",
+      volumeUnit: "l",
+    });
+    await waitFor(() =>
+      expect(
+        container.querySelector('path[stroke-dasharray="6,4"]'),
+      ).not.toBeNull(),
+    );
+    const line = container.querySelector("path:not([stroke-dasharray])")!;
+    expect(line.getAttribute("d")!.match(/C/g) ?? []).toHaveLength(299);
+    expect(container.querySelectorAll("button")).toHaveLength(0);
+    expect(container.querySelector(".chart-caption")).toBeNull();
+    expect(container.textContent).not.toMatch(/showing|reduced/i);
+    await hoverChart(container, 0);
+    expect(container.textContent).toContain("Jan 1, 2025");
+    await hoverChart(container, 290);
+    expect(container.textContent).toContain("$42.00/L");
+    await hoverChart(container, 578);
+    expect(container.textContent).toContain("Oct 27, 2025");
+    expect(
+      container
+        .querySelector('path[stroke-dasharray="6,4"]')!
+        .getAttribute("d"),
+    ).toMatch(/^M0,.* L578,/);
+  });
+
+  it("selects distinct prices on the same date by pointer height for mouse and touch", async () => {
+    const { container } = render(FuelPriceChart, {
+      series: priceSeries([
+        { date: "2026-03-01", value: 1 },
+        { date: "2026-03-01", value: 3 },
+        { date: "2026-03-01", value: 3 },
+      ]),
+      currency: "USD",
+      volumeUnit: "l",
+    });
+    await waitFor(() =>
+      expect(
+        container.querySelector('rect[role="presentation"]'),
+      ).not.toBeNull(),
+    );
+    const overlay = container.querySelector<SVGRectElement>(
+      'rect[role="presentation"]',
+    )!;
+    overlay.getBoundingClientRect = () => ({ left: 0, top: 0 }) as DOMRect;
+    await fireEvent.mouseMove(overlay, { clientX: 289, clientY: 0 });
+    expect(container.textContent).toContain("$3.00/L");
+    await fireEvent.mouseMove(overlay, { clientX: 289, clientY: 140 });
+    expect(container.textContent).toContain("$1.00/L");
+    await fireEvent.touchStart(overlay, {
+      touches: [{ clientX: 289, clientY: 0 }],
+    });
+    expect(container.textContent).toContain("$3.00/L");
+    await fireEvent.touchMove(overlay, {
+      touches: [{ clientX: 289, clientY: 140 }],
+    });
+    expect(container.textContent).toContain("$1.00/L");
   });
 
   it("renders a finite dot and touch tooltip for an already eligible free recorded price", async () => {

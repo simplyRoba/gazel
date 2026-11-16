@@ -1,31 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { toPeriodData, toPriceData, toSparklineData } from "./charts.js";
-import en from "./i18n/en.json";
-import de from "./i18n/de.json";
+import {
+  priceExtent,
+  toPeriodData,
+  toPriceData,
+  toSparklineData,
+} from "./charts.js";
 
-describe("bounded chart presentation mappers", () => {
-  it("keeps English and German range-label keys and interpolation fields aligned", () => {
-    expect(Object.keys(en).sort()).toEqual(Object.keys(de).sort());
-    for (const key of [
-      "charts.limitedRange",
-      "charts.reducedHistory",
-    ] as const) {
-      expect(en[key].match(/\{\w+\}/g)?.sort()).toEqual(
-        de[key].match(/\{\w+\}/g)?.sort(),
-      );
-    }
-  });
-
+describe("chart presentation mappers", () => {
   it("maps supplied periods exactly without filling gaps, sorting, or rounding", () => {
     const series = {
       points: [
         { period: "2026-01", value: 123.456789 },
         { period: "2026-03", value: 0 },
       ],
-      source_count: 200,
-      source_range: { start: "2000-01", end: "2026-03" },
-      displayed_range: { start: "2026-01", end: "2026-03" },
-      omitted_older_periods: true,
     };
     const before = structuredClone(series);
     expect(toPeriodData(series)).toEqual([
@@ -49,6 +36,20 @@ describe("bounded chart presentation mappers", () => {
     expect(result[0].date.getHours()).toBe(0);
     expect(points[0].date).toBe("2026-03-01");
     expect(toPriceData([])).toEqual([]);
+  });
+
+  it("preserves a long price history including identical observations and calculates large extents", () => {
+    const points = Array.from({ length: 200_000 }, (_, i) => ({
+      date: i < 100_000 ? "2020-01-01" : "2026-12-31",
+      value: i === 100_001 ? -5 : i === 150_000 ? 999 : 2,
+    }));
+    const result = toPriceData(points);
+    expect(result).toHaveLength(points.length);
+    expect(result[0]).toEqual(result[1]);
+    expect(result[100_001].value).toBe(-5);
+    expect(result.at(-1)?.date.getFullYear()).toBe(2026);
+    expect(priceExtent(result)).toEqual([-5, 999]);
+    expect(priceExtent([])).toEqual([0, 0]);
   });
 
   it("preserves unequal sampled positions and display-convention efficiency without inversion", () => {

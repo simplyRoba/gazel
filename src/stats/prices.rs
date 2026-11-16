@@ -1,9 +1,6 @@
 use chrono::NaiveDate;
 
-use super::sampling::retained_indices;
-use super::{
-    CalculationError, Fillup, PRICE_LIMIT, convert_volume, normalize_fuel_to_liters, ordered_rows,
-};
+use super::{CalculationError, Fillup, convert_volume, normalize_fuel_to_liters, ordered_rows};
 
 /// An actual recorded, unrounded price, retaining date and identity.
 #[derive(Clone, Debug, PartialEq)]
@@ -43,21 +40,6 @@ pub fn fuel_prices(rows: &[Fillup], volume_unit: &str) -> Vec<FuelPrice> {
         .collect()
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub struct DateRange {
-    pub start: NaiveDate,
-    pub end: NaiveDate,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct SampledFuelPrices {
-    pub points: Vec<FuelPrice>,
-    pub source_count: usize,
-    pub reduced: bool,
-    pub source_range: Option<DateRange>,
-    pub displayed_range: Option<DateRange>,
-}
-
 #[derive(Debug, PartialEq)]
 pub struct PriceTrendPoint {
     pub date: NaiveDate,
@@ -66,7 +48,7 @@ pub struct PriceTrendPoint {
 
 #[derive(Debug, PartialEq)]
 pub struct FuelPriceSeries {
-    pub samples: SampledFuelPrices,
+    pub points: Vec<FuelPrice>,
     pub trend: Option<[PriceTrendPoint; 2]>,
 }
 
@@ -77,42 +59,6 @@ fn ordered_prices(prices: &[FuelPrice]) -> Result<Vec<&FuelPrice>, CalculationEr
     let mut ordered: Vec<_> = prices.iter().collect();
     ordered.sort_by_key(|price| (price.date, price.fillup_id));
     Ok(ordered)
-}
-
-fn sample_ordered(prices: &[&FuelPrice]) -> SampledFuelPrices {
-    let values: Vec<_> = prices.iter().map(|price| price.value).collect();
-    let points = retained_indices(&values, PRICE_LIMIT)
-        .into_iter()
-        .map(|index| prices[index].clone())
-        .collect();
-    let range = || {
-        prices
-            .first()
-            .zip(prices.last())
-            .map(|(first, last)| DateRange {
-                start: first.date,
-                end: last.date,
-            })
-    };
-    SampledFuelPrices {
-        points,
-        source_count: prices.len(),
-        reduced: prices.len() > PRICE_LIMIT,
-        source_range: range(),
-        displayed_range: range(),
-    }
-}
-
-/// Retain all prices through 240; otherwise retain endpoints and min/max of
-/// 119 contiguous chronological interior index buckets. Ties retain the earliest
-/// original date/ID index. Deduplicate indices, never identities or values, and
-/// preserve original unrounded prices. Sort a copy without mutating the input.
-/// For chart data with a full-population trend, use `fuel_price_series` instead.
-///
-/// # Errors
-/// Returns an error for nonfinite input prices.
-pub fn sample_fuel_prices(prices: &[FuelPrice]) -> Result<SampledFuelPrices, CalculationError> {
-    Ok(sample_ordered(&ordered_prices(prices)?))
 }
 
 fn trend_ordered(prices: &[&FuelPrice]) -> Result<Option<[PriceTrendPoint; 2]>, CalculationError> {
@@ -185,8 +131,8 @@ pub fn fuel_price_trend(
     trend_ordered(&ordered_prices(prices)?)
 }
 
-/// Build fuel-price chart data safely: fit the complete eligible population
-/// FIRST, then reduce recorded points. Neither operation rounds price precision.
+/// Return every recorded price in date/ID order and fit the complete population.
+/// Neither operation rounds price precision.
 ///
 /// # Errors
 /// Returns an error for nonfinite prices, unrepresentable population size or
@@ -194,6 +140,6 @@ pub fn fuel_price_trend(
 pub fn fuel_price_series(prices: &[FuelPrice]) -> Result<FuelPriceSeries, CalculationError> {
     let ordered = ordered_prices(prices)?;
     let trend = trend_ordered(&ordered)?;
-    let samples = sample_ordered(&ordered);
-    Ok(FuelPriceSeries { samples, trend })
+    let points = ordered.into_iter().cloned().collect();
+    Ok(FuelPriceSeries { points, trend })
 }

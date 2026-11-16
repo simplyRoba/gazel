@@ -25,10 +25,6 @@ function snapshot(id: number | null = null, totalCost = 250): StatsResponse {
   };
   const period: PeriodSeries = {
     points: [{ period: "2026-01", value: 250 }],
-    source_count: 20,
-    source_range: { start: "2024-06", end: "2026-01" },
-    displayed_range: { start: "2025-02", end: "2026-01" },
-    omitted_older_periods: true,
   };
   const sparkline = {
     points: [
@@ -66,10 +62,6 @@ function snapshot(id: number | null = null, totalCost = 250): StatsResponse {
               distance: { monthly: period, yearly: period },
               fuel_price: {
                 points: [{ date: "2026-01-01", value: 2 }],
-                source_count: 300,
-                reduced: true,
-                source_range: { start: "2020-01-01", end: "2026-01-01" },
-                displayed_range: { start: "2020-01-01", end: "2026-01-01" },
                 trend: [
                   { date: "2020-01-01", value: 1 },
                   { date: "2026-01-01", value: 2 },

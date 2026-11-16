@@ -243,7 +243,7 @@ fn calculate(
     })
 }
 
-/// Combined exact all-time summaries and bounded selected-vehicle charts.
+/// Combined exact all-time summaries, complete selected-vehicle charts, and bounded sparklines.
 ///
 /// # Errors
 /// Responds with safe JSON errors for invalid selections (400), missing vehicles

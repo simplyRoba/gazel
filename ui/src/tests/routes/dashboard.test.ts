@@ -106,16 +106,10 @@ function page(
 }
 function periods(count: number, value: number): PeriodModes {
   const points = Array.from({ length: count }, (_, i) => ({
-    period: `2026-${String(i + 1).padStart(2, "0")}`,
+    period: `${2010 + Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, "0")}`,
     value: value + i,
   }));
-  const monthly = {
-    points,
-    source_count: 200,
-    source_range: { start: "2000-01", end: "2026-12" },
-    displayed_range: { start: "2026-01", end: "2026-12" },
-    omitted_older_periods: true,
-  };
+  const monthly = { points };
   return {
     monthly,
     yearly: {
@@ -125,17 +119,13 @@ function periods(count: number, value: number): PeriodModes {
         period: String(2015 + i),
         value: value * 12 + i,
       })),
-      source_range: { start: "2000", end: "2026" },
-      displayed_range: { start: "2015", end: "2026" },
     },
   };
 }
-// A bounded response for 360 prices / 359 segments. Exact summaries deliberately
-// differ from the retained samples; consumers must not reconstruct them.
 function response(
   id: number | null = 1,
   count = 12,
-  prices = 240,
+  prices = 360,
 ): StatsResponse {
   const summary = {
     vehicle_id: id ?? 1,
@@ -158,26 +148,7 @@ function response(
     date: new Date(Date.UTC(2020, 0, 1 + i)).toISOString().slice(0, 10),
     value: 1.25 + (i % 17) / 10,
   }));
-  const retained = new Set([0, 359]);
-  for (let bucket = 0; bucket < 119; bucket++) {
-    const start = 1 + Math.floor((bucket * 358) / 119);
-    const end = 1 + Math.floor(((bucket + 1) * 358) / 119);
-    const indices = Array.from({ length: end - start }, (_, i) => start + i);
-    retained.add(
-      indices.reduce((a, b) =>
-        fullPrices[b].value < fullPrices[a].value ? b : a,
-      ),
-    );
-    retained.add(
-      indices.reduce((a, b) =>
-        fullPrices[b].value > fullPrices[a].value ? b : a,
-      ),
-    );
-  }
-  const pricePoints =
-    prices === 240
-      ? [...retained].sort((a, b) => a - b).map((i) => fullPrices[i])
-      : fullPrices.slice(0, prices);
+  const pricePoints = fullPrices.slice(0, prices);
   const meanX = 359 / 2;
   const meanY = fullPrices.reduce((sum, p) => sum + p.value, 0) / 360;
   const slope =
@@ -211,13 +182,6 @@ function response(
               distance: periods(count, 1000),
               fuel_price: {
                 points: pricePoints,
-                source_count: 360,
-                reduced: true,
-                source_range: { start: "2020-01-01", end: "2020-12-25" },
-                displayed_range: {
-                  start: pricePoints[0]?.date ?? "",
-                  end: pricePoints.at(-1)?.date ?? "",
-                },
                 trend:
                   prices > 1
                     ? [
@@ -235,6 +199,31 @@ function response(
             },
           },
   };
+}
+function longResponse(id = 1, start = 0, end = 156): StatsResponse {
+  const result = response(id, end);
+  for (const series of [
+    result.selected!.charts.cost,
+    result.selected!.charts.distance,
+  ]) {
+    series.monthly.points = series.monthly.points.slice(start);
+    series.yearly.points = Array.from(
+      { length: Math.ceil(end / 12) - Math.floor(start / 12) },
+      (_, i) => ({
+        period: String(2010 + Math.floor(start / 12) + i),
+        value: i + 1,
+      }),
+    );
+  }
+  return result;
+}
+function chartCards(container: HTMLElement) {
+  return Array.from(container.querySelectorAll<HTMLElement>(".chart-card"));
+}
+function nav(card: HTMLElement, direction: "Previous" | "Next") {
+  return card.querySelector<HTMLButtonElement>(
+    `button[aria-label="${direction} 12 months"]`,
+  )!;
 }
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -371,7 +360,104 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("bounded dashboard consumers", () => {
+describe("dashboard chart consumers", () => {
+  it("navigates complete independent histories locally and shares windows between layouts", async () => {
+    api.fetchStats.mockResolvedValue(longResponse());
+    const { container } = await mount("older");
+    const cards = chartCards(container);
+    const priceBefore = [geometry(cards[2]), geometry(cards[5])];
+    const summaries = () => ({
+      fleet: screen.getByTestId("summary-cards").textContent,
+      selected: screen.getByTestId("vehicle-stats").textContent,
+    });
+    const summariesBefore = summaries();
+    expect(summariesBefore.fleet).toContain("€23,456.78");
+    expect(summariesBefore.fleet).toContain(
+      formatEfficiency(14.25, "km", "l", "en"),
+    );
+    expect(summariesBefore.selected).toContain("€23,456.78");
+    expect(summariesBefore.selected).toContain(
+      formatEfficiency(13.37, "km", "l", "en"),
+    );
+    expect(stats.getSelectedStats(1)!.charts.fuel_price.points).toHaveLength(
+      360,
+    );
+    expect(cards[0].textContent).toContain("Jan 2022");
+    expect(cards[3].textContent).toContain("Jan 2022");
+    await fireEvent.click(nav(cards[0], "Previous"));
+    expect(cards[0].textContent).toContain("Jan 2021");
+    expect(cards[3].textContent).toContain("Jan 2021");
+    expect(cards[1].textContent).toContain("Jan 2022");
+    expect(cards[4].textContent).toContain("Jan 2022");
+    expect(summaries()).toEqual(summariesBefore);
+    expect([geometry(cards[2]), geometry(cards[5])]).toEqual(priceBefore);
+    api.fetchFillups.mockResolvedValueOnce(page([0], null));
+    intersect();
+    await waitFor(() =>
+      expect(container.querySelectorAll(".fillup-card")).toHaveLength(3),
+    );
+    expect(cards[0].textContent).toContain("Jan 2021");
+    expect(cards[1].textContent).toContain("Jan 2022");
+    expect([geometry(cards[2]), geometry(cards[5])]).toEqual(priceBefore);
+    for (let i = 0; i < 11; i++)
+      await fireEvent.click(nav(cards[3], "Previous"));
+    expect(cards[0].textContent).toContain("Jan 2010");
+    expect(nav(cards[0], "Previous").disabled).toBe(true);
+    expect(summaries()).toEqual(summariesBefore);
+    await fireEvent.click(nav(cards[3], "Next"));
+    expect(cards[0].textContent).toContain("Jan 2011");
+    expect(summaries()).toEqual(summariesBefore);
+    await fireEvent.click(nav(cards[0], "Previous"));
+    expect(cards[0].textContent).toContain("Jan 2010");
+    await fireEvent.click(nav(cards[4], "Previous"));
+    expect(cards[1].textContent).toContain("Jan 2021");
+    expect(summaries()).toEqual(summariesBefore);
+    const yearly = Array.from(cards[0].querySelectorAll("button")).find((b) =>
+      b.textContent?.includes("Yearly"),
+    )!;
+    await fireEvent.click(yearly);
+    expect(cards[0].querySelectorAll(".bars rect")).toHaveLength(13);
+    expect(cards[0].textContent).toContain("2010");
+    expect(nav(cards[0], "Previous")).toBeNull();
+    expect(summaries()).toEqual(summariesBefore);
+    await fireEvent.click(
+      Array.from(cards[0].querySelectorAll("button")).find((b) =>
+        b.textContent?.includes("Monthly"),
+      )!,
+    );
+    expect(cards[0].textContent).toContain("Jan 2010");
+    expect(summaries()).toEqual(summariesBefore);
+    expect(api.fetchStats).toHaveBeenCalledTimes(1);
+    expect(api.fetchFillups).toHaveBeenCalledTimes(2);
+  });
+
+  it("follows latest on refresh, preserves calendar selection across prepends, clamps deletions and resets on vehicle change", async () => {
+    api.fetchStats.mockResolvedValue(longResponse(1, 12, 144));
+    const { container } = await mount();
+    const cards = chartCards(container);
+    api.fetchStats.mockResolvedValueOnce(longResponse(1, 12, 156));
+    await stats.refreshStats();
+    await tick();
+    expect(cards[0].textContent).toContain("Jan 2022");
+    await fireEvent.click(nav(cards[0], "Previous"));
+    expect(cards[0].textContent).toContain("Jan 2021");
+    api.fetchStats.mockResolvedValueOnce(longResponse(1, 0, 168));
+    await stats.refreshStats();
+    await tick();
+    expect(cards[0].textContent).toContain("Jan 2021");
+    expect(cards[1].textContent).toContain("Jan 2023");
+    api.fetchStats.mockResolvedValueOnce(longResponse(1, 144, 168));
+    await stats.refreshStats();
+    await tick();
+    expect(cards[0].textContent).toContain("Jan 2022");
+    api.fetchStats.mockResolvedValueOnce(longResponse(2, 0, 156));
+    api.fetchFillups.mockResolvedValueOnce(page([3], null, 2));
+    await fireEvent.click(screen.getByRole("button", { name: "Vehicle 2" }));
+    await waitFor(() =>
+      expect(chartCards(container)[0].textContent).toContain("Jan 2022"),
+    );
+    expect(nav(chartCards(container)[0], "Next").disabled).toBe(true);
+  });
   it.each([false, true])(
     "keeps both chart layouts, axes, retained tooltips, exact summaries and sparklines stable across continuation (desktop=%s)",
     async (isDesktop) => {
@@ -433,7 +519,7 @@ describe("bounded dashboard consumers", () => {
           (d) => d?.startsWith("M") && !/NaN|Infinity/.test(d),
         ),
       ).toBe(true);
-      // Both layouts expose the actual retained first price, not a sampled average.
+      // Both layouts expose the actual first price.
       const tooltips = async () => {
         const values: string[] = [];
         for (const card of container.querySelectorAll(".chart-card")) {

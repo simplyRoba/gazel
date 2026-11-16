@@ -13,6 +13,7 @@
   );
 
   let {
+    preferNearestY = false,
     formatX = (d: Record<string, unknown>) => {
       const date = d.date ?? d.month;
       if (date instanceof Date) {
@@ -36,14 +37,26 @@
     const target = event.currentTarget as SVGRectElement;
     const rect = target.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
 
     // Find nearest data point (use center of band for bar charts)
     let nearest = 0;
     let nearestDist = Infinity;
+    let nearestX = NaN;
+    let nearestYDist = Infinity;
     for (let i = 0; i < chart.data.length; i++) {
-      const dist = Math.abs(chart.xGet(chart.data[i]) + bandOffset - mouseX);
-      if (dist < nearestDist) {
+      const x = chart.xGet(chart.data[i]) + bandOffset;
+      const dist = Math.abs(x - mouseX);
+      const yDist = preferNearestY
+        ? Math.abs(chart.yGet(chart.data[i]) - mouseY)
+        : Infinity;
+      if (
+        dist < nearestDist ||
+        (preferNearestY && x === nearestX && yDist < nearestYDist)
+      ) {
         nearestDist = dist;
+        nearestX = x;
+        nearestYDist = yDist;
         nearest = i;
       }
     }

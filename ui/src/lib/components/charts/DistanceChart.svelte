@@ -3,6 +3,8 @@
   import type { PeriodModes } from "#lib/api.js";
   import { t } from "#lib/i18n/index.js";
   import { toPeriodData } from "#lib/charts.js";
+  import { monthlyWindow, type MonthlySelection } from "#lib/monthly-window.js";
+  import PeriodNavigation from "./PeriodNavigation.svelte";
   import { formatDistance } from "#lib/format.js";
   import { getSettings } from "#lib/stores/settings.svelte.js";
   import ChartCard from "./ChartCard.svelte";
@@ -15,9 +17,13 @@
   let {
     series,
     distanceUnit,
+    vehicleId = null,
+    selection = $bindable(null),
   }: {
     series: PeriodModes | null;
     distanceUnit: string;
+    vehicleId?: number | null;
+    selection?: MonthlySelection | null;
   } = $props();
 
   const settings = $derived(getSettings());
@@ -25,14 +31,24 @@
   type DistanceMode = "monthly" | "yearly";
   let mode: DistanceMode = $state("monthly");
 
-  const selectedSeries = $derived(series?.[mode]);
+  const window = $derived(
+    monthlyWindow(series?.monthly.points ?? [], vehicleId, selection),
+  );
+  $effect(() => {
+    const normalized = window.selection;
+    if (
+      selection?.vehicleId !== normalized?.vehicleId ||
+      selection?.start !== normalized?.start ||
+      selection?.followingLatest !== normalized?.followingLatest
+    ) {
+      selection = normalized;
+    }
+  });
+  const selectedSeries = $derived(
+    mode === "monthly" ? { points: window.points } : series?.yearly,
+  );
   const chartData = $derived(
     selectedSeries ? toPeriodData(selectedSeries) : [],
-  );
-  const caption = $derived(
-    selectedSeries?.omitted_older_periods && selectedSeries.displayed_range
-      ? t("charts.limitedRange", { ...selectedSeries.displayed_range })
-      : undefined,
   );
 
   const chartTitle = $derived(
@@ -75,7 +91,6 @@
 
 <ChartCard
   title={chartTitle}
-  {caption}
   data={chartData}
   x="month"
   y="value"
@@ -83,23 +98,32 @@
   yDomain={[0, null]}
 >
   {#snippet actions()}
-    <div class="segmented segmented-sm">
-      <button
-        type="button"
-        class="segmented-item"
-        class:active={mode === "monthly"}
-        onclick={() => (mode = "monthly")}
-      >
-        {t("charts.monthly")}
-      </button>
-      <button
-        type="button"
-        class="segmented-item"
-        class:active={mode === "yearly"}
-        onclick={() => (mode = "yearly")}
-      >
-        {t("charts.yearly")}
-      </button>
+    <div class="chart-actions">
+      {#if mode === "monthly" && (series?.monthly.points.length ?? 0) > 12}
+        <PeriodNavigation
+          {window}
+          locale={settings.locale}
+          onmove={(value) => (selection = value)}
+        />
+      {/if}
+      <div class="segmented segmented-sm">
+        <button
+          type="button"
+          class="segmented-item"
+          class:active={mode === "monthly"}
+          onclick={() => (mode = "monthly")}
+        >
+          {t("charts.monthly")}
+        </button>
+        <button
+          type="button"
+          class="segmented-item"
+          class:active={mode === "yearly"}
+          onclick={() => (mode = "yearly")}
+        >
+          {t("charts.yearly")}
+        </button>
+      </div>
     </div>
   {/snippet}
   <AxisY format={yFormat} />
@@ -110,6 +134,12 @@
 </ChartCard>
 
 <style>
+  .chart-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+  }
   .segmented-sm {
     transform: scale(0.85);
     transform-origin: right center;

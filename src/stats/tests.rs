@@ -263,7 +263,7 @@ fn monthly_costs_end_period_invalid_segments_and_year_gaps_match_frontend() {
             Period::Year,
         )
         .unwrap(),
-        &[("2024", 15.0), ("2026", 20.0)],
+        &[("2024", 15.0), ("2025", 0.0), ("2026", 20.0)],
     );
 }
 
@@ -357,7 +357,12 @@ fn yearly_distance_allocates_directly_instead_of_summing_monthly_rounding() {
             Period::Year,
         )
         .unwrap(),
-        &[("2024", 100.0), ("2025", 200.0), ("2027", 40.0)],
+        &[
+            ("2024", 100.0),
+            ("2025", 200.0),
+            ("2026", 0.0),
+            ("2027", 40.0),
+        ],
     );
 }
 
