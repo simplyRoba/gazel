@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.2](https://github.com/simplyRoba/gazel/compare/v1.5.1...v1.5.2) (2026-11-17)
+
+
+### Bug Fixes
+
+* refine monthly chart navigation ([462c4cd](https://github.com/simplyRoba/gazel/commit/462c4cd55d02dbe9649088400ab5831602f6b1b1))
+
 ## [1.5.1](https://github.com/simplyRoba/gazel/compare/v1.5.0...v1.5.1) (2026-11-16)
 
 
