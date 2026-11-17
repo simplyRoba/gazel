@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.0](https://github.com/simplyRoba/gazel/compare/v1.5.2...v1.6.0) (2026-11-17)
+
+
+### Features
+
+* animate dashboard charts ([f0b284a](https://github.com/simplyRoba/gazel/commit/f0b284af91fd72616256fe6d33818cda9d5970b0))
+
 ## [1.5.2](https://github.com/simplyRoba/gazel/compare/v1.5.1...v1.5.2) (2026-11-17)
 
 
