@@ -72,6 +72,11 @@
   border-width: 0 var(--corner-tri-sm) var(--corner-tri-sm) 0;
 }
 
+.segmented-sm {
+  transform: scale(0.85);
+  transform-origin: right center;
+}
+
 @media (max-width: 768px) {
   .segmented-item {
     min-height: 40px;

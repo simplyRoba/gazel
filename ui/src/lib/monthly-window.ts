@@ -32,9 +32,9 @@ export function monthlyWindow<T extends { period: string }>(
     points: points.slice(start, start + 12),
     canPrevious: start > 0,
     canNext: start < lastStart,
-    move(direction: -1 | 1): MonthlySelection | null {
+    move(direction: -1 | 1, step: 1 | 12 = 1): MonthlySelection | null {
       if (!points.length) return null;
-      const next = Math.max(0, Math.min(lastStart, start + direction * 12));
+      const next = Math.max(0, Math.min(lastStart, start + direction * step));
       return {
         vehicleId,
         start: points[next].period,

@@ -48,6 +48,7 @@ vi.mock("#lib/stores/notifications.svelte.js", () => ({
 import * as fillups from "#lib/stores/fillups.svelte.js";
 import * as stats from "#lib/stores/stats.svelte.js";
 import * as vehicles from "#lib/stores/vehicles.svelte.js";
+import { windowStart } from "#lib/components/charts/chart-test-helpers.js";
 import Settings from "../../routes/settings/+page.svelte";
 import Dashboard from "../../routes/+page.svelte";
 
@@ -294,16 +295,16 @@ describe("pending writes completing after dashboard mount", () => {
         ).toHaveLength(300);
         const cards =
           dashboard.container.querySelectorAll<HTMLElement>(".chart-card");
-        expect(cards[0].textContent).toContain("Jan 2022");
+        expect(windowStart(cards[0])).toBe("Jan 22");
         for (let i = 0; i < 12; i++) {
           await fireEvent.click(
             cards[0].querySelector<HTMLButtonElement>(
-              'button[aria-label="Previous 12 months"]',
+              'button[aria-label="Previous year"]',
             )!,
           );
         }
-        expect(cards[0].textContent).toContain("Jan 2010");
-        expect(cards[3].textContent).toContain("Jan 2010");
+        expect(windowStart(cards[0])).toBe("Jan 10");
+        expect(windowStart(cards[3])).toBe("Jan 10");
         expect(api.fetchFillups.mock.calls).toEqual([[1], [selected]]);
       } else {
         expect(fillups.getFillups()).toEqual([]);

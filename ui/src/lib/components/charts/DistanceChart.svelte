@@ -100,11 +100,7 @@
   {#snippet actions()}
     <div class="chart-actions">
       {#if mode === "monthly" && (series?.monthly.points.length ?? 0) > 12}
-        <PeriodNavigation
-          {window}
-          locale={settings.locale}
-          onmove={(value) => (selection = value)}
-        />
+        <PeriodNavigation {window} onmove={(value) => (selection = value)} />
       {/if}
       <div class="segmented segmented-sm">
         <button
@@ -139,9 +135,5 @@
     flex-wrap: wrap;
     justify-content: flex-end;
     align-items: center;
-  }
-  .segmented-sm {
-    transform: scale(0.85);
-    transform-origin: right center;
   }
 </style>

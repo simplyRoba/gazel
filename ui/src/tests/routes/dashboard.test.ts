@@ -53,6 +53,7 @@ vi.mock("#lib/stores/settings.svelte.js", () => ({
 import * as fillups from "#lib/stores/fillups.svelte.js";
 import * as stats from "#lib/stores/stats.svelte.js";
 import { formatEfficiency } from "#lib/format.js";
+import { windowStart } from "#lib/components/charts/chart-test-helpers.js";
 import Dashboard from "../../routes/+page.svelte";
 
 function vehicle(id: number): Vehicle {
@@ -222,7 +223,7 @@ function chartCards(container: HTMLElement) {
 }
 function nav(card: HTMLElement, direction: "Previous" | "Next") {
   return card.querySelector<HTMLButtonElement>(
-    `button[aria-label="${direction} 12 months"]`,
+    `button[aria-label="${direction} year"]`,
   )!;
 }
 function deferred<T>() {
@@ -382,13 +383,13 @@ describe("dashboard chart consumers", () => {
     expect(stats.getSelectedStats(1)!.charts.fuel_price.points).toHaveLength(
       360,
     );
-    expect(cards[0].textContent).toContain("Jan 2022");
-    expect(cards[3].textContent).toContain("Jan 2022");
+    expect(windowStart(cards[0])).toBe("Jan 22");
+    expect(windowStart(cards[3])).toBe("Jan 22");
     await fireEvent.click(nav(cards[0], "Previous"));
-    expect(cards[0].textContent).toContain("Jan 2021");
-    expect(cards[3].textContent).toContain("Jan 2021");
-    expect(cards[1].textContent).toContain("Jan 2022");
-    expect(cards[4].textContent).toContain("Jan 2022");
+    expect(windowStart(cards[0])).toBe("Jan 21");
+    expect(windowStart(cards[3])).toBe("Jan 21");
+    expect(windowStart(cards[1])).toBe("Jan 22");
+    expect(windowStart(cards[4])).toBe("Jan 22");
     expect(summaries()).toEqual(summariesBefore);
     expect([geometry(cards[2]), geometry(cards[5])]).toEqual(priceBefore);
     api.fetchFillups.mockResolvedValueOnce(page([0], null));
@@ -396,21 +397,21 @@ describe("dashboard chart consumers", () => {
     await waitFor(() =>
       expect(container.querySelectorAll(".fillup-card")).toHaveLength(3),
     );
-    expect(cards[0].textContent).toContain("Jan 2021");
-    expect(cards[1].textContent).toContain("Jan 2022");
+    expect(windowStart(cards[0])).toBe("Jan 21");
+    expect(windowStart(cards[1])).toBe("Jan 22");
     expect([geometry(cards[2]), geometry(cards[5])]).toEqual(priceBefore);
     for (let i = 0; i < 11; i++)
       await fireEvent.click(nav(cards[3], "Previous"));
-    expect(cards[0].textContent).toContain("Jan 2010");
+    expect(windowStart(cards[0])).toBe("Jan 10");
     expect(nav(cards[0], "Previous").disabled).toBe(true);
     expect(summaries()).toEqual(summariesBefore);
     await fireEvent.click(nav(cards[3], "Next"));
-    expect(cards[0].textContent).toContain("Jan 2011");
+    expect(windowStart(cards[0])).toBe("Jan 11");
     expect(summaries()).toEqual(summariesBefore);
     await fireEvent.click(nav(cards[0], "Previous"));
-    expect(cards[0].textContent).toContain("Jan 2010");
+    expect(windowStart(cards[0])).toBe("Jan 10");
     await fireEvent.click(nav(cards[4], "Previous"));
-    expect(cards[1].textContent).toContain("Jan 2021");
+    expect(windowStart(cards[1])).toBe("Jan 21");
     expect(summaries()).toEqual(summariesBefore);
     const yearly = Array.from(cards[0].querySelectorAll("button")).find((b) =>
       b.textContent?.includes("Yearly"),
@@ -425,7 +426,7 @@ describe("dashboard chart consumers", () => {
         b.textContent?.includes("Monthly"),
       )!,
     );
-    expect(cards[0].textContent).toContain("Jan 2010");
+    expect(windowStart(cards[0])).toBe("Jan 10");
     expect(summaries()).toEqual(summariesBefore);
     expect(api.fetchStats).toHaveBeenCalledTimes(1);
     expect(api.fetchFillups).toHaveBeenCalledTimes(2);
@@ -438,23 +439,23 @@ describe("dashboard chart consumers", () => {
     api.fetchStats.mockResolvedValueOnce(longResponse(1, 12, 156));
     await stats.refreshStats();
     await tick();
-    expect(cards[0].textContent).toContain("Jan 2022");
+    expect(windowStart(cards[0])).toBe("Jan 22");
     await fireEvent.click(nav(cards[0], "Previous"));
-    expect(cards[0].textContent).toContain("Jan 2021");
+    expect(windowStart(cards[0])).toBe("Jan 21");
     api.fetchStats.mockResolvedValueOnce(longResponse(1, 0, 168));
     await stats.refreshStats();
     await tick();
-    expect(cards[0].textContent).toContain("Jan 2021");
-    expect(cards[1].textContent).toContain("Jan 2023");
+    expect(windowStart(cards[0])).toBe("Jan 21");
+    expect(windowStart(cards[1])).toBe("Jan 23");
     api.fetchStats.mockResolvedValueOnce(longResponse(1, 144, 168));
     await stats.refreshStats();
     await tick();
-    expect(cards[0].textContent).toContain("Jan 2022");
+    expect(windowStart(cards[0])).toBe("Jan 22");
     api.fetchStats.mockResolvedValueOnce(longResponse(2, 0, 156));
     api.fetchFillups.mockResolvedValueOnce(page([3], null, 2));
     await fireEvent.click(screen.getByRole("button", { name: "Vehicle 2" }));
     await waitFor(() =>
-      expect(chartCards(container)[0].textContent).toContain("Jan 2022"),
+      expect(windowStart(chartCards(container)[0])).toBe("Jan 22"),
     );
     expect(nav(chartCards(container)[0], "Next").disabled).toBe(true);
   });

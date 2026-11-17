@@ -9,7 +9,7 @@ const months = (count: number) =>
 
 describe("monthly windows", () => {
   it.each([0, 1, 12, 13, 25, 160])(
-    "covers %i months and clamps both ends",
+    "covers %i months with single-month steps and clamps both ends",
     (count) => {
       const points = months(count);
       let view = monthlyWindow(points, 1, null);
@@ -27,9 +27,48 @@ describe("monthly windows", () => {
     },
   );
 
+  it("shifts the window by one month per single step", () => {
+    const points = months(36);
+    const latest = monthlyWindow(points, 1, null);
+    const back = monthlyWindow(points, 1, latest.move(-1));
+    expect(back.points[0].period).toBe("2001-12");
+    expect(back.points[11].period).toBe("2002-11");
+    expect(monthlyWindow(points, 1, back.move(1)).points).toEqual(
+      latest.points,
+    );
+  });
+
+  it("reaches a January-December window from a November-ending history", () => {
+    const points = months(35);
+    const latest = monthlyWindow(points, 1, null);
+    expect(latest.points[0].period).toBe("2001-12");
+    const calendarYear = monthlyWindow(points, 1, latest.move(-1, 12));
+    expect(calendarYear.points[0].period).toBe("2000-12");
+    const januaryStart = monthlyWindow(points, 1, calendarYear.move(1));
+    expect(januaryStart.points[0].period).toBe("2001-01");
+    expect(januaryStart.points[11].period).toBe("2001-12");
+  });
+
+  it("moves twelve months per fast step and stops at both ends", () => {
+    const points = months(30);
+    let view = monthlyWindow(points, 1, null);
+    expect(view.points[0].period).toBe("2001-07");
+    view = monthlyWindow(points, 1, view.move(-1, 12));
+    expect(view.points[0].period).toBe("2000-07");
+    view = monthlyWindow(points, 1, view.move(-1, 12));
+    expect(view.points[0].period).toBe("2000-01");
+    expect(view.canPrevious).toBe(false);
+    view = monthlyWindow(points, 1, view.move(1, 12));
+    expect(view.points[0].period).toBe("2001-01");
+    view = monthlyWindow(points, 1, view.move(1, 12));
+    expect(view.points[0].period).toBe("2001-07");
+    expect(view.canNext).toBe(false);
+    expect(view.selection).toBeNull();
+  });
+
   it("persists clamped selections across subsequent appends and prepends", () => {
     const points = months(36);
-    const historical = monthlyWindow(points, 1, null).move(-1);
+    const historical = monthlyWindow(points, 1, null).move(-1, 12);
     const clampedLatest = monthlyWindow(points.slice(0, 24), 1, historical);
     expect(clampedLatest.points[0].period).toBe("2001-01");
     expect(clampedLatest.selection).toBeNull();
@@ -46,7 +85,7 @@ describe("monthly windows", () => {
 
   it("preserves historical calendar keys across prepends and clamps deletions; latest follows and vehicle changes reset", () => {
     const points = months(36);
-    const historical = monthlyWindow(points, 1, null).move(-1);
+    const historical = monthlyWindow(points, 1, null).move(-1, 12);
     expect(monthlyWindow(points.slice(3), 1, historical).points[0].period).toBe(
       "2001-01",
     );

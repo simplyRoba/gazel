@@ -187,8 +187,10 @@
   "charts.monthlyDistance": "Monatliche Strecke ({unit})",
   "charts.yearlyDistance": "Jährliche Strecke ({unit})",
   "charts.fuelPrice": "Kraftstoffpreis ({currency}/{unit})",
-  "charts.previousPeriod": "Vorherige 12 Monate",
-  "charts.nextPeriod": "Nächste 12 Monate",
+  "charts.previousPeriod": "Vorheriger Monat",
+  "charts.nextPeriod": "Nächster Monat",
+  "charts.previousYear": "Vorheriges Jahr",
+  "charts.nextYear": "Nächstes Jahr",
 
   "toast.dismiss": "Schließen",
 

@@ -30,6 +30,10 @@ export async function hoverChart(
   await fireEvent.mouseMove(overlay, { clientX });
 }
 
+export function windowStart(container: Element): string | undefined {
+  return container.querySelector(".axis-x text")?.textContent?.trim();
+}
+
 export function periodSeries(points: PeriodSeries["points"]): PeriodSeries {
   return { points };
 }

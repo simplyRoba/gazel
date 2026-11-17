@@ -101,8 +101,8 @@ The dashboard SHALL display the selected vehicle's server-prepared monthly/yearl
 
 #### Scenario: Older periods omitted
 - **WHEN** distance history contains periods outside the initially visible latest 12-month window
-- **THEN** previous/next controls SHALL make every older applicable month reachable without rendering all months at once
-- **AND** the chart SHALL show its visible date range without an older-period omission caption
+- **THEN** in the desktop layout, previous/next controls SHALL make every older applicable month reachable without rendering all months at once
+- **AND** the chart SHALL NOT show an older-period omission caption or a visible date range
 
 #### Scenario: Complete yearly distance
 - **WHEN** distance history exceeds 12 years
@@ -120,8 +120,8 @@ The dashboard SHALL display server-prepared calendar-period cost totals as bars 
 
 #### Scenario: Older periods omitted
 - **WHEN** cost history contains periods outside the initially visible latest 12-month window
-- **THEN** previous/next controls SHALL make every older applicable month reachable without rendering all months at once
-- **AND** the chart SHALL show its visible date range without an older-period omission caption
+- **THEN** in the desktop layout, previous/next controls SHALL make every older applicable month reachable without rendering all months at once
+- **AND** the chart SHALL NOT show an older-period omission caption or a visible date range
 - **AND** all-time summary totals SHALL remain unaffected
 
 #### Scenario: Complete yearly cost
@@ -191,26 +191,31 @@ Full-size charts SHALL use complete server-prepared period aggregates and record
 
 ### Requirement: Monthly chart window navigation
 
-Monthly cost and distance charts SHALL provide keyboard- and touch-operable previous/next navigation through their full calendar history, with a concise visible date range and localized accessible control names. Navigation SHALL change only the visible chart window, not full-history summaries or the fuel-price timeline. Omission-warning captions SHALL NOT be displayed.
+In the desktop layout, monthly cost and distance charts SHALL provide keyboard-operable controls that move the visible 12-month window backward or forward by one month or by twelve months through their full calendar history, with localized accessible control names. The controls SHALL be visually consistent with the monthly/yearly mode toggle. The charts SHALL NOT display a visible date range or omission-warning captions; the category axis identifies the visible months. Navigation SHALL change only the visible chart window, not full-history summaries or the fuel-price timeline.
 
-#### Scenario: Previous and next windows
-- **WHEN** a user navigates backward or forward in monthly cost or distance
-- **THEN** the chart SHALL display at most 12 consecutive calendar months from its complete history and update the visible date range
-- **AND** repeated navigation SHALL reach both the earliest and latest applicable months
+#### Scenario: Single-month steps
+- **WHEN** a user moves backward or forward by one month in monthly cost or distance
+- **THEN** the chart SHALL display at most 12 consecutive calendar months shifted by one month
+- **AND** any 12 consecutive applicable months, such as January through December of one year, SHALL be reachable regardless of the latest recorded month
 - **AND** no statistics or fill-up-list request SHALL be required solely for navigation
+
+#### Scenario: Twelve-month steps
+- **WHEN** a user moves backward or forward by twelve months
+- **THEN** the chart SHALL display the same calendar months of the previous or next year where available
+- **AND** a step that would pass the earliest or latest applicable window SHALL stop at that window
 
 #### Scenario: Navigation endpoints
 - **WHEN** the visible window includes the earliest applicable month
-- **THEN** backward navigation SHALL be disabled
+- **THEN** all backward controls SHALL be disabled
 - **WHEN** the visible window includes the latest applicable month
-- **THEN** forward navigation SHALL be disabled
+- **THEN** all forward controls SHALL be disabled
 - **AND** navigation SHALL NOT create empty windows outside the source span
 
 #### Scenario: Short and oldest windows
 - **WHEN** a complete monthly history has at most 12 months
 - **THEN** all of its months SHALL be visible and navigation controls SHALL be hidden
 - **WHEN** a longer history reaches its oldest window
-- **THEN** that window SHALL include up to 12 available months, overlapping the adjacent window if needed rather than isolating a single oldest month
+- **THEN** that window SHALL include up to 12 available months rather than isolating a single oldest month
 - **AND** existing cost and distance insufficient-data rules SHALL apply to genuinely short histories
 
 #### Scenario: Mode switching
@@ -227,7 +232,12 @@ Monthly cost and distance charts SHALL provide keyboard- and touch-operable prev
 - **WHEN** data refreshes while an older window is selected
 - **THEN** its visible calendar range SHALL be retained where it still exists, or clamped to the nearest available window without becoming empty
 
-#### Scenario: Responsive navigation
-- **WHEN** a monthly chart appears in the compact carousel or desktop panel
-- **THEN** its navigation and date range SHALL fit within the card without horizontal overflow
-- **AND** its controls SHALL remain operable without relying solely on chart-swipe gestures
+#### Scenario: Compact layout
+- **WHEN** a monthly chart appears in the compact carousel layout
+- **THEN** no monthly navigation controls SHALL be shown
+- **AND** the chart SHALL show its current window, which is the latest applicable window unless an older one was selected earlier in the session
+- **AND** the chart header SHALL fit within the card without horizontal overflow
+
+#### Scenario: Desktop layout
+- **WHEN** a monthly chart appears in the desktop panel
+- **THEN** its navigation controls and mode toggle SHALL fit within the card header without horizontal overflow
