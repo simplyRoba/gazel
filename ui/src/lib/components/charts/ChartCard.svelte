@@ -87,6 +87,13 @@
     position: relative;
     width: 100%;
     flex: 1 1 auto;
+    animation: chart-fade-in 400ms ease-out;
+  }
+
+  @keyframes chart-fade-in {
+    from {
+      opacity: 0;
+    }
   }
 
   .chart-empty {

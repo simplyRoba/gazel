@@ -1,6 +1,7 @@
 <script lang="ts">
   import { getLayerCakeContext } from "layercake";
   import type { ChartScales, TimeSeriesPoint } from "#lib/charts.js";
+  import { tweenedValues } from "#lib/chart-motion.svelte.js";
 
   const chart = getLayerCakeContext<ChartScales, Record<string, unknown>[]>();
 
@@ -16,10 +17,15 @@
     opacity?: number;
   } = $props();
 
+  const ys = tweenedValues(
+    () => (points?.length === 2 ? points.map((p) => chart.yGet(p)) : []),
+    () => chart.height,
+  );
+
   // These are the full-population fit endpoints, not a fit of retained prices.
   const trendPath = $derived(
     points?.length === 2
-      ? `M${chart.xGet(points[0])},${chart.yGet(points[0])} L${chart.xGet(points[1])},${chart.yGet(points[1])}`
+      ? `M${chart.xGet(points[0])},${ys.current[0] ?? chart.height} L${chart.xGet(points[1])},${ys.current[1] ?? chart.height}`
       : "",
   );
 </script>

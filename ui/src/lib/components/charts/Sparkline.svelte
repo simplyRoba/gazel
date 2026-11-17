@@ -5,6 +5,7 @@
    */
 
   import type { SparklinePoint } from "#lib/charts.js";
+  import { tweenedValues } from "#lib/chart-motion.svelte.js";
 
   let {
     data = [] as SparklinePoint[],
@@ -14,11 +15,8 @@
     strokeWidth = 1.5,
   } = $props();
 
-  function computePaths(points: SparklinePoint[]): {
-    line: string;
-    area: string;
-  } {
-    if (points.length < 2) return { line: "", area: "" };
+  function mapPoints(points: SparklinePoint[]) {
+    if (points.length < 2) return [];
 
     const xMin = Math.min(...points.map((p) => p.x));
     const xMax = Math.max(...points.map((p) => p.x));
@@ -28,10 +26,17 @@
     const xRange = xMax - xMin || 1;
     const yRange = yMax - yMin || 1;
 
-    const mapped = points.map((p) => ({
+    return points.map((p) => ({
       sx: ((p.x - xMin) / xRange) * 100,
       sy: 100 - ((p.y - yMin) / yRange) * 80 - 10, // 10-90 range for padding
     }));
+  }
+
+  function computePaths(mapped: { sx: number; sy: number }[]): {
+    line: string;
+    area: string;
+  } {
+    if (mapped.length < 2) return { line: "", area: "" };
 
     // Build smooth cubic Bezier curve (Catmull-Rom → cubic control points)
     let line = `M${mapped[0].sx},${mapped[0].sy}`;
@@ -56,7 +61,16 @@
     return { line, area };
   }
 
-  const paths = $derived(computePaths(data));
+  const target = $derived(mapPoints(data));
+  const sys = tweenedValues(
+    () => target.map((p) => p.sy),
+    () => 100,
+  );
+  const paths = $derived(
+    computePaths(
+      target.map((p, i) => ({ sx: p.sx, sy: sys.current[i] ?? 100 })),
+    ),
+  );
 </script>
 
 <svg
@@ -84,5 +98,12 @@
     width: 100%;
     height: 100%;
     display: block;
+    animation: sparkline-fade-in 400ms ease-out;
+  }
+
+  @keyframes sparkline-fade-in {
+    from {
+      opacity: 0;
+    }
   }
 </style>
